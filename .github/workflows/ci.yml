@@ -1,0 +1,57 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # ── Python checks ──────────────────────────────────────────────────────────
+  python:
+    name: Python – syntax & import check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install --no-cache-dir -r python-service/requirements.txt
+
+      - name: Syntax check (all .py files)
+        run: python -m compileall python-service/
+
+      - name: Import check (no running event loop)
+        working-directory: python-service
+        env:
+          # Minimal env that lets main.py fully import without crashing
+          SERVICES_CONFIG: "[]"
+          UNIFI_HOST: "127.0.0.1"
+          UNIFI_API_KEY: "ci-placeholder"
+          UNIFI_SITE_ID: "ci-placeholder"
+          SINRIC_APP_KEY: "ci-placeholder"
+          SINRIC_APP_SECRET: "ci-placeholder"
+          API_TOKEN: "ci-placeholder"
+        run: python -c "import main; print('Import OK — all modules loaded successfully')"
+
+  # ── Docker build ───────────────────────────────────────────────────────────
+  docker:
+    name: Docker – image build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build image
+        uses: docker/build-push-action@v7
+        with:
+          context: ./python-service
+          push: false
+          tags: sinric-bridge:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

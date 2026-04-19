@@ -1,0 +1,24 @@
+version: 2
+
+updates:
+  # Python dependencies (requirements.txt)
+  - package-ecosystem: pip
+    directory: /python-service
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - python
+
+  # GitHub Actions workflow dependencies
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - github-actions
