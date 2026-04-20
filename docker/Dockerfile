@@ -1,6 +1,6 @@
 # CYT-NG Web Application
 # Target: Synology DS218+ (x86_64, Docker 20.10+)
-FROM python:3.11-slim AS base
+FROM python:3.12-slim AS base
 
 # Prevent Python from writing .pyc files and enable unbuffered output
 ENV PYTHONDONTWRITEBYTECODE=1 \
