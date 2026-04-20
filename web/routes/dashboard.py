@@ -2,7 +2,6 @@
 from datetime import datetime, timezone, timedelta
 
 from flask import Blueprint, render_template, jsonify, request
-from flask_login import login_required
 
 from web.extensions import get_db, socketio
 from cyt.models import Device, Appearance, Sensor, AnalysisRun, KismetFileTracker
@@ -11,9 +10,14 @@ bp = Blueprint("dashboard", __name__)
 
 
 @bp.before_request
-@login_required
 def require_login():
-    pass
+    """Require login for all dashboard routes except the health endpoint."""
+    if request.endpoint == "dashboard.api_status":
+        return
+    from flask_login import current_user
+    if not current_user.is_authenticated:
+        from flask import redirect, url_for
+        return redirect(url_for("auth.login", next=request.url))
 
 
 def _is_htmx():

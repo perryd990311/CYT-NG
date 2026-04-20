@@ -9,7 +9,7 @@ model: sonnet
 You containerize CYT-NG and build the RPi sensor provisioning system.
 
 ## Docker Architecture
-- **cyt-web**: Python 3.11 slim, Gunicorn + eventlet, health check at `/api/health`, non-root user
+- **cyt-web**: Python 3.12 slim, Gunicorn + gevent, health check at `/api/health`, non-root user
 - **cyt-nginx**: Nginx alpine, TLS termination, reverse proxy to cyt-web:8000
 - **Volumes**: kismet_data, cyt_data, cyt_logs, certs, ssh_keys
 

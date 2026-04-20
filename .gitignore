@@ -13,3 +13,4 @@ venv/
 *.log
 .tmp
 
+cyt_data.db

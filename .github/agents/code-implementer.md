@@ -12,7 +12,7 @@ We don't always need to implement the requests from the code-reviewer agent. Som
 ## Project Context
 
 ### Architecture
-- **cyt-web**: Flask + Flask-SocketIO + HTMX web application (Gunicorn + eventlet)
+- **cyt-web**: Flask + Flask-SocketIO + HTMX web application (Gunicorn + gevent)
 - **cyt-nginx**: Nginx TLS reverse proxy
 - **RPi sensors**: Remote Kismet sensors syncing .kismet files via SMB
 - **Database**: SQLite (CYT's own DB via SQLAlchemy) + reading Kismet .kismet files

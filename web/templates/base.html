@@ -109,12 +109,14 @@
     {% endwith %}
   </div>
 
-  <!-- Status bar (HTMX-refreshed) -->
+  <!-- Status bar (HTMX-refreshed) — only poll when logged in -->
+  {% if current_user.is_authenticated %}
   <div id="status-bar"
        hx-get="{{ url_for('dashboard.status_bar') }}"
        hx-trigger="load, every 30s"
        hx-swap="innerHTML">
   </div>
+  {% endif %}
 
   <!-- Main content -->
   <main class="container-fluid py-3">

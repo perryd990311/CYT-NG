@@ -5,7 +5,7 @@ CYT-NG is a Wi-Fi probe request surveillance detection system. Kismet sensors on
 
 ## Stack
 - **Python 3.11**, Flask, Flask-SocketIO, HTMX, Chart.js, SQLAlchemy, SQLite
-- **Docker**: cyt-web (Gunicorn + eventlet) + cyt-nginx (TLS reverse proxy)
+- **Docker**: cyt-web (Gunicorn + gevent) + cyt-nginx (TLS reverse proxy)
 - **Auth**: Synology DSM OAuth2 SSO + local bcrypt fallback via Flask-Login
 - **Target**: Synology DS218+ (x86_64, 10GB RAM, DSM 7.3.2)
 

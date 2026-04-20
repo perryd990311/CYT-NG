@@ -14,7 +14,7 @@ def create_app(config_class=Config):
     app.config.from_object(config_class)
 
     # Extensions
-    socketio.init_app(app, async_mode=app.config.get("SOCKETIO_ASYNC_MODE", "eventlet"))
+    socketio.init_app(app, async_mode=app.config.get("SOCKETIO_ASYNC_MODE", "gevent"))
     init_db(app)
 
     # Authentication

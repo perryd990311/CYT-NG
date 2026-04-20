@@ -54,7 +54,7 @@ class Config:
     MIN_SSIDS_FOR_FINGERPRINT = _cfg.get("fingerprinting", {}).get("min_ssids_for_fingerprint", 2)
 
     # Flask-SocketIO
-    SOCKETIO_ASYNC_MODE = "eventlet"
+    SOCKETIO_ASYNC_MODE = "gevent"
 
     # Raw config for sub-components
     RAW_CONFIG = _cfg

@@ -3,9 +3,9 @@ set -e
 
 echo "CYT-NG starting..."
 
-# Run Gunicorn with eventlet worker for WebSocket support
+# Run Gunicorn with gevent worker for WebSocket support
 exec gunicorn \
-    --worker-class eventlet \
+    --worker-class geventwebsocket.gunicorn.workers.GeventWebSocketWorker \
     --workers 1 \
     --bind 0.0.0.0:8000 \
     --timeout 120 \
