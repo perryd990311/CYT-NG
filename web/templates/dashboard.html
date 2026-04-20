@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — CYT-NG{% endblock %}
+
+{% block content %}
+<!-- Stat cards -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <div class="card stat-card">
+      <span class="stat-value text-info">{{ total_devices }}</span>
+      <span class="stat-label">Total Devices</span>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card stat-card">
+      <span class="stat-value text-success">{{ active_devices }}</span>
+      <span class="stat-label">Active (5 min)</span>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card stat-card">
+      <span class="stat-value text-warning">{{ total_appearances }}</span>
+      <span class="stat-label">Appearances</span>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card stat-card">
+      <span class="stat-value {% if sensors_online > 0 %}text-success{% else %}text-secondary{% endif %}">
+        {{ sensors_online }}/{{ sensors_total }}
+      </span>
+      <span class="stat-label">Sensors Online</span>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3">
+  <!-- Recent devices -->
+  <div class="col-lg-8">
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-phone"></i> Recent Devices</span>
+        <span class="htmx-indicator spinner-border spinner-border-sm text-info"></span>
+      </div>
+      <div class="card-body p-0"
+           id="device-list"
+           hx-get="{{ url_for('dashboard.api_devices') }}"
+           hx-trigger="load, refresh, every 30s"
+           hx-swap="innerHTML">
+      </div>
+    </div>
+  </div>
+
+  <!-- Quick info -->
+  <div class="col-lg-4">
+    <div class="card mb-3">
+      <div class="card-header"><i class="bi bi-graph-up"></i> Last Analysis</div>
+      <div class="card-body">
+        {% if last_run %}
+        <p class="mb-1"><strong>Status:</strong>
+          <span class="badge bg-{% if last_run.status == 'completed' %}success{% elif last_run.status == 'running' %}warning{% else %}danger{% endif %}">
+            {{ last_run.status }}
+          </span>
+        </p>
+        <p class="mb-1"><strong>Started:</strong> {{ last_run.started_at.strftime('%Y-%m-%d %H:%M') if last_run.started_at else '—' }}</p>
+        <p class="mb-1"><strong>Devices:</strong> {{ last_run.devices_analyzed }}</p>
+        <p class="mb-0"><strong>Alerts:</strong> {{ last_run.alerts_generated }}</p>
+        {% else %}
+        <p class="text-muted mb-0">No analysis runs yet.</p>
+        {% endif %}
+        <a href="{{ url_for('analysis.index') }}" class="btn btn-outline-info btn-sm mt-3">Run Analysis</a>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><i class="bi bi-broadcast-pin"></i> Sensors</div>
+      <div class="card-body">
+        {% if sensors_total > 0 %}
+        <p class="mb-1">
+          <i class="bi bi-circle-fill sensor-online"></i> {{ sensors_online }} online
+        </p>
+        <p class="mb-0">
+          <i class="bi bi-circle-fill sensor-offline"></i> {{ sensors_total - sensors_online }} offline
+        </p>
+        {% else %}
+        <p class="text-muted mb-0">No sensors configured.</p>
+        {% endif %}
+        <a href="{{ url_for('sensors.index') }}" class="btn btn-outline-info btn-sm mt-3">Manage Sensors</a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

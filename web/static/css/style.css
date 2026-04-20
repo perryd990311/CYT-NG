@@ -1,0 +1,92 @@
+/* CYT-NG Dark Theme */
+
+:root {
+  --cyt-bg: #121212;
+  --cyt-surface: #1e1e1e;
+  --cyt-surface-alt: #2a2a2a;
+  --cyt-border: #333;
+  --cyt-green: #00c853;
+  --cyt-amber: #ffab00;
+  --cyt-red: #ff1744;
+  --cyt-blue: #2979ff;
+}
+
+body {
+  background: var(--cyt-bg);
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+/* Cards */
+.card {
+  background: var(--cyt-surface);
+  border-color: var(--cyt-border);
+}
+
+.card-header {
+  background: var(--cyt-surface-alt);
+  border-color: var(--cyt-border);
+}
+
+/* Status bar */
+#status-bar {
+  background: var(--cyt-surface-alt);
+  border-bottom: 1px solid var(--cyt-border);
+  padding: 0.35rem 1rem;
+  font-size: 0.8rem;
+}
+
+#status-bar .badge {
+  font-size: 0.7rem;
+}
+
+/* Tables */
+.table {
+  --bs-table-bg: var(--cyt-surface);
+  --bs-table-striped-bg: var(--cyt-surface-alt);
+  --bs-table-hover-bg: #333;
+}
+
+/* Stat cards on dashboard */
+.stat-card {
+  text-align: center;
+  padding: 1.25rem;
+}
+
+.stat-card .stat-value {
+  font-size: 2.25rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.stat-card .stat-label {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #9e9e9e;
+  margin-top: 0.25rem;
+}
+
+/* Persistence score badge */
+.persistence-low    { color: var(--cyt-green); }
+.persistence-medium { color: var(--cyt-amber); }
+.persistence-high   { color: var(--cyt-red);   }
+
+/* Sensor status dots */
+.sensor-online  { color: var(--cyt-green); }
+.sensor-offline { color: #666; }
+.sensor-error   { color: var(--cyt-red); }
+
+/* HTMX loading indicator */
+.htmx-indicator {
+  display: none;
+}
+.htmx-request .htmx-indicator,
+.htmx-request.htmx-indicator {
+  display: inline-block;
+}
+
+/* Chart containers */
+.chart-container {
+  position: relative;
+  height: 280px;
+}

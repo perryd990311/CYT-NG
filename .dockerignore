@@ -1,0 +1,50 @@
+# Git
+.git
+.gitignore
+
+# Environment & secrets
+.env
+secure_credentials/
+*.pem
+*.key
+*.crt
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.egg-info
+.venv
+venv
+
+# IDE
+.vscode
+.idea
+
+# Legacy / not needed in container
+legacy/
+docs_archive/
+old_scripts/
+.tmp/
+sensor/
+*.md
+LICENSE
+*.sh
+!docker/entrypoint.sh
+!nginx/entrypoint.sh
+
+# GitHub / CI
+.github/
+
+# Data & logs (mounted as volumes)
+logs/
+reports/
+surveillance_reports/
+kml_files/
+analysis_logs/
+*.db
+*.kismet
+
+# OS
+.DS_Store
+Thumbs.db

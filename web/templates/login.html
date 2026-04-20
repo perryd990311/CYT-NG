@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block title %}Sign In — CYT-NG{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center mt-5">
+    <div class="col-sm-8 col-md-5 col-lg-4">
+        <div class="card bg-dark border-secondary">
+            <div class="card-body p-4">
+                <div class="text-center mb-4">
+                    <i class="bi bi-wifi text-success" style="font-size:2.5rem"></i>
+                    <h3 class="mt-2">CYT-NG</h3>
+                    <p class="text-secondary small">Wi-Fi Surveillance Detection</p>
+                </div>
+
+                <form method="post" action="{{ url_for('auth.login') }}">
+                    <div class="mb-3">
+                        <label class="form-label" for="username">Username</label>
+                        <input type="text" id="username" name="username"
+                               class="form-control bg-dark text-light"
+                               required autofocus autocomplete="username">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="password">Password</label>
+                        <input type="password" id="password" name="password"
+                               class="form-control bg-dark text-light"
+                               required autocomplete="current-password">
+                    </div>
+                    <button type="submit" class="btn btn-success w-100">
+                        <i class="bi bi-box-arrow-in-right"></i> Sign In
+                    </button>
+                </form>
+
+                {% if sso_enabled %}
+                <hr class="border-secondary my-4">
+                <a href="{{ url_for('auth.sso_login') }}" class="btn btn-outline-light w-100">
+                    <i class="bi bi-shield-lock"></i> Sign in with Synology DSM
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

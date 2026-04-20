@@ -7,7 +7,7 @@ import json
 import sys
 import os
 from pathlib import Path
-from secure_credentials import SecureCredentialManager
+from cyt.secure_credentials import SecureCredentialManager
 
 def main():
     print("🔐 CYT Credential Migration Tool")

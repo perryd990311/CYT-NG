@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Devices — CYT-NG{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h4 class="mb-0"><i class="bi bi-phone"></i> Devices ({{ total }})</h4>
+  <form class="d-flex gap-2" method="get">
+    <input type="text" name="q" value="{{ search }}" class="form-control form-control-sm"
+           placeholder="Search MAC or manufacturer…"
+           hx-get="{{ url_for('devices.index') }}"
+           hx-trigger="keyup changed delay:400ms"
+           hx-target="#device-table"
+           hx-include="[name='q']"
+           hx-push-url="true">
+  </form>
+</div>
+
+<div class="card">
+  <div class="card-body p-0" id="device-table">
+    {% include "partials/device_list.html" %}
+  </div>
+</div>
+{% endblock %}

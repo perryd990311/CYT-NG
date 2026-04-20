@@ -3,10 +3,13 @@
     "base_dir": ".",
     "log_dir": "logs",
     "kismet_logs": "/home/matt/kismet_logs/*.kismet",
+    "cyt_database": "cyt_data.db",
     "ignore_lists": {
-      "mac": "mac_list.py",
-      "ssid": "ssid_list.py"
-    }
+      "mac": "ignore_lists/mac_list.json",
+      "ssid": "ignore_lists/ssid_list.json"
+    },
+    "reports_dir": "surveillance_reports",
+    "kml_dir": "kml_files"
   },
   "timing": {
     "check_interval": 60,
@@ -23,5 +26,31 @@
     "lat_max": 37.0,
     "lon_min": -114.8,
     "lon_max": -109.0
+  },
+  "web": {
+    "host": "0.0.0.0",
+    "port": 8000,
+    "secret_key_env": "CYT_SECRET_KEY",
+    "debug": false
+  },
+  "docker": {
+    "image_name": "cyt-ng",
+    "nginx_port_https": 443,
+    "nginx_port_http": 80,
+    "volumes": {
+      "kismet_data": "/data/kismet",
+      "cyt_data": "/data/cyt",
+      "cyt_logs": "/data/logs",
+      "certs": "/certs"
+    }
+  },
+  "sensor": {
+    "sync_interval_minutes": 5,
+    "smb_share": "//nas/kismet_data",
+    "health_check_interval_minutes": 10
+  },
+  "fingerprinting": {
+    "jaccard_threshold": 0.85,
+    "min_ssids_for_fingerprint": 2
   }
 }

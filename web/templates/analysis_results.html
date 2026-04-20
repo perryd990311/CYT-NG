@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}Analysis #{{ run.id }} — CYT-NG{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{{ url_for('analysis.index') }}">Analysis</a></li>
+    <li class="breadcrumb-item active">Run #{{ run.id }}</li>
+  </ol>
+</nav>
+
+<div class="card mb-3">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <span><i class="bi bi-graph-up"></i> Analysis Run #{{ run.id }}</span>
+    <span class="badge bg-{% if run.status == 'completed' %}success{% elif run.status == 'running' %}warning{% else %}danger{% endif %}">
+      {{ run.status }}
+    </span>
+  </div>
+  <div class="card-body">
+    <div class="row g-3">
+      <div class="col-md-3">
+        <strong>Trigger</strong><br>{{ run.trigger }}
+      </div>
+      <div class="col-md-3">
+        <strong>Started</strong><br>{{ run.started_at.strftime('%Y-%m-%d %H:%M:%S') if run.started_at else '—' }}
+      </div>
+      <div class="col-md-3">
+        <strong>Finished</strong><br>{{ run.finished_at.strftime('%Y-%m-%d %H:%M:%S') if run.finished_at else '—' }}
+      </div>
+      <div class="col-md-3">
+        <strong>Devices / Alerts</strong><br>{{ run.devices_analyzed }} / {{ run.alerts_generated }}
+      </div>
+    </div>
+  </div>
+</div>
+
+{% if run.report_path %}
+<div class="card mb-3">
+  <div class="card-header"><i class="bi bi-file-earmark-text"></i> Report</div>
+  <div class="card-body">
+    <a href="{{ url_for('reports.download', run_id=run.id) }}" class="btn btn-outline-info">
+      <i class="bi bi-download"></i> Download Report
+    </a>
+    {% if run.kml_path %}
+    <a href="{{ url_for('reports.download_kml', run_id=run.id) }}" class="btn btn-outline-success ms-2">
+      <i class="bi bi-globe"></i> Download KML
+    </a>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+{% if run.status == 'running' %}
+<div class="card">
+  <div class="card-body text-center py-5">
+    <div class="spinner-border text-info mb-3" role="status"></div>
+    <p class="text-muted">Analysis in progress. This page will update automatically.</p>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

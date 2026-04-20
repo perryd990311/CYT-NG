@@ -1,0 +1,22 @@
+<!-- partials/status_bar.html — refreshed via HTMX every 30s -->
+<div class="container-fluid d-flex gap-3 flex-wrap align-items-center">
+  <span>
+    <i class="bi bi-clock"></i>
+    Data age:
+    {% if data_age_minutes is not none %}
+      <span class="badge {% if data_age_minutes <= 5 %}bg-success{% elif data_age_minutes <= 30 %}bg-warning text-dark{% else %}bg-danger{% endif %}">
+        {{ data_age_minutes }} min
+      </span>
+    {% else %}
+      <span class="badge bg-secondary">no data</span>
+    {% endif %}
+  </span>
+  <span>
+    <i class="bi bi-database"></i>
+    Kismet files: <strong>{{ kismet_files }}</strong>
+  </span>
+  <span>
+    <i class="bi bi-broadcast-pin"></i>
+    Sensors: <strong>{{ sensors_online }}/{{ sensors_total }}</strong>
+  </span>
+</div>

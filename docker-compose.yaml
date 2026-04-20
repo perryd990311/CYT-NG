@@ -1,0 +1,69 @@
+# CYT-NG Docker Compose — Synology DS218+ (Container Manager)
+# Place at: /volume1/docker/cyt-ng/docker-compose.yaml
+
+services:
+  cyt-web:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: cyt-web
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      - KISMET_DATA_PATH=/data/kismet
+      - CYT_DATABASE_PATH=/data/cyt/cyt_data.db
+    volumes:
+      # Kismet data — shared with RPi SMB sync
+      - /volume1/docker/kismet:/data/kismet:ro
+      # Persistent CYT database & reports
+      - /volume1/docker/cyt-ng/data/cyt:/data/cyt
+      - /volume1/docker/cyt-ng/data/logs:/data/logs
+      - /volume1/docker/cyt-ng/data/reports:/data/reports
+      - /volume1/docker/cyt-ng/data/kml:/data/kml
+      # Ignore lists (editable from host)
+      - /volume1/docker/cyt-ng/ignore_lists:/app/ignore_lists
+    networks:
+      vlan5:
+        ipv4_address: 10.0.1.205
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/status')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /run
+    security_opt:
+      - no-new-privileges:true 
+
+  cyt-nginx:
+    build:
+      context: nginx/
+      dockerfile: Dockerfile
+    container_name: cyt-nginx
+    restart: unless-stopped
+    ports:
+      - "443:443"
+      - "80:80"
+    volumes:
+      # Mount real certs here, or let entrypoint.sh auto-generate self-signed
+      - /volume1/docker/cyt-ng/certs:/etc/nginx/certs
+    depends_on:
+      cyt-web:
+        condition: service_healthy
+    networks:
+      vlan5:
+        ipv4_address: 10.0.1.204
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /var/cache/nginx
+      - /run
+    security_opt:
+      - no-new-privileges:true
+
+networks:
+  vlan5:
+    external: true

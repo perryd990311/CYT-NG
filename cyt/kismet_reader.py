@@ -1,0 +1,201 @@
+"""
+Batch reader for Kismet .kismet SQLite database files.
+
+Reads synced .kismet files from RPi sensors and extracts device/probe data
+for ingestion into CYT's own SQLite database.
+"""
+import glob
+import json
+import logging
+import os
+import sqlite3
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import List, Optional
+
+logger = logging.getLogger(__name__)
+
+
+@dataclass
+class DeviceRecord:
+    """Parsed device data from a Kismet database."""
+    mac: str
+    device_type: str
+    first_seen: datetime
+    last_seen: datetime
+    ssids: set = field(default_factory=set)
+    lat: Optional[float] = None
+    lon: Optional[float] = None
+    signal_dbm: Optional[int] = None
+    manufacturer: Optional[str] = None
+
+
+def scan_kismet_directory(path_pattern: str) -> List[str]:
+    """Find all .kismet files matching the given glob pattern."""
+    files = sorted(glob.glob(path_pattern))
+    logger.info("Found %d .kismet files matching '%s'", len(files), path_pattern)
+    return files
+
+
+def process_kismet_file(
+    file_path: str,
+    last_processed_ts: Optional[datetime] = None,
+) -> List[DeviceRecord]:
+    """
+    Extract device records from a single .kismet SQLite file.
+
+    Args:
+        file_path: Path to the .kismet database file.
+        last_processed_ts: Only return devices updated after this timestamp.
+            If None, return all devices.
+
+    Returns:
+        List of DeviceRecord objects.
+    """
+    records = []
+    try:
+        conn = sqlite3.connect(f"file:{file_path}?mode=ro", uri=True)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+
+        query = "SELECT * FROM devices"
+        params = []
+        if last_processed_ts:
+            query += " WHERE last_time > ?"
+            params.append(int(last_processed_ts.timestamp()))
+
+        cursor.execute(query, params)
+
+        for row in cursor.fetchall():
+            try:
+                device_json = json.loads(row["device"]) if row["device"] else {}
+            except (json.JSONDecodeError, KeyError):
+                device_json = {}
+
+            # Extract probed SSIDs
+            ssids = set()
+            probed = device_json.get("dot11.device", {})
+            if "dot11.device.probed_ssid_map" in probed:
+                for ssid_entry in probed["dot11.device.probed_ssid_map"]:
+                    ssid_val = ssid_entry.get("dot11.probedssid.ssid", "")
+                    if ssid_val:
+                        ssids.add(ssid_val)
+            # Fallback: single last probed
+            last_probed = probed.get("dot11.device.last_probed_ssid_record", {})
+            if last_probed:
+                ssid_val = last_probed.get("dot11.probedssid.ssid", "")
+                if ssid_val:
+                    ssids.add(ssid_val)
+
+            # Extract GPS if available
+            lat = lon = None
+            location = device_json.get("kismet.device.base.location", {})
+            avg_loc = location.get("kismet.common.location.avg_loc", {})
+            if avg_loc:
+                lat = avg_loc.get("kismet.common.location.geopoint", [None, None])[1]
+                lon = avg_loc.get("kismet.common.location.geopoint", [None, None])[0]
+
+            # Extract signal
+            signal_dbm = None
+            signal_data = device_json.get("kismet.device.base.signal", {})
+            if signal_data:
+                signal_dbm = signal_data.get("kismet.common.signal.last_signal", None)
+
+            mac = row["devmac"] if "devmac" in row.keys() else "unknown"
+            first_time = row["first_time"] if "first_time" in row.keys() else 0
+            last_time = row["last_time"] if "last_time" in row.keys() else 0
+
+            records.append(DeviceRecord(
+                mac=mac,
+                device_type=device_json.get("kismet.device.base.type", "unknown"),
+                first_seen=datetime.fromtimestamp(first_time, tz=timezone.utc),
+                last_seen=datetime.fromtimestamp(last_time, tz=timezone.utc),
+                ssids=ssids,
+                lat=lat,
+                lon=lon,
+                signal_dbm=signal_dbm,
+                manufacturer=device_json.get("kismet.device.base.manuf", None),
+            ))
+
+        conn.close()
+        logger.info("Extracted %d device records from %s", len(records), file_path)
+    except sqlite3.Error as e:
+        logger.error("SQLite error reading %s: %s", file_path, e)
+    except Exception as e:
+        logger.error("Error processing %s: %s", file_path, e)
+
+    return records
+
+
+def ingest_all(directory_pattern: str, session_factory, sensor_id: Optional[int] = None):
+    """
+    Batch ingest all .kismet files, tracking progress per file.
+
+    Uses KismetFileTracker to only process new/updated data.
+    Writes Device and Appearance records to CYT's database.
+    """
+    from cyt.models import Device, Appearance, KismetFileTracker
+
+    session = session_factory()
+    files = scan_kismet_directory(directory_pattern)
+
+    total_new = 0
+    for file_path in files:
+        # Check if already processed
+        tracker = session.query(KismetFileTracker).filter_by(file_path=file_path).first()
+        current_size = os.path.getsize(file_path)
+
+        last_ts = None
+        if tracker and tracker.file_size == current_size:
+            logger.debug("Skipping unchanged file: %s", file_path)
+            continue
+        if tracker:
+            last_ts = tracker.last_processed_ts
+
+        records = process_kismet_file(file_path, last_ts)
+
+        for rec in records:
+            # Upsert device
+            device = session.query(Device).filter_by(mac=rec.mac).first()
+            if not device:
+                device = Device(
+                    mac=rec.mac,
+                    device_type=rec.device_type,
+                    first_seen=rec.first_seen,
+                    last_seen=rec.last_seen,
+                    manufacturer=rec.manufacturer,
+                )
+                session.add(device)
+                session.flush()
+
+            if rec.last_seen > device.last_seen:
+                device.last_seen = rec.last_seen
+
+            # Add appearance
+            appearance = Appearance(
+                device_id=device.id,
+                sensor_id=sensor_id,
+                timestamp=rec.last_seen,
+                lat=rec.lat,
+                lon=rec.lon,
+                signal_dbm=rec.signal_dbm,
+                ssids_json=json.dumps(sorted(rec.ssids)) if rec.ssids else None,
+            )
+            session.add(appearance)
+            total_new += 1
+
+        # Update tracker
+        if not tracker:
+            tracker = KismetFileTracker(file_path=file_path)
+            session.add(tracker)
+        tracker.file_size = current_size
+        tracker.last_processed_ts = datetime.now(timezone.utc)
+        tracker.records_imported = (tracker.records_imported or 0) + len(records)
+
+        session.commit()
+        logger.info("Ingested %d records from %s", len(records), file_path)
+
+    logger.info("Ingestion complete. %d new appearances across %d files.", total_new, len(files))
+    session.close()
+    return total_new

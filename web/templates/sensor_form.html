@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block title %}Add Sensor — CYT-NG{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('sensors.index') }}">Sensors</a></li>
+        <li class="breadcrumb-item active">Add</li>
+    </ol>
+</nav>
+
+<div class="row">
+    <div class="col-lg-6">
+        <div class="card bg-dark border-secondary">
+            <div class="card-header">Add Kismet Sensor</div>
+            <div class="card-body">
+                <form method="post" action="{{ url_for('sensors.add') }}">
+                    <div class="mb-3">
+                        <label class="form-label">Name</label>
+                        <input type="text" name="name" class="form-control bg-dark text-light"
+                               placeholder="e.g. Living Room Pi" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Hostname / IP</label>
+                        <input type="text" name="hostname" class="form-control bg-dark text-light"
+                               placeholder="e.g. 192.168.1.50" required>
+                    </div>
+                    <div class="row g-3 mb-3">
+                        <div class="col">
+                            <label class="form-label">SSH Port</label>
+                            <input type="number" name="ssh_port" class="form-control bg-dark text-light"
+                                   value="22" min="1" max="65535">
+                        </div>
+                        <div class="col">
+                            <label class="form-label">SSH User</label>
+                            <input type="text" name="ssh_user" class="form-control bg-dark text-light"
+                                   value="pi">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Wi-Fi Interface</label>
+                        <input type="text" name="wifi_interface" class="form-control bg-dark text-light"
+                               value="wlan1">
+                    </div>
+                    <button type="submit" class="btn btn-outline-light">
+                        <i class="bi bi-plus-lg"></i> Add Sensor
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

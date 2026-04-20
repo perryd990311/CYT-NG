@@ -13,10 +13,10 @@ import pathlib
 import signal
 import sys
 import logging
-from secure_ignore_loader import load_ignore_lists
-from secure_database import SecureKismetDB, SecureTimeWindows
-from secure_main_logic import SecureCYTMonitor
-from secure_credentials import secure_config_loader
+from cyt.secure_ignore_loader import load_ignore_lists
+from cyt.secure_database import SecureKismetDB, SecureTimeWindows
+from cyt.secure_main_logic import SecureCYTMonitor
+from cyt.secure_credentials import secure_config_loader
 
 # Configure logging
 logging.basicConfig(

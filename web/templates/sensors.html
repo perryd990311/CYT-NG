@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+
+{% block title %}Sensors — CYT-NG{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-broadcast-pin"></i> Sensors</h2>
+    <a href="{{ url_for('sensors.add') }}" class="btn btn-outline-light">
+        <i class="bi bi-plus-lg"></i> Add Sensor
+    </a>
+</div>
+
+<div id="sensor-list"
+     hx-get="{{ url_for('sensors.index') }}"
+     hx-trigger="every 30s"
+     hx-swap="innerHTML">
+    {% include "partials/sensor_list.html" %}
+</div>
+{% endblock %}
