@@ -12,13 +12,13 @@
 
 <div class="row g-4">
     <div class="col-lg-6">
-        <div class="card bg-dark border-secondary">
+        <div class="card">
             <div class="card-header">
                 <span class="sensor-dot sensor-{{ sensor.status }}"></span>
                 {{ sensor.name }}
             </div>
             <div class="card-body">
-                <table class="table table-dark table-sm mb-0">
+                <table class="table table-sm mb-0">
                     <tbody>
                         <tr><td class="text-secondary">Hostname</td><td>{{ sensor.hostname }}</td></tr>
                         <tr><td class="text-secondary">SSH</td><td>{{ sensor.ssh_user }}@{{ sensor.hostname }}:{{ sensor.ssh_port }}</td></tr>
@@ -31,7 +31,7 @@
                     </tbody>
                 </table>
             </div>
-            <div class="card-footer bg-transparent border-secondary text-end">
+            <div class="card-footer text-end">
                 <form method="post" action="{{ url_for('sensors.delete', sensor_id=sensor.id) }}"
                       onsubmit="return confirm('Delete sensor {{ sensor.name }}?')">
                     <button class="btn btn-sm btn-outline-danger" type="submit">

@@ -3,28 +3,28 @@
 {% block title %}Initial Setup — CYT-NG{% endblock %}
 
 {% block content %}
-<div class="row justify-content-center mt-5">
+<div class="row justify-content-center" style="margin-top:12vh;">
     <div class="col-sm-8 col-md-5 col-lg-4">
-        <div class="card bg-dark border-secondary">
+        <div class="auth-card">
             <div class="card-body p-4">
                 <div class="text-center mb-4">
-                    <i class="bi bi-shield-check text-success" style="font-size:2.5rem"></i>
+                    <i class="bi bi-shield-check auth-icon" style="color:var(--cyt-green);"></i>
                     <h3 class="mt-2">Initial Setup</h3>
-                    <p class="text-secondary small">Create the first admin account</p>
+                    <p class="small" style="color:var(--cyt-text-muted);">Create the first admin account</p>
                 </div>
 
                 <form method="post" action="{{ url_for('auth.setup') }}">
                     <div class="mb-3">
                         <label class="form-label" for="username">Admin Username</label>
                         <input type="text" id="username" name="username"
-                               class="form-control bg-dark text-light"
+                               class="form-control"
                                required autofocus autocomplete="username"
                                minlength="3" maxlength="80">
                     </div>
                     <div class="mb-3">
                         <label class="form-label" for="password">Password</label>
                         <input type="password" id="password" name="password"
-                               class="form-control bg-dark text-light"
+                               class="form-control"
                                required autocomplete="new-password"
                                minlength="8">
                         <div class="form-text">Minimum 8 characters</div>
@@ -32,7 +32,7 @@
                     <div class="mb-3">
                         <label class="form-label" for="password_confirm">Confirm Password</label>
                         <input type="password" id="password_confirm" name="password_confirm"
-                               class="form-control bg-dark text-light"
+                               class="form-control"
                                required autocomplete="new-password">
                     </div>
                     <button type="submit" class="btn btn-success w-100">

@@ -26,74 +26,82 @@
 </head>
 <body hx-headers='{"X-Requested-With": "XMLHttpRequest"}'>
 
-  <!-- Navbar -->
-  <nav class="navbar navbar-expand-lg navbar-dark bg-dark border-bottom border-secondary">
-    <div class="container-fluid">
-      <a class="navbar-brand d-flex align-items-center gap-2" href="{{ url_for('dashboard.index') }}">
-        <i class="bi bi-wifi text-success"></i>
-        <span class="fw-bold">CYT-NG</span>
-      </a>
-      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navMain">
-        <span class="navbar-toggler-icon"></span>
+  <!-- Top bar: brand + connection + user -->
+  <nav class="cyt-topbar px-3 py-2 d-flex align-items-center">
+    <a class="text-decoration-none d-flex align-items-center gap-2 me-auto" href="{{ url_for('dashboard.index') }}">
+      <i class="bi bi-wifi" style="color: var(--cyt-cyan); font-size: 1.25rem;"></i>
+      <span class="fw-bold fs-5" style="color: var(--cyt-text);">CYT-NG</span>
+    </a>
+    <span class="small me-3" id="conn-status" style="color: var(--cyt-text-muted);">
+      <i class="bi bi-circle-fill text-warning" style="font-size:0.55rem;"></i> connecting…
+    </span>
+    {% if current_user.is_authenticated %}
+    <div class="dropdown">
+      <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button"
+              data-bs-toggle="dropdown" aria-expanded="false">
+        <i class="bi bi-person-circle"></i> {{ current_user.username }}
       </button>
-      <div class="collapse navbar-collapse" id="navMain">
-        <ul class="navbar-nav me-auto">
-          <li class="nav-item">
-            <a class="nav-link {% if request.endpoint and request.endpoint.startswith('dashboard') %}active{% endif %}"
-               href="{{ url_for('dashboard.index') }}">
-              <i class="bi bi-speedometer2"></i> Dashboard
-            </a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link {% if request.endpoint and request.endpoint.startswith('devices') %}active{% endif %}"
-               href="{{ url_for('devices.index') }}">
-              <i class="bi bi-phone"></i> Devices
-            </a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link {% if request.endpoint and request.endpoint.startswith('analysis') %}active{% endif %}"
-               href="{{ url_for('analysis.index') }}">
-              <i class="bi bi-graph-up"></i> Analysis
-            </a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link {% if request.endpoint and request.endpoint.startswith('reports') %}active{% endif %}"
-               href="{{ url_for('reports.index') }}">
-              <i class="bi bi-file-earmark-text"></i> Reports
-            </a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link {% if request.endpoint and request.endpoint.startswith('sensors') %}active{% endif %}"
-               href="{{ url_for('sensors.index') }}">
-              <i class="bi bi-broadcast-pin"></i> Sensors
-            </a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link {% if request.endpoint and request.endpoint.startswith('settings') %}active{% endif %}"
-               href="{{ url_for('settings.index') }}">
-              <i class="bi bi-gear"></i> Settings
-            </a>
-          </li>
-        </ul>
-        <span class="navbar-text small me-3" id="conn-status">
-          <i class="bi bi-circle-fill text-warning"></i> connecting…
-        </span>
-        {% if current_user.is_authenticated %}
-        <div class="dropdown">
-          <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button"
-                  data-bs-toggle="dropdown" aria-expanded="false">
-            <i class="bi bi-person-circle"></i> {{ current_user.username }}
-          </button>
-          <ul class="dropdown-menu dropdown-menu-end dropdown-menu-dark">
-            <li><span class="dropdown-item-text small text-secondary">{{ current_user.auth_provider }}</span></li>
-            <li><hr class="dropdown-divider"></li>
-            <li><a class="dropdown-item" href="{{ url_for('auth.logout') }}"><i class="bi bi-box-arrow-right"></i> Sign Out</a></li>
-          </ul>
-        </div>
-        {% endif %}
-      </div>
+      <ul class="dropdown-menu dropdown-menu-end dropdown-menu-dark">
+        <li><span class="dropdown-item-text small" style="color:var(--cyt-text-muted);">{{ current_user.auth_provider }}</span></li>
+        <li><hr class="dropdown-divider" style="border-color:var(--cyt-border);"></li>
+        <li><a class="dropdown-item" href="{{ url_for('auth.logout') }}"><i class="bi bi-box-arrow-right"></i> Sign Out</a></li>
+      </ul>
     </div>
+    {% endif %}
   </nav>
+
+  <!-- Tab navigation -->
+  {% if current_user.is_authenticated %}
+  <div class="cyt-tabs">
+    <ul class="nav nav-tabs border-0">
+      <li class="nav-item">
+        <a class="nav-link {% if request.endpoint and request.endpoint.startswith('dashboard') %}active{% endif %}"
+           href="{{ url_for('dashboard.index') }}">
+          <i class="bi bi-speedometer2"></i> Dashboard
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link {% if request.endpoint and request.endpoint.startswith('devices') %}active{% endif %}"
+           href="{{ url_for('devices.index') }}">
+          <i class="bi bi-phone"></i> Devices
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link {% if request.endpoint and request.endpoint.startswith('analysis') %}active{% endif %}"
+           href="{{ url_for('analysis.index') }}">
+          <i class="bi bi-graph-up"></i> Analysis
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link {% if request.endpoint and request.endpoint.startswith('reports') %}active{% endif %}"
+           href="{{ url_for('reports.index') }}">
+          <i class="bi bi-file-earmark-text"></i> Reports
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link {% if request.endpoint and request.endpoint.startswith('sensors') %}active{% endif %}"
+           href="{{ url_for('sensors.index') }}">
+          <i class="bi bi-broadcast-pin"></i> Sensors
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link {% if request.endpoint and request.endpoint.startswith('settings') %}active{% endif %}"
+           href="{{ url_for('settings.index') }}">
+          <i class="bi bi-gear"></i> Settings
+        </a>
+      </li>
+    </ul>
+  </div>
+  {% endif %}
+
+  <!-- Status bar (HTMX-refreshed) — only poll when logged in -->
+  {% if current_user.is_authenticated %}
+  <div id="status-bar"
+       hx-get="{{ url_for('dashboard.status_bar') }}"
+       hx-trigger="load, every 30s"
+       hx-swap="innerHTML">
+  </div>
+  {% endif %}
 
   <!-- Flash messages -->
   <div class="container-fluid mt-2">
@@ -108,15 +116,6 @@
     {% endif %}
     {% endwith %}
   </div>
-
-  <!-- Status bar (HTMX-refreshed) — only poll when logged in -->
-  {% if current_user.is_authenticated %}
-  <div id="status-bar"
-       hx-get="{{ url_for('dashboard.status_bar') }}"
-       hx-trigger="load, every 30s"
-       hx-swap="innerHTML">
-  </div>
-  {% endif %}
 
   <!-- Main content -->
   <main class="container-fluid py-3">

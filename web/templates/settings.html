@@ -8,10 +8,10 @@
 <div class="row g-4">
     <!-- Configuration summary -->
     <div class="col-lg-6">
-        <div class="card bg-dark border-secondary">
+        <div class="card">
             <div class="card-header">Configuration</div>
             <div class="card-body small">
-                <table class="table table-dark table-sm mb-0">
+                <table class="table table-sm mb-0">
                     <tbody>
                         <tr><td class="text-secondary">Check interval</td><td>{{ config.get('timing', {}).get('check_interval', '—') }}s</td></tr>
                         <tr><td class="text-secondary">Time windows</td><td>{{ config.get('timing', {}).get('time_windows', []) | join(', ') }} min</td></tr>
@@ -27,11 +27,11 @@
 
     <!-- MAC ignore list -->
     <div class="col-lg-6">
-        <div class="card bg-dark border-secondary">
+        <div class="card">
             <div class="card-header">MAC Ignore List ({{ mac_list | length }})</div>
             <div class="card-body">
                 <form method="post" action="{{ url_for('settings.update_mac_ignore') }}">
-                    <textarea class="form-control bg-dark text-light font-monospace mb-2"
+                    <textarea class="form-control font-monospace mb-2"
                               name="mac_list" rows="8"
                               placeholder="One MAC per line (AA:BB:CC:DD:EE:FF)">{{ mac_list | join('\n') }}</textarea>
                     <button class="btn btn-sm btn-outline-light" type="submit">
@@ -44,11 +44,11 @@
 
     <!-- SSID ignore list -->
     <div class="col-lg-6">
-        <div class="card bg-dark border-secondary">
+        <div class="card">
             <div class="card-header">SSID Ignore List ({{ ssid_list | length }})</div>
             <div class="card-body">
                 <form method="post" action="{{ url_for('settings.update_ssid_ignore') }}">
-                    <textarea class="form-control bg-dark text-light font-monospace mb-2"
+                    <textarea class="form-control font-monospace mb-2"
                               name="ssid_list" rows="8"
                               placeholder="One SSID per line">{{ ssid_list | join('\n') }}</textarea>
                     <button class="btn btn-sm btn-outline-light" type="submit">
