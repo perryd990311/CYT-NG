@@ -8,6 +8,7 @@ services:
       dockerfile: docker/Dockerfile
     container_name: cyt-web
     restart: unless-stopped
+    user: "1031:100"
     env_file: .env
     environment:
       - KISMET_DATA_PATH=/data/kismet
