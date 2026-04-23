@@ -5,17 +5,17 @@ services:
   cyt-web:
     build:
       context: .
-      dockerfile: repo/docker/Dockerfile
+      dockerfile: docker/Dockerfile
     container_name: cyt-web
     restart: unless-stopped
     user: "1031:100"
-    env_file: repo/.env
+    env_file: .env
     environment:
       - KISMET_DATA_PATH=/data/kismet
       - CYT_DATABASE_PATH=/data/cyt/cyt_data.db
     volumes:
-      # Kismet data — NAS SMB share (//172.20.0.250/kismet_data → /volume1/kismet_data on host)
-      - /volume1/kismet_data:/data/kismet:ro
+      # Kismet data — NAS SMB share (//172.20.0.250/docker/cyt-ng/kismet_data → /volume1/docker/cyt-ng/kismet_data on host)
+      - /volume1/docker/cyt-ng/kismet_data:/data/kismet:ro
       # Persistent CYT database & reports
       - /volume1/docker/cyt-ng/data/cyt:/data/cyt
       - /volume1/docker/cyt-ng/data/logs:/data/logs
@@ -41,7 +41,7 @@ services:
 
   cyt-nginx:
     build:
-      context: repo/nginx/
+      context: nginx/
       dockerfile: Dockerfile
     container_name: cyt-nginx
     restart: unless-stopped
