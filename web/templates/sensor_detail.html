@@ -34,53 +34,102 @@
                     </tbody>
                 </table>
             </div>
-            <div class="card-footer">
-                <div class="d-flex flex-wrap gap-2 align-items-end">
-                    <div>
-                        <label class="form-label mb-1 small text-muted">SSH Password <span class="text-secondary">(one-time, not stored)</span></label>
-                        <input type="password" id="ssh-password-input" class="form-control form-control-sm"
-                               style="width:200px" placeholder="leave blank if key auth works"
-                               autocomplete="new-password">
-                    </div>
-                    <form method="post" action="{{ url_for('sensors.provision', sensor_id=sensor.id) }}"
-                          id="provision-form">
-                        <input type="hidden" name="ssh_password" id="provision-pw">
-                        <button class="btn btn-sm btn-outline-info" type="submit"
-                                onclick="document.getElementById('provision-pw').value=document.getElementById('ssh-password-input').value"
-                                {% if sensor.status == 'provisioning' %}disabled{% endif %}>
-                            <i class="bi bi-gear"></i> Provision / Reinstall
+            <div class="card-footer d-flex gap-2">
+                <button class="btn btn-sm btn-outline-info" id="btn-provision"
+                        data-bs-toggle="modal" data-bs-target="#ssh-auth-modal"
+                        data-action="provision"
+                        {% if sensor.status == 'provisioning' %}disabled{% endif %}>
+                    <i class="bi bi-gear"></i> Provision / Reinstall
+                </button>
+                <button class="btn btn-sm btn-outline-secondary" id="btn-test-conn"
+                        data-bs-toggle="modal" data-bs-target="#ssh-auth-modal"
+                        data-action="test"
+                        {% if sensor.status == 'provisioning' %}disabled{% endif %}>
+                    <i class="bi bi-wifi"></i> Test Connection
+                </button>
+                <div class="ms-auto">
+                    <form method="post" action="{{ url_for('sensors.delete', sensor_id=sensor.id) }}"
+                          onsubmit="return confirm('Delete sensor {{ sensor.name }}?')">
+                        <button class="btn btn-sm btn-outline-danger" type="submit">
+                            <i class="bi bi-trash"></i> Delete
                         </button>
                     </form>
-                    <form method="post" action="{{ url_for('sensors.test_connectivity', sensor_id=sensor.id) }}"
-                          id="test-conn-form">
-                        <input type="hidden" name="ssh_password" id="test-conn-pw">
-                        <button class="btn btn-sm btn-outline-secondary" type="submit"
-                                hx-post="{{ url_for('sensors.test_connectivity', sensor_id=sensor.id) }}"
-                                hx-target="#conn-result" hx-swap="innerHTML"
-                                hx-include="#test-conn-pw"
-                                hx-indicator="#conn-spinner"
-                                onclick="document.getElementById('test-conn-pw').value=document.getElementById('ssh-password-input').value"
-                                {% if sensor.status == 'provisioning' %}disabled{% endif %}>
-                            <i class="bi bi-wifi"></i> Test Connection
-                            <span id="conn-spinner" class="htmx-indicator spinner-border spinner-border-sm ms-1"></span>
-                        </button>
-                    </form>
-                    <div class="ms-auto">
-                        <form method="post" action="{{ url_for('sensors.delete', sensor_id=sensor.id) }}"
-                              onsubmit="return confirm('Delete sensor {{ sensor.name }}?')">
-                            <button class="btn btn-sm btn-outline-danger" type="submit">
-                                <i class="bi bi-trash"></i> Delete
-                            </button>
-                        </form>
-                    </div>
                 </div>
             </div>
             <div id="conn-result" class="px-3 pb-2"></div>
         </div>
     </div>
+</div>
 
-    <!-- Provisioning Progress -->
+<!-- SSH Auth Modal -->
+<div class="modal fade" id="ssh-auth-modal" tabindex="-1" aria-labelledby="ssh-auth-modal-label" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content bg-dark text-light border-secondary">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title" id="ssh-auth-modal-label">
+                    <i class="bi bi-key"></i> Authentication
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <!-- SSH section -->
+                <h6 class="text-info mb-2"><i class="bi bi-terminal"></i> SSH</h6>
+                {% if sensor.ssh_key_path %}
+                <div class="alert alert-secondary py-2 mb-3 small">
+                    <i class="bi bi-key-fill"></i> Saved key: <code>{{ sensor.ssh_key_path }}</code>
+                </div>
+                {% endif %}
+                <div class="mb-3">
+                    <label class="form-label">SSH Password <span class="text-muted small">(leave blank for key auth)</span></label>
+                    <input type="password" id="modal-ssh-password" class="form-control"
+                           autocomplete="new-password"
+                           placeholder="Enter password or leave blank">
+                </div>
+
+                <!-- NAS section — only show if SMB share is configured -->
+                {% if sensor.smb_share_path %}
+                <hr class="border-secondary">
+                <h6 class="text-info mb-2"><i class="bi bi-hdd-network"></i> NAS Share — <code>{{ sensor.smb_share_path }}</code></h6>
+                <div class="row g-2 mb-2">
+                    <div class="col-6">
+                        <label class="form-label">NAS Username</label>
+                        <input type="text" id="modal-nas-user" class="form-control"
+                               placeholder="e.g. kismet">
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label">NAS Password</label>
+                        <input type="password" id="modal-nas-password" class="form-control"
+                               autocomplete="new-password" placeholder="SMB password">
+                    </div>
+                </div>
+                <div class="form-text text-muted small mb-1">
+                    Written to <code>/etc/cyt-nas.creds</code> on the sensor (mode 600). Leave blank if already configured.
+                </div>
+                {% endif %}
+
+                <div class="form-text text-muted mt-2">Credentials are used once and never stored by CYT-NG.</div>
+            </div>
+            <div class="modal-footer border-secondary">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-info" id="modal-confirm-btn">
+                    <i class="bi bi-play-fill"></i> <span id="modal-confirm-label">Connect</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Hidden forms submitted by modal -->
+<form method="post" action="{{ url_for('sensors.provision', sensor_id=sensor.id) }}" id="provision-form" style="display:none">
+    <input type="hidden" name="ssh_password" id="provision-pw">
+    <input type="hidden" name="nas_user" id="provision-nas-user">
+    <input type="hidden" name="nas_password" id="provision-nas-pw">
+</form>
+
+<!-- Provisioning Progress -->
+<div class="row g-4 mt-2">
     <div class="col-lg-6">
+
         <div class="card" id="provision-card" style="{% if sensor.status != 'provisioning' %}display:none;{% endif %}">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <span><i class="bi bi-terminal"></i> Provisioning Progress</span>
@@ -105,6 +154,68 @@
 <script>
 (function() {
     const sensorId = {{ sensor.id }};
+
+    // ── Modal logic ───────────────────────────────────────────────────────
+    let pendingAction = null; // 'provision' or 'test'
+
+    const modal = document.getElementById('ssh-auth-modal');
+    const confirmBtn = document.getElementById('modal-confirm-btn');
+    const confirmLabel = document.getElementById('modal-confirm-label');
+    const pwInput = document.getElementById('modal-ssh-password');
+    const nasUserInput = document.getElementById('modal-nas-user');
+    const nasPwInput = document.getElementById('modal-nas-password');
+
+    // When a button opens the modal, record which action it was
+    modal.addEventListener('show.bs.modal', function(event) {
+        const trigger = event.relatedTarget;
+        pendingAction = trigger ? trigger.getAttribute('data-action') : null;
+        // Clear previous values
+        pwInput.value = '';
+        if (nasUserInput) nasUserInput.value = '';
+        if (nasPwInput) nasPwInput.value = '';
+
+        if (pendingAction === 'provision') {
+            confirmLabel.textContent = 'Start Provisioning';
+            confirmBtn.className = 'btn btn-info';
+        } else {
+            confirmLabel.textContent = 'Test Connection';
+            confirmBtn.className = 'btn btn-secondary';
+        }
+
+        // Focus password field after modal animation
+        setTimeout(function() { pwInput.focus(); }, 300);
+    });
+
+    // Confirm button dispatches to the right action
+    confirmBtn.addEventListener('click', function() {
+        const sshPw = pwInput.value;
+        const nasUser = nasUserInput ? nasUserInput.value : '';
+        const nasPw = nasPwInput ? nasPwInput.value : '';
+
+        if (pendingAction === 'provision') {
+            document.getElementById('provision-pw').value = sshPw;
+            document.getElementById('provision-nas-user').value = nasUser;
+            document.getElementById('provision-nas-pw').value = nasPw;
+            document.getElementById('provision-form').submit();
+        } else if (pendingAction === 'test') {
+            // HTMX-style fetch for test connectivity
+            const fd = new FormData();
+            fd.append('ssh_password', sshPw);
+            fetch('{{ url_for("sensors.test_connectivity", sensor_id=sensor.id) }}', {
+                method: 'POST', body: fd
+            }).then(r => r.text()).then(html => {
+                document.getElementById('conn-result').innerHTML = html;
+                bootstrap.Modal.getInstance(modal).hide();
+            });
+        }
+    });
+
+    // Allow Enter key to confirm
+    modal.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') { e.preventDefault(); confirmBtn.click(); }
+    });
+
+    // ── Provisioning progress (SocketIO) ──────────────────────────────────
     const card = document.getElementById('provision-card');
     const bar = document.getElementById('provision-bar');
     const stepsDiv = document.getElementById('provision-steps');

@@ -63,6 +63,19 @@
                         <input type="text" name="smb_share_path" class="form-control font-monospace"
                                placeholder="e.g. //192.168.1.250/kismet_data">
                     </div>
+                    <div class="row g-3 mb-3">
+                        <div class="col">
+                            <label class="form-label">NAS Username <small class="text-muted">(one-time)</small></label>
+                            <input type="text" name="nas_user" class="form-control"
+                                   placeholder="e.g. kismet">
+                        </div>
+                        <div class="col">
+                            <label class="form-label">NAS Password <small class="text-muted">(one-time)</small></label>
+                            <input type="password" name="nas_password" class="form-control"
+                                   autocomplete="new-password" placeholder="SMB password">
+                        </div>
+                    </div>
+                    <div class="form-text mb-3">NAS credentials are written to <code>/etc/cyt-nas.creds</code> on the sensor. Leave blank if the share has no auth or is already configured.</div>
                     <div class="form-check mb-3">
                         <input class="form-check-input" type="checkbox" name="provision"
                                value="1" id="provisionCheck" checked>

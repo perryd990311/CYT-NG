@@ -44,6 +44,8 @@ def add():
     ssh_key_path = request.form.get("ssh_key_path", "").strip() or None
     smb_share_path = request.form.get("smb_share_path", "").strip() or None
     ssh_password = request.form.get("ssh_password", "") or None  # not persisted
+    nas_user = request.form.get("nas_user", "") or None          # not persisted
+    nas_password = request.form.get("nas_password", "") or None  # not persisted
 
     if not name or not hostname:
         flash("Name and hostname are required.", "danger")
@@ -87,7 +89,7 @@ def add():
         if socketio:
             socketio.start_background_task(
                 _run_provision, current_app._get_current_object(), sensor.id,
-                ssh_password=ssh_password
+                ssh_password=ssh_password, nas_user=nas_user, nas_password=nas_password
             )
         flash(f"Sensor '{name}' added — provisioning started.", "info")
         return redirect(url_for("sensors.detail", sensor_id=sensor.id))
@@ -127,8 +129,8 @@ def provision(sensor_id):
     if not sensor:
         flash("Sensor not found.", "warning")
         return redirect(url_for("sensors.index"))
-
-    ssh_password = request.form.get("ssh_password", "") or None  # not persisted
+    nas_user = request.form.get("nas_user", "") or None           # not persisted
+    nas_password = request.form.get("nas_password", "") or None   # not persisted
 
     # Mark as provisioning
     sensor.status = "provisioning"
@@ -138,7 +140,11 @@ def provision(sensor_id):
     if socketio:
         socketio.start_background_task(
             _run_provision, current_app._get_current_object(), sensor_id,
-            ssh_password=ssh_password
+            ssh_password=ssh_password, nas_user=nas_user, nas_password=nasxtensions.get("socketio")
+    if socketio:
+        socketio.start_background_task(
+            _run_provision, current_app._get_current_object(), sensor_id,
+            ssh_password=ssh_password, nas_user=nas_user, nas_password=nas_password
         )
 
     flash(f"Provisioning '{sensor.name}' started — watch progress below.", "info")
@@ -212,11 +218,7 @@ def _conn_html(results):
     rows = ""
     for label, ok, msg in results:
         icon = '<i class="bi bi-check-circle-fill text-success"></i>' if ok else '<i class="bi bi-x-circle-fill text-danger"></i>'
-        rows += f'<tr><td class="pe-2">{icon}</td><td>{label}</td><td class="text-muted small">{msg}</td></tr>'
-    return f'<table class="table table-sm table-borderless mb-0 mt-1"><tbody>{rows}</tbody></table>'
-
-
-def _run_provision(app, sensor_id, ssh_password=None):
+        rows += f'<tr><td class="pe-2">{icon}</td><t, nas_user=None, nas_password=None):
     from cyt.sensor_provisioner import provision_sensor
 
     with app.app_context():
@@ -230,6 +232,14 @@ def _run_provision(app, sensor_id, ssh_password=None):
             sensor, socketio,
             ssh_key_path=sensor.ssh_key_path or None,
             ssh_password=ssh_password,
+            nas_user=nas_user,
+            nas_password=nassions.get("socketio")
+        result = provision_sensor(
+            sensor, socketio,
+            ssh_key_path=sensor.ssh_key_path or None,
+            ssh_password=ssh_password,
+            nas_user=nas_user,
+            nas_password=nas_password,
         )
 
         # Update sensor record

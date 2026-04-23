@@ -41,11 +41,12 @@ PROVISION_STEPS = [
 STEP_IDS = [s[0] for s in PROVISION_STEPS]
 
 
-def provision_sensor(sensor, socketio, ssh_key_path=None, ssh_password=None):
+def provision_sensor(sensor, socketio, ssh_key_path=None, ssh_password=None,
+                     nas_user=None, nas_password=None):
     """Run provisioning on a remote sensor.
 
     Returns dict with 'success' bool, 'steps' list, and 'kismet_version'.
-    ssh_password is used only for the initial connection and never stored.
+    ssh_password and nas_password are used once and never stored.
     """
     sensor_id = sensor.id
     results = {}  # step_id -> status
@@ -129,7 +130,7 @@ def provision_sensor(sensor, socketio, ssh_key_path=None, ssh_password=None):
             if step_id == "install_sync_script":
                 ok, msg = _install_sync_files(client, sensor)
             elif step_id == "mount_nas":
-                ok, msg = _mount_nas(client, sensor)
+                ok, msg = _mount_nas(client, sensor, nas_user=nas_user, nas_password=nas_password)
             else:
                 ok, msg = _run_cmd(client, cmd, timeout=300 if "apt" in cmd else 30)
 
@@ -248,8 +249,8 @@ WantedBy=timers.target
     return True, "Sync script + systemd units installed"
 
 
-def _mount_nas(client, sensor):
-    """Create NAS mount point and configure fstab if smb_share_path is set."""
+def _mount_nas(client, sensor, nas_user=None, nas_password=None):
+    """Create NAS mount point, write credentials, configure fstab, and mount."""
     nas_share = getattr(sensor, "smb_share_path", None)
     if not nas_share:
         return True, "No SMB share configured — skipped"  # not a failure
@@ -261,6 +262,32 @@ def _mount_nas(client, sensor):
     ok, msg = _run_cmd(client, f"mountpoint -q {nas_mount} && echo mounted || echo not_mounted", timeout=10)
     if ok and "mounted" in msg:
         return True, f"{nas_mount} already mounted"
+
+    # Write SMB credentials file if user/password provided
+    if nas_user and nas_password:
+        try:
+            sftp = client.open_sftp()
+            try:
+                with sftp.open("/tmp/cyt-nas.creds", "w") as f:
+                    f.write(f"username={nas_user}\npassword={nas_password}\n")
+            finally:
+                sftp.close()
+            cmds = [
+                "sudo mv /tmp/cyt-nas.creds /etc/cyt-nas.creds",
+                "sudo chmod 600 /etc/cyt-nas.creds",
+                "sudo chown root:root /etc/cyt-nas.creds",
+            ]
+            for cmd in cmds:
+                ok_c, msg_c = _run_cmd(client, cmd, timeout=10)
+                if not ok_c:
+                    return False, f"Failed to install NAS credentials: {msg_c}"
+        except Exception as exc:
+            return False, f"SFTP creds upload failed: {exc}"
+    else:
+        # Check if creds file already exists from a previous run
+        ok_check, msg_check = _run_cmd(client, f"test -f {creds_file} && echo exists || echo missing", timeout=5)
+        if "missing" in msg_check:
+            return False, f"No NAS credentials — provide NAS username/password or create {creds_file} on the sensor"
 
     # Ensure mount point exists
     ok, msg = _run_cmd(client, f"sudo mkdir -p {nas_mount}", timeout=10)
