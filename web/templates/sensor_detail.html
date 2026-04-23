@@ -28,6 +28,18 @@
                         <tr><td class="text-secondary">Wi-Fi interface</td><td>{{ sensor.wifi_interface or '—' }}</td></tr>
                         <tr><td class="text-secondary">Kismet version</td><td>{{ sensor.kismet_version or '—' }}</td></tr>
                         <tr><td class="text-secondary">SMB share</td><td><code>{{ sensor.smb_share_path or '—' }}</code></td></tr>
+                        <tr>
+                            <td class="text-secondary">NAS directory
+                                <span class="text-muted small d-block">Pi hostname on NAS</span>
+                            </td>
+                            <td id="nas-dir-cell">
+                                <span id="nas-dir-display">{{ sensor.local_hostname or '—' }}</span>
+                                <button class="btn btn-link btn-sm p-0 ms-1 text-secondary"
+                                        hx-get="{{ url_for('sensors.nas_dir_form', sensor_id=sensor.id) }}"
+                                        hx-target="#nas-dir-cell" hx-swap="innerHTML"
+                                        title="Edit"><i class="bi bi-pencil"></i></button>
+                            </td>
+                        </tr>
                         <tr><td class="text-secondary">Status</td><td><span class="badge bg-{{ 'success' if sensor.status == 'online' else 'warning' if sensor.status == 'provisioning' else 'danger' if sensor.status == 'error' else 'secondary' }}">{{ sensor.status }}</span></td></tr>
                         <tr><td class="text-secondary">Last seen</td><td>{{ sensor.last_seen.strftime('%Y-%m-%d %H:%M:%S') if sensor.last_seen else 'never' }}</td></tr>
                         <tr><td class="text-secondary">Added</td><td>{{ sensor.created_at.strftime('%Y-%m-%d %H:%M') if sensor.created_at else '—' }}</td></tr>
