@@ -258,10 +258,16 @@ a:hover { color: var(--cyt-brand); }
 .sensor-dot.sensor-online  { background: var(--cyt-green); box-shadow: 0 0 6px var(--cyt-green); }
 .sensor-dot.sensor-offline { background: #4b5563; }
 .sensor-dot.sensor-error   { background: var(--cyt-red); box-shadow: 0 0 6px var(--cyt-red); }
+.sensor-dot.sensor-provisioning { background: var(--cyt-blue, #0dcaf0); animation: pulse-dot 1.2s infinite; }
 
 .sensor-online  { color: var(--cyt-green); }
 .sensor-offline { color: #4b5563; }
 .sensor-error   { color: var(--cyt-red); }
+
+/* Provisioning animation */
+@keyframes pulse-dot { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+.spin { animation: spin-icon 1s linear infinite; display: inline-block; }
+@keyframes spin-icon { to { transform: rotate(360deg); } }
 
 /* ── Breadcrumbs ───────────────────────────────────────────── */
 .breadcrumb {

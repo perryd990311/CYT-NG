@@ -1,7 +1,7 @@
 """Sensors blueprint — manage Kismet sensor Raspberry Pis."""
 import re
 
-from flask import Blueprint, render_template, request, flash, redirect, url_for
+from flask import Blueprint, render_template, request, flash, redirect, url_for, jsonify
 from flask_login import login_required
 
 from web.extensions import get_db
@@ -69,6 +69,22 @@ def add():
     )
     db.add(sensor)
     db.commit()
+
+    # Auto-provision if checkbox was checked
+    should_provision = request.form.get("provision") == "1"
+    if should_provision:
+        from flask import current_app
+
+        sensor.status = "provisioning"
+        db.commit()
+        socketio = current_app.extensions.get("socketio")
+        if socketio:
+            socketio.start_background_task(
+                _run_provision, current_app._get_current_object(), sensor.id
+            )
+        flash(f"Sensor '{name}' added — provisioning started.", "info")
+        return redirect(url_for("sensors.detail", sensor_id=sensor.id))
+
     flash(f"Sensor '{name}' added.", "success")
     return redirect(url_for("sensors.index"))
 
@@ -92,3 +108,58 @@ def delete(sensor_id):
         db.commit()
         flash(f"Sensor '{sensor.name}' deleted.", "success")
     return redirect(url_for("sensors.index"))
+
+
+@bp.route("/<int:sensor_id>/provision", methods=["POST"])
+def provision(sensor_id):
+    """Kick off sensor provisioning in a background SocketIO task."""
+    from flask import current_app
+    from flask_socketio import SocketIO
+
+    db = get_db()
+    sensor = db.query(Sensor).get(sensor_id)
+    if not sensor:
+        flash("Sensor not found.", "warning")
+        return redirect(url_for("sensors.index"))
+
+    # Mark as provisioning
+    sensor.status = "provisioning"
+    db.commit()
+
+    # Get SocketIO instance and start background task
+    socketio = current_app.extensions.get("socketio")
+    if socketio:
+        socketio.start_background_task(
+            _run_provision, current_app._get_current_object(), sensor_id
+        )
+
+    flash(f"Provisioning '{sensor.name}' started — watch progress below.", "info")
+    return redirect(url_for("sensors.detail", sensor_id=sensor_id))
+
+
+def _run_provision(app, sensor_id):
+    """Background task: provision sensor via SSH."""
+    from cyt.sensor_provisioner import provision_sensor
+
+    with app.app_context():
+        db = get_db()
+        sensor = db.query(Sensor).get(sensor_id)
+        if not sensor:
+            return
+
+        socketio = app.extensions.get("socketio")
+        result = provision_sensor(sensor, socketio)
+
+        # Update sensor record
+        sensor.status = "online" if result["success"] else "error"
+        if result.get("kismet_version"):
+            sensor.kismet_version = result["kismet_version"]
+        db.commit()
+
+        # Final status event
+        if socketio:
+            socketio.emit("provision_complete", {
+                "sensor_id": sensor_id,
+                "success": result["success"],
+                "status": sensor.status,
+            })
