@@ -14,8 +14,8 @@ services:
       - KISMET_DATA_PATH=/data/kismet
       - CYT_DATABASE_PATH=/data/cyt/cyt_data.db
     volumes:
-      # Kismet data — shared with RPi SMB sync
-      - /volume1/docker/kismet:/data/kismet:ro
+      # Kismet data — NAS SMB share (//172.20.0.250/kismet_data → /volume1/kismet_data on host)
+      - /volume1/kismet_data:/data/kismet:ro
       # Persistent CYT database & reports
       - /volume1/docker/cyt-ng/data/cyt:/data/cyt
       - /volume1/docker/cyt-ng/data/logs:/data/logs
