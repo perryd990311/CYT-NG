@@ -41,6 +41,9 @@ def add():
     ssh_port = request.form.get("ssh_port", "22").strip()
     ssh_user = request.form.get("ssh_user", "pi").strip()
     wifi_interface = request.form.get("wifi_interface", "wlan1").strip()
+    ssh_key_path = request.form.get("ssh_key_path", "").strip() or None
+    smb_share_path = request.form.get("smb_share_path", "").strip() or None
+    ssh_password = request.form.get("ssh_password", "") or None  # not persisted
 
     if not name or not hostname:
         flash("Name and hostname are required.", "danger")
@@ -66,6 +69,8 @@ def add():
         ssh_port=port,
         ssh_user=ssh_user,
         wifi_interface=wifi_interface,
+        ssh_key_path=ssh_key_path,
+        smb_share_path=smb_share_path,
         status="unknown",
     )
     db.add(sensor)
@@ -81,7 +86,8 @@ def add():
         socketio = current_app.extensions.get("socketio")
         if socketio:
             socketio.start_background_task(
-                _run_provision, current_app._get_current_object(), sensor.id
+                _run_provision, current_app._get_current_object(), sensor.id,
+                ssh_password=ssh_password
             )
         flash(f"Sensor '{name}' added — provisioning started.", "info")
         return redirect(url_for("sensors.detail", sensor_id=sensor.id))
@@ -115,7 +121,6 @@ def delete(sensor_id):
 def provision(sensor_id):
     """Kick off sensor provisioning in a background SocketIO task."""
     from flask import current_app
-    from flask_socketio import SocketIO
 
     db = get_db()
     sensor = db.query(Sensor).get(sensor_id)
@@ -123,15 +128,17 @@ def provision(sensor_id):
         flash("Sensor not found.", "warning")
         return redirect(url_for("sensors.index"))
 
+    ssh_password = request.form.get("ssh_password", "") or None  # not persisted
+
     # Mark as provisioning
     sensor.status = "provisioning"
     db.commit()
 
-    # Get SocketIO instance and start background task
     socketio = current_app.extensions.get("socketio")
     if socketio:
         socketio.start_background_task(
-            _run_provision, current_app._get_current_object(), sensor_id
+            _run_provision, current_app._get_current_object(), sensor_id,
+            ssh_password=ssh_password
         )
 
     flash(f"Provisioning '{sensor.name}' started — watch progress below.", "info")
@@ -150,6 +157,7 @@ def test_connectivity(sensor_id):
 
     host = sensor.hostname
     port = sensor.ssh_port or 22
+    ssh_password = request.form.get("ssh_password", "") or None
     results = []
 
     # 1. TCP reachability
@@ -165,12 +173,17 @@ def test_connectivity(sensor_id):
     client = paramiko.SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     try:
-        client.connect(
+        connect_kwargs = dict(
             hostname=host, port=port,
             username=sensor.ssh_user or "pi",
             timeout=10, allow_agent=True, look_for_keys=True,
             banner_timeout=10,
         )
+        if sensor.ssh_key_path:
+            connect_kwargs["key_filename"] = sensor.ssh_key_path
+        if ssh_password:
+            connect_kwargs["password"] = ssh_password
+        client.connect(**connect_kwargs)
         results.append(("SSH authentication", True, f"Authenticated as {sensor.ssh_user or 'pi'}"))
     except paramiko.AuthenticationException:
         results.append(("SSH authentication", False, "Authentication failed — check SSH key"))
@@ -203,7 +216,7 @@ def _conn_html(results):
     return f'<table class="table table-sm table-borderless mb-0 mt-1"><tbody>{rows}</tbody></table>'
 
 
-def _run_provision(app, sensor_id):
+def _run_provision(app, sensor_id, ssh_password=None):
     from cyt.sensor_provisioner import provision_sensor
 
     with app.app_context():
@@ -213,7 +226,11 @@ def _run_provision(app, sensor_id):
             return
 
         socketio = app.extensions.get("socketio")
-        result = provision_sensor(sensor, socketio)
+        result = provision_sensor(
+            sensor, socketio,
+            ssh_key_path=sensor.ssh_key_path or None,
+            ssh_password=ssh_password,
+        )
 
         # Update sensor record
         sensor.status = "online" if result["success"] else "error"

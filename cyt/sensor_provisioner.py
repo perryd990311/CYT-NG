@@ -41,10 +41,11 @@ PROVISION_STEPS = [
 STEP_IDS = [s[0] for s in PROVISION_STEPS]
 
 
-def provision_sensor(sensor, socketio, ssh_key_path=None):
+def provision_sensor(sensor, socketio, ssh_key_path=None, ssh_password=None):
     """Run provisioning on a remote sensor.
 
     Returns dict with 'success' bool, 'steps' list, and 'kismet_version'.
+    ssh_password is used only for the initial connection and never stored.
     """
     sensor_id = sensor.id
     results = {}  # step_id -> status
@@ -98,6 +99,8 @@ def provision_sensor(sensor, socketio, ssh_key_path=None):
         }
         if ssh_key_path:
             connect_kwargs["key_filename"] = ssh_key_path
+        if ssh_password:
+            connect_kwargs["password"] = ssh_password
         client.connect(**connect_kwargs)
         results["connectivity"] = "ok"
         emit("connectivity", "ok", f"Authenticated as {sensor.ssh_user or 'pi'}@{sensor.hostname}")

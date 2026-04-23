@@ -43,6 +43,26 @@
                         <input type="text" name="wifi_interface" class="form-control"
                                value="wlan1">
                     </div>
+                    <hr class="border-secondary my-3">
+                    <p class="small text-muted mb-2"><i class="bi bi-key"></i> SSH Authentication — provide a key path, a password, or both. Passwords are used once and never stored.</p>
+                    <div class="mb-3">
+                        <label class="form-label">SSH Private Key Path <small class="text-muted">(on the server running CYT-NG)</small></label>
+                        <input type="text" name="ssh_key_path" class="form-control font-monospace"
+                               placeholder="e.g. /data/cyt/id_ed25519  or  leave blank to use SSH agent">
+                        <div class="form-text">Must be readable by the CYT-NG container user. Leave blank to use the SSH agent or <code>~/.ssh</code> keys.</div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">SSH Password <small class="text-muted">(one-time, not stored)</small></label>
+                        <input type="password" name="ssh_password" class="form-control"
+                               autocomplete="new-password"
+                               placeholder="Only needed if no SSH key is configured">
+                        <div class="form-text">Used for provisioning only. Set up key-based auth during provisioning for future runs.</div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">SMB Share Path</label>
+                        <input type="text" name="smb_share_path" class="form-control font-monospace"
+                               placeholder="e.g. //192.168.1.250/kismet_data">
+                    </div>
                     <div class="form-check mb-3">
                         <input class="form-check-input" type="checkbox" name="provision"
                                value="1" id="provisionCheck" checked>

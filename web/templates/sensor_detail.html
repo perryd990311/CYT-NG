@@ -34,29 +34,46 @@
                     </tbody>
                 </table>
             </div>
-            <div class="card-footer d-flex justify-content-between">
-                <div class="d-flex gap-2">
-                    <form method="post" action="{{ url_for('sensors.provision', sensor_id=sensor.id) }}">
+            <div class="card-footer">
+                <div class="d-flex flex-wrap gap-2 align-items-end">
+                    <div>
+                        <label class="form-label mb-1 small text-muted">SSH Password <span class="text-secondary">(one-time, not stored)</span></label>
+                        <input type="password" id="ssh-password-input" class="form-control form-control-sm"
+                               style="width:200px" placeholder="leave blank if key auth works"
+                               autocomplete="new-password">
+                    </div>
+                    <form method="post" action="{{ url_for('sensors.provision', sensor_id=sensor.id) }}"
+                          id="provision-form">
+                        <input type="hidden" name="ssh_password" id="provision-pw">
                         <button class="btn btn-sm btn-outline-info" type="submit"
+                                onclick="document.getElementById('provision-pw').value=document.getElementById('ssh-password-input').value"
                                 {% if sensor.status == 'provisioning' %}disabled{% endif %}>
                             <i class="bi bi-gear"></i> Provision / Reinstall
                         </button>
                     </form>
-                    <button class="btn btn-sm btn-outline-secondary" id="btn-test-conn"
-                            hx-post="{{ url_for('sensors.test_connectivity', sensor_id=sensor.id) }}"
-                            hx-target="#conn-result" hx-swap="innerHTML"
-                            hx-indicator="#conn-spinner"
-                            {% if sensor.status == 'provisioning' %}disabled{% endif %}>
-                        <i class="bi bi-wifi"></i> Test Connection
-                        <span id="conn-spinner" class="htmx-indicator spinner-border spinner-border-sm ms-1"></span>
-                    </button>
+                    <form method="post" action="{{ url_for('sensors.test_connectivity', sensor_id=sensor.id) }}"
+                          id="test-conn-form">
+                        <input type="hidden" name="ssh_password" id="test-conn-pw">
+                        <button class="btn btn-sm btn-outline-secondary" type="submit"
+                                hx-post="{{ url_for('sensors.test_connectivity', sensor_id=sensor.id) }}"
+                                hx-target="#conn-result" hx-swap="innerHTML"
+                                hx-include="#test-conn-pw"
+                                hx-indicator="#conn-spinner"
+                                onclick="document.getElementById('test-conn-pw').value=document.getElementById('ssh-password-input').value"
+                                {% if sensor.status == 'provisioning' %}disabled{% endif %}>
+                            <i class="bi bi-wifi"></i> Test Connection
+                            <span id="conn-spinner" class="htmx-indicator spinner-border spinner-border-sm ms-1"></span>
+                        </button>
+                    </form>
+                    <div class="ms-auto">
+                        <form method="post" action="{{ url_for('sensors.delete', sensor_id=sensor.id) }}"
+                              onsubmit="return confirm('Delete sensor {{ sensor.name }}?')">
+                            <button class="btn btn-sm btn-outline-danger" type="submit">
+                                <i class="bi bi-trash"></i> Delete
+                            </button>
+                        </form>
+                    </div>
                 </div>
-                <form method="post" action="{{ url_for('sensors.delete', sensor_id=sensor.id) }}"
-                      onsubmit="return confirm('Delete sensor {{ sensor.name }}?')">
-                    <button class="btn btn-sm btn-outline-danger" type="submit">
-                        <i class="bi bi-trash"></i> Delete
-                    </button>
-                </form>
             </div>
             <div id="conn-result" class="px-3 pb-2"></div>
         </div>
