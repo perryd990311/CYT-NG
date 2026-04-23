@@ -34,7 +34,9 @@ def index():
 @bp.route("/add", methods=["GET", "POST"])
 def add():
     if request.method == "GET":
-        return render_template("sensor_form.html", sensor=None)
+        from flask import current_app
+        default_smb = current_app.config.get("RAW_CONFIG", {}).get("sensor", {}).get("smb_share", "")
+        return render_template("sensor_form.html", sensor=None, default_smb=default_smb)
 
     name = request.form.get("name", "").strip()
     hostname = request.form.get("hostname", "").strip()
