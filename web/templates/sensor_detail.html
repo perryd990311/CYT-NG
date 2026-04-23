@@ -35,12 +35,22 @@
                 </table>
             </div>
             <div class="card-footer d-flex justify-content-between">
-                <form method="post" action="{{ url_for('sensors.provision', sensor_id=sensor.id) }}">
-                    <button class="btn btn-sm btn-outline-info" type="submit"
+                <div class="d-flex gap-2">
+                    <form method="post" action="{{ url_for('sensors.provision', sensor_id=sensor.id) }}">
+                        <button class="btn btn-sm btn-outline-info" type="submit"
+                                {% if sensor.status == 'provisioning' %}disabled{% endif %}>
+                            <i class="bi bi-gear"></i> Provision / Reinstall
+                        </button>
+                    </form>
+                    <button class="btn btn-sm btn-outline-secondary" id="btn-test-conn"
+                            hx-post="{{ url_for('sensors.test_connectivity', sensor_id=sensor.id) }}"
+                            hx-target="#conn-result" hx-swap="innerHTML"
+                            hx-indicator="#conn-spinner"
                             {% if sensor.status == 'provisioning' %}disabled{% endif %}>
-                        <i class="bi bi-gear"></i> Provision / Reinstall
+                        <i class="bi bi-wifi"></i> Test Connection
+                        <span id="conn-spinner" class="htmx-indicator spinner-border spinner-border-sm ms-1"></span>
                     </button>
-                </form>
+                </div>
                 <form method="post" action="{{ url_for('sensors.delete', sensor_id=sensor.id) }}"
                       onsubmit="return confirm('Delete sensor {{ sensor.name }}?')">
                     <button class="btn btn-sm btn-outline-danger" type="submit">
@@ -48,19 +58,24 @@
                     </button>
                 </form>
             </div>
+            <div id="conn-result" class="px-3 pb-2"></div>
         </div>
     </div>
 
     <!-- Provisioning Progress -->
     <div class="col-lg-6">
         <div class="card" id="provision-card" style="{% if sensor.status != 'provisioning' %}display:none;{% endif %}">
-            <div class="card-header"><i class="bi bi-terminal"></i> Provisioning Progress</div>
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-terminal"></i> Provisioning Progress</span>
+                <small class="text-muted" id="provision-step-count"></small>
+            </div>
             <div class="card-body">
                 <div class="progress mb-3" style="height: 6px;">
-                    <div class="progress-bar bg-info" id="provision-bar" role="progressbar" style="width: 0%"></div>
+                    <div class="progress-bar bg-info" id="provision-bar" role="progressbar" style="width: 0%"
+                         aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
                 </div>
-                <div id="provision-steps">
-                    <!-- Steps populated by SocketIO -->
+                <div id="provision-steps" class="font-monospace small">
+                    <!-- Steps rendered when provisioning starts -->
                 </div>
                 <div id="provision-result" class="mt-3" style="display:none;"></div>
             </div>
@@ -77,23 +92,14 @@
     const bar = document.getElementById('provision-bar');
     const stepsDiv = document.getElementById('provision-steps');
     const resultDiv = document.getElementById('provision-result');
-
-    const stepLabels = {
-        connectivity: 'SSH Connectivity',
-        update_packages: 'Update Packages',
-        install_kismet: 'Install Kismet & Tools',
-        create_kismet_user: 'Create Kismet User',
-        create_log_dir: 'Create Log Directory',
-        install_sync_script: 'Install Sync Script',
-        enable_sync_timer: 'Enable Sync Timer',
-        detect_kismet_version: 'Detect Kismet Version'
-    };
+    const stepCount = document.getElementById('provision-step-count');
 
     const statusIcons = {
-        running: '<span class="spinner-border spinner-border-sm text-info"></span>',
-        ok: '<i class="bi bi-check-circle-fill text-success"></i>',
-        error: '<i class="bi bi-x-circle-fill text-danger"></i>',
-        skipped: '<i class="bi bi-dash-circle text-secondary"></i>'
+        pending:  '<i class="bi bi-circle text-secondary"></i>',
+        running:  '<span class="spinner-border spinner-border-sm text-info" style="width:.85rem;height:.85rem"></span>',
+        ok:       '<i class="bi bi-check-circle-fill text-success"></i>',
+        error:    '<i class="bi bi-x-circle-fill text-danger"></i>',
+        skipped:  '<i class="bi bi-dash-circle text-secondary"></i>'
     };
 
     if (typeof io !== 'undefined') {
@@ -103,36 +109,51 @@
             if (data.sensor_id !== sensorId) return;
 
             card.style.display = '';
-            const pct = Math.round((data.completed / data.total) * 100);
-            bar.style.width = pct + '%';
+
+            // Progress bar — only advance on real progress (not pending)
+            if (data.status !== 'pending') {
+                const pct = Math.round((data.completed / data.total) * 100);
+                bar.style.width = pct + '%';
+                bar.setAttribute('aria-valuenow', pct);
+                if (stepCount) stepCount.textContent = data.completed + ' / ' + data.total;
+            }
 
             // Update or create step row
             let row = document.getElementById('step-' + data.step);
             if (!row) {
                 row = document.createElement('div');
                 row.id = 'step-' + data.step;
-                row.className = 'd-flex align-items-center gap-2 py-1';
+                row.className = 'd-flex align-items-center gap-2 py-1 border-bottom border-secondary border-opacity-10';
                 stepsDiv.appendChild(row);
             }
 
             const icon = statusIcons[data.status] || '';
-            const label = stepLabels[data.step] || data.step;
-            const msg = data.message ? '<small class="text-muted ms-1">— ' + data.message.substring(0, 80) + '</small>' : '';
-            row.innerHTML = icon + ' <span>' + label + '</span>' + msg;
+            const label = data.message && data.status === 'pending'
+                ? data.message   // label passed as message for pending state
+                : data.step.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+
+            let detail = '';
+            if (data.status !== 'pending' && data.message) {
+                const cls = data.status === 'error' ? 'text-danger' : 'text-muted';
+                detail = `<small class="${cls} ms-1 text-truncate" style="max-width:28ch" title="${data.message.replace(/"/g, '&quot;')}">— ${data.message.substring(0, 60)}</small>`;
+            }
+
+            row.innerHTML = `<span class="flex-shrink-0" style="width:1.1rem;text-align:center">${icon}</span><span class="flex-grow-1">${label}</span>${detail}`;
         });
 
         socket.on('provision_complete', function(data) {
             if (data.sensor_id !== sensorId) return;
 
             bar.style.width = '100%';
+            bar.setAttribute('aria-valuenow', 100);
             if (data.success) {
-                bar.classList.remove('bg-info');
+                bar.classList.remove('bg-info', 'bg-danger');
                 bar.classList.add('bg-success');
                 resultDiv.innerHTML = '<div class="alert alert-success py-2 mb-0"><i class="bi bi-check-lg"></i> Provisioning complete — sensor is online.</div>';
             } else {
-                bar.classList.remove('bg-info');
+                bar.classList.remove('bg-info', 'bg-success');
                 bar.classList.add('bg-danger');
-                resultDiv.innerHTML = '<div class="alert alert-danger py-2 mb-0"><i class="bi bi-exclamation-triangle"></i> Provisioning failed — check steps above for errors.</div>';
+                resultDiv.innerHTML = '<div class="alert alert-danger py-2 mb-0"><i class="bi bi-exclamation-triangle"></i> Provisioning failed — check steps above for the failing step.</div>';
             }
             resultDiv.style.display = '';
         });
@@ -140,3 +161,4 @@
 })();
 </script>
 {% endblock %}
+
