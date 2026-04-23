@@ -1,14 +1,16 @@
 #!/usr/bin/env bash
 # CYT-NG Kismet Sensor — RPi Installation Script
-# Run as root: sudo bash install.sh
+# Run as root: sudo bash install.sh [--reinstall]
 set -euo pipefail
 
 KISMET_USER="${KISMET_USER:-kismet}"
 SYNC_INTERVAL="${SYNC_INTERVAL:-5}"   # minutes
-NAS_SHARE="${NAS_SHARE:-//nas/kismet_data}"
+NAS_SHARE="${NAS_SHARE:-}"
 NAS_MOUNT="/mnt/nas_kismet"
 KISMET_LOG_DIR="/home/${KISMET_USER}/kismet_logs"
 CREDS_FILE="/etc/cyt-sensor/smb_credentials"
+REINSTALL=0
+[[ "${1:-}" == "--reinstall" ]] && REINSTALL=1
 
 echo "=== CYT-NG Sensor Installer ==="
 echo "Target: Raspberry Pi with Kismet"
@@ -20,27 +22,56 @@ if [ "$(id -u)" -ne 0 ]; then
     exit 1
 fi
 
+# ---- NAS share validation ----
+if [ -z "$NAS_SHARE" ]; then
+    echo "ERROR: NAS_SHARE is not set."
+    echo "  Export it before running: NAS_SHARE=//172.20.0.250/kismet_data sudo bash install.sh"
+    exit 1
+fi
+
+# ---- Already-installed check ----
+ALREADY_INSTALLED=0
+if systemctl is-active --quiet cyt-kismet-sync.timer 2>/dev/null; then
+    ALREADY_INSTALLED=1
+fi
+if [ "$ALREADY_INSTALLED" -eq 1 ] && [ "$REINSTALL" -eq 0 ]; then
+    echo "WARNING: cyt-kismet-sync.timer is already active."
+    echo "  To reinstall and overwrite, run: sudo bash install.sh --reinstall"
+    echo "  Aborting."
+    exit 1
+fi
+if [ "$REINSTALL" -eq 1 ]; then
+    echo "[*] --reinstall flag set — existing components will be overwritten."
+fi
+
 # ---- Install packages ----
 echo "[1/6] Installing packages..."
-apt-get update
+apt-get update -qq
 apt-get install -y kismet cifs-utils
+
+# ---- Ensure kismet group exists (package should create it; guard if not) ----
+if ! getent group kismet &>/dev/null; then
+    echo "  Creating kismet group (not created by package)..."
+    groupadd -r kismet
+fi
 
 # ---- Create Kismet user if needed ----
 if ! id "$KISMET_USER" &>/dev/null; then
     echo "[2/6] Creating kismet user..."
-    useradd -m -g kismet "$KISMET_USER"
+    useradd -r -m -g kismet "$KISMET_USER"
 else
-    echo "[2/6] User $KISMET_USER exists, ensuring group membership..."
-    usermod -aG kismet "$KISMET_USER"
+    echo "[2/6] User $KISMET_USER already exists — skipping create."
 fi
 
 mkdir -p "$KISMET_LOG_DIR"
-chown "$KISMET_USER:$KISMET_USER" "$KISMET_LOG_DIR"
+chown "$KISMET_USER:kismet" "$KISMET_LOG_DIR"
 
 # ---- SMB credentials ----
 echo "[3/6] Configuring NAS SMB credentials..."
 mkdir -p /etc/cyt-sensor
-if [ ! -f "$CREDS_FILE" ]; then
+if [ -f "$CREDS_FILE" ] && [ "$REINSTALL" -eq 0 ]; then
+    echo "  Credentials file already exists at $CREDS_FILE — skipping."
+else
     read -rp "NAS SMB username: " SMB_USER
     read -rsp "NAS SMB password: " SMB_PASS
     echo ""
@@ -49,29 +80,35 @@ username=${SMB_USER}
 password=${SMB_PASS}
 EOF
     chmod 600 "$CREDS_FILE"
-    echo "Credentials saved to $CREDS_FILE"
-else
-    echo "Credentials file already exists at $CREDS_FILE"
+    echo "  Credentials saved to $CREDS_FILE"
 fi
 
 # ---- Mount point ----
 echo "[4/6] Setting up NAS mount..."
 mkdir -p "$NAS_MOUNT"
 
-# Add fstab entry if not present
-FSTAB_LINE="${NAS_SHARE} ${NAS_MOUNT} cifs credentials=${CREDS_FILE},uid=${KISMET_USER},gid=${KISMET_USER},iocharset=utf8,vers=3.0,_netdev,nofail 0 0"
-if ! grep -qF "$NAS_SHARE" /etc/fstab; then
-    echo "$FSTAB_LINE" >> /etc/fstab
-    echo "Added fstab entry"
+FSTAB_LINE="${NAS_SHARE} ${NAS_MOUNT} cifs credentials=${CREDS_FILE},uid=${KISMET_USER},gid=kismet,iocharset=utf8,vers=3.0,_netdev,nofail 0 0"
+if grep -qF "$NAS_SHARE" /etc/fstab; then
+    echo "  fstab entry already exists — skipping."
 else
-    echo "fstab entry already exists"
+    echo "$FSTAB_LINE" >> /etc/fstab
+    echo "  Added fstab entry."
 fi
 
-mount -a || echo "WARNING: mount failed — check NAS connectivity and credentials"
+if mountpoint -q "$NAS_MOUNT"; then
+    echo "  $NAS_MOUNT already mounted."
+else
+    mount "$NAS_MOUNT" 2>&1 || echo "  WARNING: mount failed — check NAS connectivity and credentials"
+fi
 
 # ---- Install sync script ----
 echo "[5/6] Installing sync script and systemd units..."
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+if [ ! -f "$SCRIPT_DIR/kismet_sync.sh" ]; then
+    echo "ERROR: kismet_sync.sh not found at $SCRIPT_DIR/kismet_sync.sh"
+    exit 1
+fi
 
 cp "$SCRIPT_DIR/kismet_sync.sh" /usr/local/bin/cyt-kismet-sync
 chmod +x /usr/local/bin/cyt-kismet-sync
@@ -98,6 +135,31 @@ EOF
 cat > /etc/systemd/system/cyt-kismet-sync.timer <<EOF
 [Unit]
 Description=CYT-NG Kismet sync timer (every ${SYNC_INTERVAL} min)
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=${SYNC_INTERVAL}min
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+EOF
+
+systemctl daemon-reload
+systemctl enable --now cyt-kismet-sync.timer
+
+# ---- Kismet config hints ----
+echo "[6/6] Setup complete!"
+echo ""
+echo "Next steps:"
+echo "  1. Configure Kismet Wi-Fi source in /etc/kismet/kismet.conf:"
+echo "     source=wlan1:name=cyt-sensor"
+echo "  2. Set log directory: log_prefix=${KISMET_LOG_DIR}"
+echo "  3. Start Kismet: sudo systemctl enable --now kismet"
+echo "  4. Verify sync: systemctl status cyt-kismet-sync.timer"
+echo ""
+echo "Sync will run every ${SYNC_INTERVAL} minutes to ${NAS_SHARE}"
+
 
 [Timer]
 OnBootSec=2min
