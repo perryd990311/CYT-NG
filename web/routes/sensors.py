@@ -1,12 +1,16 @@
 """Sensors blueprint — manage Kismet sensor Raspberry Pis."""
+import re
+
 from flask import Blueprint, render_template, request, flash, redirect, url_for
 from flask_login import login_required
 
 from web.extensions import get_db
 from cyt.models import Sensor
-from cyt.input_validation import InputValidator
 
 bp = Blueprint("sensors", __name__, url_prefix="/sensors")
+
+# Hostname/IP pattern: alphanumeric, dots, hyphens, colons (IPv6)
+_HOSTNAME_RE = re.compile(r"^[a-zA-Z0-9._:\-]{1,253}$")
 
 
 @bp.before_request
@@ -42,8 +46,7 @@ def add():
         return redirect(url_for("sensors.add"))
 
     # Basic hostname validation (alphanumeric, dots, hyphens)
-    clean_hostname = InputValidator.validate_path(hostname)
-    if not clean_hostname:
+    if not _HOSTNAME_RE.match(hostname):
         flash("Invalid hostname.", "danger")
         return redirect(url_for("sensors.add"))
 
