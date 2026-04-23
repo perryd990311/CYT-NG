@@ -27,11 +27,13 @@ docs_archive/
 old_scripts/
 .tmp/
 sensor/
+!sensor/kismet_sync.sh
 *.md
 LICENSE
 *.sh
 !docker/entrypoint.sh
 !nginx/entrypoint.sh
+!sensor/kismet_sync.sh
 
 # GitHub / CI
 .github/
