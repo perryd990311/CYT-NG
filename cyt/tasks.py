@@ -1,11 +1,12 @@
 """
 Background task scheduler for CYT-NG.
 
-Runs periodic Kismet ingestion and fingerprint analysis using APScheduler.
+Runs periodic Kismet ingestion, fingerprint analysis, scheduled surveillance
+analysis, and data cleanup using APScheduler.
 Integrates with the Flask app context and emits SocketIO events on completion.
 """
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 from apscheduler.schedulers.background import BackgroundScheduler
 
@@ -65,6 +66,93 @@ def _run_fingerprinting(app):
             _Session.remove()
 
 
+def _run_scheduled_analysis(app):
+    """Run a full surveillance analysis on a schedule."""
+    with app.app_context():
+        from web.extensions import _Session, socketio
+        from cyt.models import AnalysisRun, Device
+        from cyt.fingerprint import run_fingerprinting
+
+        session = _Session()
+        run = AnalysisRun(
+            trigger="scheduled",
+            status="running",
+            started_at=datetime.now(timezone.utc),
+        )
+        session.add(run)
+        session.commit()
+        run_id = run.id
+
+        try:
+            threshold = app.config.get("JACCARD_THRESHOLD", 0.85)
+            min_ssids = app.config.get("MIN_SSIDS_FOR_FINGERPRINT", 2)
+
+            clusters, fps = run_fingerprinting(
+                session, threshold=threshold, min_ssids=min_ssids
+            )
+            devices_count = session.query(Device).count()
+            persistent_count = (
+                session.query(Device)
+                .filter(Device.fingerprint_id.isnot(None))
+                .count()
+            )
+
+            run.devices_analyzed = devices_count
+            run.persistent_devices = persistent_count
+            run.status = "completed"
+            run.finished_at = datetime.now(timezone.utc)
+            session.commit()
+
+            logger.info(
+                "Scheduled analysis #%d complete: %d devices, %d persistent",
+                run_id, devices_count, persistent_count,
+            )
+            socketio.emit("analysis_complete", {
+                "run_id": run_id,
+                "devices": devices_count,
+                "clusters": clusters,
+                "fingerprints": fps,
+                "trigger": "scheduled",
+            })
+        except Exception:
+            logger.exception("Scheduled analysis #%d failed", run_id)
+            run.status = "failed"
+            run.finished_at = datetime.now(timezone.utc)
+            session.commit()
+        finally:
+            _Session.remove()
+
+
+def _run_cleanup(app):
+    """Purge old appearance records beyond the configured retention window."""
+    with app.app_context():
+        from web.extensions import _Session
+        from cyt.models import Appearance
+
+        timing = app.config.get("TIMING", {})
+        retention_days = timing.get("retention_days", 90)
+        cutoff = datetime.now(timezone.utc) - timedelta(days=retention_days)
+
+        session = _Session()
+        try:
+            deleted = (
+                session.query(Appearance)
+                .filter(Appearance.timestamp < cutoff)
+                .delete(synchronize_session=False)
+            )
+            session.commit()
+            if deleted:
+                logger.info(
+                    "Cleanup: purged %d appearances older than %d days",
+                    deleted, retention_days,
+                )
+        except Exception:
+            logger.exception("Cleanup failed")
+            session.rollback()
+        finally:
+            _Session.remove()
+
+
 def init_scheduler(app):
     """
     Configure and start the background scheduler.
@@ -79,6 +167,12 @@ def init_scheduler(app):
     # Run fingerprinting less frequently (every 5 ingestion cycles by default)
     fp_multiplier = timing.get("list_update_interval", 5)
     fp_interval = ingest_interval * fp_multiplier
+
+    # Scheduled analysis interval (hours, 0 = disabled)
+    analysis_hours = timing.get("analysis_interval_hours", 6)
+
+    # Cleanup interval (hours, 0 = disabled)
+    cleanup_hours = timing.get("cleanup_interval_hours", 24)
 
     scheduler.add_job(
         _run_ingestion,
@@ -98,8 +192,28 @@ def init_scheduler(app):
         replace_existing=True,
     )
 
+    if analysis_hours > 0:
+        scheduler.add_job(
+            _run_scheduled_analysis,
+            "interval",
+            hours=analysis_hours,
+            args=[app],
+            id="scheduled_analysis",
+            replace_existing=True,
+        )
+
+    if cleanup_hours > 0:
+        scheduler.add_job(
+            _run_cleanup,
+            "interval",
+            hours=cleanup_hours,
+            args=[app],
+            id="data_cleanup",
+            replace_existing=True,
+        )
+
     scheduler.start()
     logger.info(
-        "Scheduler started: ingestion every %ds, fingerprinting every %ds",
-        ingest_interval, fp_interval,
+        "Scheduler started: ingestion=%ds, fingerprinting=%ds, analysis=%dh, cleanup=%dh",
+        ingest_interval, fp_interval, analysis_hours, cleanup_hours,
     )

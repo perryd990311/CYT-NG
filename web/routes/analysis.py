@@ -1,12 +1,13 @@
-"""Analysis blueprint — run surveillance analysis, view results."""
+"""Analysis blueprint — run surveillance analysis, view results, trends."""
 import threading
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app
 from flask_login import login_required
+from sqlalchemy import func
 
 from web.extensions import get_db, socketio
-from cyt.models import AnalysisRun, Device, Fingerprint
+from cyt.models import AnalysisRun, Device, Fingerprint, Appearance
 
 bp = Blueprint("analysis", __name__, url_prefix="/analysis")
 
@@ -97,3 +98,129 @@ def results(run_id):
         flash("Analysis run not found.", "danger")
         return redirect(url_for("analysis.index"))
     return render_template("analysis_results.html", run=run)
+
+
+@bp.route("/trends")
+def trends():
+    """Long-term analytics view — aggregated stats over configurable window."""
+    db = get_db()
+    days = min(request.args.get("days", 30, type=int), 365)
+    since = datetime.now(timezone.utc) - timedelta(days=days)
+
+    # Daily device counts (unique MACs seen per day)
+    daily_devices = (
+        db.query(
+            func.date(Appearance.timestamp).label("day"),
+            func.count(func.distinct(Appearance.device_id)).label("devices"),
+        )
+        .filter(Appearance.timestamp >= since)
+        .group_by("day")
+        .order_by("day")
+        .all()
+    )
+
+    # Daily appearance counts
+    daily_appearances = (
+        db.query(
+            func.date(Appearance.timestamp).label("day"),
+            func.count(Appearance.id).label("appearances"),
+        )
+        .filter(Appearance.timestamp >= since)
+        .group_by("day")
+        .order_by("day")
+        .all()
+    )
+
+    # Analysis run history (for the overlay)
+    runs = (
+        db.query(AnalysisRun)
+        .filter(AnalysisRun.started_at >= since)
+        .order_by(AnalysisRun.started_at.desc())
+        .all()
+    )
+
+    # Top persistent devices (most appearances in window)
+    top_devices = (
+        db.query(
+            Device.mac,
+            Device.manufacturer,
+            Device.is_randomized,
+            func.count(Appearance.id).label("count"),
+            func.min(Appearance.timestamp).label("first"),
+            func.max(Appearance.timestamp).label("last"),
+        )
+        .join(Appearance, Device.id == Appearance.device_id)
+        .filter(Appearance.timestamp >= since)
+        .group_by(Device.id)
+        .order_by(func.count(Appearance.id).desc())
+        .limit(15)
+        .all()
+    )
+
+    # Summary stats
+    total_unique = (
+        db.query(func.count(func.distinct(Appearance.device_id)))
+        .filter(Appearance.timestamp >= since)
+        .scalar()
+    ) or 0
+
+    total_sightings = (
+        db.query(func.count(Appearance.id))
+        .filter(Appearance.timestamp >= since)
+        .scalar()
+    ) or 0
+
+    new_devices = (
+        db.query(func.count(Device.id))
+        .filter(Device.first_seen >= since)
+        .scalar()
+    ) or 0
+
+    return render_template(
+        "analysis_trends.html",
+        days=days,
+        daily_devices=daily_devices,
+        daily_appearances=daily_appearances,
+        runs=runs,
+        top_devices=top_devices,
+        total_unique=total_unique,
+        total_sightings=total_sightings,
+        new_devices=new_devices,
+    )
+
+
+@bp.route("/trends/data")
+def trends_data():
+    """JSON endpoint for trends chart data."""
+    db = get_db()
+    days = min(request.args.get("days", 30, type=int), 365)
+    since = datetime.now(timezone.utc) - timedelta(days=days)
+
+    daily_devices = (
+        db.query(
+            func.date(Appearance.timestamp).label("day"),
+            func.count(func.distinct(Appearance.device_id)).label("devices"),
+        )
+        .filter(Appearance.timestamp >= since)
+        .group_by("day")
+        .order_by("day")
+        .all()
+    )
+
+    daily_appearances = (
+        db.query(
+            func.date(Appearance.timestamp).label("day"),
+            func.count(Appearance.id).label("appearances"),
+        )
+        .filter(Appearance.timestamp >= since)
+        .group_by("day")
+        .order_by("day")
+        .all()
+    )
+
+    return jsonify(
+        labels=[str(r.day) for r in daily_devices],
+        devices=[r.devices for r in daily_devices],
+        appearances=[r.appearances for r in daily_appearances],
+        days=days,
+    )

@@ -41,11 +41,25 @@ def index():
     mac_list = _read_ignore_list(mac_path)
     ssid_list = _read_ignore_list(ssid_path)
 
+    # Collect scheduler job info
+    from cyt.tasks import scheduler
+    jobs = []
+    if scheduler.running:
+        for job in scheduler.get_jobs():
+            jobs.append({
+                "id": job.id,
+                "name": job.id.replace("_", " ").title(),
+                "next_run": job.next_run_time,
+                "trigger": str(job.trigger),
+            })
+
     return render_template(
         "settings.html",
         config=cfg,
         mac_list=mac_list,
         ssid_list=ssid_list,
+        scheduler_jobs=jobs,
+        scheduler_running=scheduler.running,
     )
 
 

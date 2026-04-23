@@ -1,8 +1,11 @@
 """Devices blueprint — browse and inspect detected wireless devices."""
 import json
+from collections import defaultdict
+from datetime import datetime, timedelta, timezone
 
-from flask import Blueprint, render_template, request, abort
+from flask import Blueprint, render_template, request, abort, jsonify
 from flask_login import login_required
+from sqlalchemy import func
 
 from web.extensions import get_db
 from cyt.models import Device, Appearance
@@ -93,4 +96,38 @@ def detail(mac):
         device=device,
         appearances=appearances,
         ssids=sorted(ssid_set),
+        total_appearances=db.query(Appearance).filter_by(device_id=device.id).count(),
+    )
+
+
+@bp.route("/<mac>/history")
+def history(mac):
+    """Return appearance counts bucketed by hour for Chart.js timeline."""
+    if not InputValidator.validate_mac_address(mac):
+        abort(400, "Invalid MAC address format.")
+
+    db = get_db()
+    device = db.query(Device).filter_by(mac=mac.upper()).first()
+    if not device:
+        abort(404)
+
+    # Default to 7 days, accept ?days=N (max 90)
+    days = min(request.args.get("days", 7, type=int), 90)
+    since = datetime.now(timezone.utc) - timedelta(days=days)
+
+    rows = (
+        db.query(
+            func.strftime("%Y-%m-%d %H:00", Appearance.timestamp).label("bucket"),
+            func.count(Appearance.id).label("cnt"),
+        )
+        .filter(Appearance.device_id == device.id, Appearance.timestamp >= since)
+        .group_by("bucket")
+        .order_by("bucket")
+        .all()
+    )
+
+    return jsonify(
+        labels=[r.bucket for r in rows],
+        data=[r.cnt for r in rows],
+        days=days,
     )

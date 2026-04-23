@@ -6,26 +6,30 @@
 <div class="row g-3 mb-4">
   <div class="col-6 col-md-3">
     <div class="card stat-card">
-      <span class="stat-value text-info">{{ total_devices }}</span>
+      <div class="stat-icon"><i class="bi bi-phone"></i></div>
+      <span class="stat-value" style="color:var(--cyt-cyan);">{{ total_devices }}</span>
       <span class="stat-label">Total Devices</span>
     </div>
   </div>
   <div class="col-6 col-md-3">
     <div class="card stat-card">
-      <span class="stat-value text-success">{{ active_devices }}</span>
+      <div class="stat-icon"><i class="bi bi-activity"></i></div>
+      <span class="stat-value" style="color:var(--cyt-green);">{{ active_devices }}</span>
       <span class="stat-label">Active (5 min)</span>
     </div>
   </div>
   <div class="col-6 col-md-3">
     <div class="card stat-card">
-      <span class="stat-value text-warning">{{ total_appearances }}</span>
+      <div class="stat-icon"><i class="bi bi-eye"></i></div>
+      <span class="stat-value" style="color:var(--cyt-amber);">{{ total_appearances }}</span>
       <span class="stat-label">Appearances</span>
     </div>
   </div>
   <div class="col-6 col-md-3">
     <div class="card stat-card">
-      <span class="stat-value {% if sensors_online > 0 %}text-success{% else %}text-secondary{% endif %}">
-        {{ sensors_online }}/{{ sensors_total }}
+      <div class="stat-icon"><i class="bi bi-broadcast-pin"></i></div>
+      <span class="stat-value" style="color:var(--cyt-green);">
+        {{ sensors_online }}<span style="color:var(--cyt-text-muted); font-size:1rem;">/{{ sensors_total }}</span>
       </span>
       <span class="stat-label">Sensors Online</span>
     </div>

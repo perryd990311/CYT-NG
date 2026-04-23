@@ -1,44 +1,50 @@
 /* CYT-NG — Midnight Blue Theme */
 
 :root {
-  --cyt-bg:          #0f1923;
-  --cyt-surface:     #162231;
-  --cyt-surface-alt: #1b2b3d;
-  --cyt-raised:      #213347;
-  --cyt-border:      #2a4060;
-  --cyt-border-light:#355580;
-  --cyt-text:        #d4dce8;
-  --cyt-text-muted:  #7e95b0;
+  --cyt-bg:          #0b1420;
+  --cyt-surface:     #111d2e;
+  --cyt-surface-alt: #162538;
+  --cyt-raised:      #1c2f45;
+  --cyt-border:      #243b56;
+  --cyt-border-light: #2f5280;
+  --cyt-text:        #dce4f0;
+  --cyt-text-muted:  #6b87a8;
+  --cyt-text-dim:    #4a6380;
   --cyt-cyan:        #22d3ee;
-  --cyt-teal:        #14b8a6;
+  --cyt-teal:        #2dd4bf;
   --cyt-green:       #34d399;
   --cyt-amber:       #fbbf24;
   --cyt-red:         #f87171;
   --cyt-blue:        #60a5fa;
   --cyt-brand:       #38bdf8;
+  --cyt-purple:      #a78bfa;
+  --cyt-pink:        #f472b6;
+  --cyt-glow:        rgba(34,211,238,0.08);
 }
 
 /* ── Base ──────────────────────────────────────────────────── */
 body {
   background: var(--cyt-bg);
   color: var(--cyt-text);
-  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  line-height: 1.6;
 }
 
-a { color: var(--cyt-cyan); }
+a { color: var(--cyt-cyan); transition: color 0.15s; }
 a:hover { color: var(--cyt-brand); }
 
 /* ── Top bar ───────────────────────────────────────────────── */
 .cyt-topbar {
-  background: linear-gradient(180deg, #0c141d 0%, var(--cyt-bg) 100%);
+  background: linear-gradient(180deg, #070e17 0%, var(--cyt-bg) 100%);
   border-bottom: 1px solid var(--cyt-border);
+  min-height: 48px;
 }
 
 /* ── Tab navigation ────────────────────────────────────────── */
 .cyt-tabs {
   background: var(--cyt-surface);
   border-bottom: 2px solid var(--cyt-border);
-  padding: 0 1rem;
+  padding: 0 1.25rem;
 }
 
 .cyt-tabs .nav-link {
@@ -46,35 +52,46 @@ a:hover { color: var(--cyt-brand); }
   border: none;
   border-bottom: 2px solid transparent;
   border-radius: 0;
-  padding: 0.65rem 1rem;
-  font-size: 0.85rem;
+  padding: 0.7rem 1.1rem;
+  font-size: 0.84rem;
   font-weight: 500;
-  transition: color 0.15s, border-color 0.2s;
+  transition: color 0.15s, border-color 0.2s, background 0.15s;
   margin-bottom: -2px;
+  letter-spacing: 0.01em;
 }
 
 .cyt-tabs .nav-link:hover {
   color: var(--cyt-text);
   border-bottom-color: var(--cyt-border-light);
-  background: transparent;
+  background: var(--cyt-glow);
 }
 
 .cyt-tabs .nav-link.active {
   color: var(--cyt-cyan);
   border-bottom-color: var(--cyt-cyan);
-  background: transparent;
+  background: var(--cyt-glow);
 }
 
 .cyt-tabs .nav-link i {
-  margin-right: 0.35rem;
+  margin-right: 0.4rem;
   font-size: 0.9em;
+  opacity: 0.85;
+}
+
+.cyt-tabs .nav-link.active i {
+  opacity: 1;
 }
 
 /* ── Cards ─────────────────────────────────────────────────── */
 .card {
   background: var(--cyt-surface);
   border: 1px solid var(--cyt-border);
-  border-radius: 0.5rem;
+  border-radius: 0.625rem;
+  transition: border-color 0.15s, box-shadow 0.2s;
+}
+
+.card:hover {
+  border-color: var(--cyt-border-light);
 }
 
 .card-header {
@@ -82,7 +99,19 @@ a:hover { color: var(--cyt-brand); }
   border-bottom: 1px solid var(--cyt-border);
   color: var(--cyt-text);
   font-weight: 600;
-  font-size: 0.88rem;
+  font-size: 0.86rem;
+  padding: 0.75rem 1rem;
+  letter-spacing: 0.01em;
+}
+
+.card-header i {
+  color: var(--cyt-cyan);
+  margin-right: 0.35rem;
+  opacity: 0.8;
+}
+
+.card-body {
+  padding: 1.1rem;
 }
 
 .card-footer {
@@ -94,13 +123,20 @@ a:hover { color: var(--cyt-brand); }
 #status-bar {
   background: var(--cyt-surface-alt);
   border-bottom: 1px solid var(--cyt-border);
-  padding: 0.4rem 1rem;
-  font-size: 0.8rem;
+  padding: 0.45rem 1.25rem;
+  font-size: 0.78rem;
   color: var(--cyt-text-muted);
+  letter-spacing: 0.01em;
 }
 
 #status-bar .badge {
-  font-size: 0.7rem;
+  font-size: 0.68rem;
+  font-weight: 500;
+}
+
+#status-bar i {
+  opacity: 0.7;
+  margin-right: 0.2rem;
 }
 
 /* ── Forms ─────────────────────────────────────────────────── */
@@ -155,30 +191,54 @@ a:hover { color: var(--cyt-brand); }
 /* ── Stat cards ────────────────────────────────────────────── */
 .stat-card {
   text-align: center;
-  padding: 1.25rem;
+  padding: 1.4rem 1rem;
   border: 1px solid var(--cyt-border);
-  border-radius: 0.5rem;
-  background: var(--cyt-surface);
-  transition: border-color 0.15s, box-shadow 0.2s;
+  border-radius: 0.625rem;
+  background: linear-gradient(170deg, var(--cyt-surface) 0%, var(--cyt-surface-alt) 100%);
+  transition: border-color 0.15s, box-shadow 0.25s, transform 0.15s;
+  position: relative;
+  overflow: hidden;
+}
+
+.stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: var(--cyt-border);
+  transition: background 0.2s;
 }
 
 .stat-card:hover {
   border-color: var(--cyt-border-light);
-  box-shadow: 0 2px 12px rgba(0,0,0,0.25);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+  transform: translateY(-1px);
+}
+
+.stat-card:hover::before {
+  background: var(--cyt-cyan);
+}
+
+.stat-card .stat-icon {
+  font-size: 1.35rem;
+  color: var(--cyt-text-dim);
+  margin-bottom: 0.5rem;
 }
 
 .stat-card .stat-value {
-  font-size: 2.25rem;
+  font-size: 2.2rem;
   font-weight: 700;
-  line-height: 1;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
 }
 
 .stat-card .stat-label {
-  font-size: 0.78rem;
+  font-size: 0.72rem;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06em;
   color: var(--cyt-text-muted);
-  margin-top: 0.35rem;
+  margin-top: 0.45rem;
+  font-weight: 500;
 }
 
 /* ── Persistence score colors ──────────────────────────────── */
@@ -219,15 +279,17 @@ a:hover { color: var(--cyt-brand); }
 
 /* ── Buttons ───────────────────────────────────────────────── */
 .btn-success {
-  background: var(--cyt-teal);
-  border-color: var(--cyt-teal);
-  color: #0f1923;
+  background: linear-gradient(135deg, var(--cyt-teal), var(--cyt-cyan));
+  border: none;
+  color: #0b1420;
   font-weight: 600;
+  letter-spacing: 0.01em;
+  transition: filter 0.15s, box-shadow 0.15s;
 }
 .btn-success:hover {
-  background: #0d9488;
-  border-color: #0d9488;
-  color: #fff;
+  filter: brightness(1.1);
+  box-shadow: 0 2px 12px rgba(34,211,238,0.25);
+  color: #0b1420;
 }
 
 .btn-outline-info {
@@ -312,15 +374,16 @@ a:hover { color: var(--cyt-brand); }
 
 /* ── Auth page centering ───────────────────────────────────── */
 .auth-card {
-  background: var(--cyt-surface);
+  background: linear-gradient(170deg, var(--cyt-surface) 0%, var(--cyt-surface-alt) 100%);
   border: 1px solid var(--cyt-border);
-  border-radius: 0.75rem;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.35);
+  border-radius: 0.875rem;
+  box-shadow: 0 12px 48px rgba(0,0,0,0.45), 0 0 0 1px var(--cyt-border);
 }
 
 .auth-card .auth-icon {
-  font-size: 2.5rem;
+  font-size: 2.75rem;
   color: var(--cyt-cyan);
+  filter: drop-shadow(0 0 12px rgba(34,211,238,0.3));
 }
 
 /* ── Empty state ───────────────────────────────────────────── */
@@ -335,4 +398,42 @@ a:hover { color: var(--cyt-brand); }
   display: block;
   margin-bottom: 0.75rem;
   opacity: 0.5;
+}
+
+/* ── List group (themed) ───────────────────────────────────── */
+.list-group-item {
+  background: var(--cyt-surface);
+  border-color: var(--cyt-border);
+  color: var(--cyt-text);
+  transition: background 0.15s;
+}
+
+.list-group-item:hover {
+  background: var(--cyt-surface-alt);
+}
+
+/* ── Main content spacing ──────────────────────────────────── */
+main.container-fluid {
+  padding-left: 1.5rem;
+  padding-right: 1.5rem;
+  max-width: 1440px;
+  margin: 0 auto;
+}
+
+/* ── Code / MAC addresses ──────────────────────────────────── */
+code {
+  font-family: 'JetBrains Mono', 'Cascadia Code', 'Fira Code', monospace;
+  font-size: 0.82em;
+}
+
+/* ── Badge refinements ─────────────────────────────────────── */
+.badge.rounded-pill {
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+/* ── Selection color ───────────────────────────────────────── */
+::selection {
+  background: rgba(34,211,238,0.25);
+  color: #fff;
 }

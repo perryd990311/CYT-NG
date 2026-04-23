@@ -19,7 +19,10 @@
       "medium": 10,
       "old": 15,
       "oldest": 20
-    }
+    },
+    "analysis_interval_hours": 6,
+    "cleanup_interval_hours": 24,
+    "retention_days": 90
   },
   "search": {
     "lat_min": 31.3,
