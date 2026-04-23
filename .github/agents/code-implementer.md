@@ -42,6 +42,8 @@ Defer to these agents for domain work:
 **Kismet Shared Directory:** `/volume1/docker/kismet/` — mounted by both Docker containers and RPi SMB share  
 **Docker binary:** `/usr/local/bin/docker` — PATH is empty in non-interactive SSH, always use full path  
 **Compose file:** `docker-compose.yaml` at project root — required for Synology Container Manager UI visibility  
+**Container Manager project name:** `cyt-ng` (matches the directory name under `/volume1/docker/cyt-ng/`)  
+**Base image:** `cyt-base:latest` — pre-built with gcc + all pip packages; rebuild only when `requirements.txt` changes  
 **Key Files:** `.env`, `docker-compose.yaml`, `docker/Dockerfile`, `nginx/Dockerfile`, `nginx/nginx.conf`
 
 ### SSH Session Management
@@ -90,7 +92,36 @@ ssh -i ~/.ssh/id_ed25519 perryd@172.20.0.250 -p 22
 
 ## Common Docker Commands
 
-### Container Management
+### Container Manager Project (preferred — keeps UI in sync)
+```bash
+# Status
+/usr/local/bin/docker compose -p cyt-ng ps
+
+# Logs
+/usr/local/bin/docker compose -p cyt-ng logs --tail=50 cyt-web
+/usr/local/bin/docker compose -p cyt-ng logs --tail=50 cyt-nginx
+
+# Rebuild app image only (base already built) and restart
+cd /volume1/docker/cyt-ng
+/usr/local/bin/docker compose -p cyt-ng build cyt-web
+/usr/local/bin/docker compose -p cyt-ng up -d
+
+# Full restart without rebuild
+/usr/local/bin/docker compose -p cyt-ng down
+/usr/local/bin/docker compose -p cyt-ng up -d
+```
+
+### Base Image (rebuild only when requirements.txt changes)
+```bash
+# Build from parent dir — context must include repo/ subdir
+cd /volume1/docker/cyt-ng
+/usr/local/bin/docker build -f repo/docker/Dockerfile.base -t cyt-base:latest .
+# Then rebuild the app image:
+/usr/local/bin/docker compose -p cyt-ng build cyt-web
+/usr/local/bin/docker compose -p cyt-ng up -d
+```
+
+### Container Management (fallback)
 ```bash
 # List containers
 /usr/local/bin/docker ps -a
@@ -147,9 +178,10 @@ When implementing updates:
    - SSH to NAS: `perryd@172.20.0.250`
    - Navigate to: `/volume1/docker/cyt-ng/`
    - Pull latest code or modify files
-   - Rebuild: `/usr/local/bin/docker compose build`
-   - Restart: `/usr/local/bin/docker compose up -d`
+   - Rebuild app image (base is pre-built): `/usr/local/bin/docker compose -p cyt-ng build cyt-web`
+   - Restart: `/usr/local/bin/docker compose -p cyt-ng up -d`
    - Verify: `curl -k https://localhost/api/health`
+   - Only rebuild base if `requirements.txt` changed: `docker build -f repo/docker/Dockerfile.base -t cyt-base:latest .` (from `/volume1/docker/cyt-ng/`)
 
 4. **Repository vs Synology**
    - **Repo structure:** `cyt/`, `web/`, `docker/`, `nginx/`, `sensor/`, `docker-compose.yaml`
