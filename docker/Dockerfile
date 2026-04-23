@@ -9,6 +9,12 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 # Create non-root user (no compiler install needed — bookworm ships gcc/libssl)
 RUN groupadd -r cyt && useradd -r -g cyt -d /app -s /sbin/nologin cyt
 
+WORKDIR /app
+
+# Install Python dependencies
+COPY repo/requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
 # Copy application code
 COPY repo/cyt/ cyt/
 COPY repo/web/ web/
