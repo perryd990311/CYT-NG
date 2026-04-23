@@ -129,6 +129,8 @@ def provision(sensor_id):
     if not sensor:
         flash("Sensor not found.", "warning")
         return redirect(url_for("sensors.index"))
+
+    ssh_password = request.form.get("ssh_password", "") or None   # not persisted
     nas_user = request.form.get("nas_user", "") or None           # not persisted
     nas_password = request.form.get("nas_password", "") or None   # not persisted
 
@@ -137,10 +139,6 @@ def provision(sensor_id):
     db.commit()
 
     socketio = current_app.extensions.get("socketio")
-    if socketio:
-        socketio.start_background_task(
-            _run_provision, current_app._get_current_object(), sensor_id,
-            ssh_password=ssh_password, nas_user=nas_user, nas_password=nasxtensions.get("socketio")
     if socketio:
         socketio.start_background_task(
             _run_provision, current_app._get_current_object(), sensor_id,
