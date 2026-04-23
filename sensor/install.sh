@@ -210,11 +210,19 @@ else
     warn "Kismet config not found at $KISMET_CONF — run kismet once to generate it"
 fi
 
-# Enable Kismet service
+# Enable and start Kismet service
 if systemctl is-active --quiet kismet 2>/dev/null; then
     skip "Kismet service already running"
+elif [ -n "$WIFI_IFACE" ]; then
+    # Interface configured — safe to start now
+    systemctl enable --now kismet 2>/dev/null \
+        && ok "Kismet service enabled and started" \
+        || warn "Kismet failed to start — check: journalctl -u kismet -n 20"
 else
-    systemctl enable kismet 2>/dev/null && ok "Kismet service enabled" || warn "Could not enable kismet service"
+    # No interface set — enable for boot only, start manually after configuring source=
+    systemctl enable kismet 2>/dev/null \
+        && ok "Kismet service enabled (start manually once Wi-Fi source is configured)" \
+        || warn "Could not enable kismet service"
 fi
 
 # ── [7/7] Summary ─────────────────────────────────────────────────────────
@@ -227,7 +235,10 @@ echo "  Sync timer:   every ${SYNC_INTERVAL} minutes"
 echo "  Wi-Fi iface:  ${WIFI_IFACE:-not configured}"
 echo ""
 echo "  Next steps:"
+if [ -z "$WIFI_IFACE" ]; then
+echo "    Edit /etc/kismet/kismet.conf — add:  source=wlanX:name=cyt-sensor"
 echo "    sudo systemctl start kismet       # start capturing"
+fi
 echo "    systemctl status cyt-kismet-sync.timer"
 echo "    journalctl -u cyt-kismet-sync -f  # watch sync logs"
 echo ""

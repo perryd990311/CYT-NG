@@ -10,6 +10,23 @@ LOG_TAG="cyt-sync"
 
 log() { logger -t "$LOG_TAG" "$1"; echo "$(date '+%Y-%m-%d %H:%M:%S') $1"; }
 
+# ── Kismet health check ────────────────────────────────────────────────────
+# Sensor may be online but Kismet stopped (crash, OOM, bad config reload).
+# Attempt restart and log — probe data gap is surfaced via .last_sync delta.
+if ! systemctl is-active --quiet kismet 2>/dev/null; then
+    log "WARNING: Kismet is not running — attempting restart"
+    if systemctl start kismet 2>/dev/null; then
+        sleep 3
+        if systemctl is-active --quiet kismet 2>/dev/null; then
+            log "INFO: Kismet restarted successfully"
+        else
+            log "ERROR: Kismet failed to restart — check: journalctl -u kismet -n 20"
+        fi
+    else
+        log "ERROR: systemctl start kismet failed"
+    fi
+fi
+
 # Verify NAS mount
 if ! mountpoint -q "$NAS_MOUNT"; then
     log "ERROR: $NAS_MOUNT not mounted — attempting mount..."

@@ -36,8 +36,8 @@ PROVISION_STEPS = [
     ("mount_nas",           "Mount NAS share",                  False, None),
     ("enable_sync_timer",   "Enable sync timer",                False,
         "sudo systemctl daemon-reload && sudo systemctl enable cyt-kismet-sync.timer && sudo systemctl start cyt-kismet-sync.timer && echo ok"),
-    ("enable_kismet",       "Enable Kismet service",            False,
-        "sudo systemctl enable kismet 2>/dev/null && echo enabled || echo 'kismet service not found'"),
+    ("enable_kismet",       "Enable and start Kismet service",   False,
+        "sudo systemctl enable --now kismet 2>/dev/null && echo started || echo 'kismet service not found'"),
     ("detect_kismet_version", "Detect Kismet version",          False,
         "kismet --version 2>&1 | head -1 || echo unknown"),
 ]
