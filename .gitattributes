@@ -1,0 +1,22 @@
+# Force LF for shell scripts — prevents CRLF corruption when deploying from Windows
+*.sh        text eol=lf
+*.sh.in     text eol=lf
+
+# Python, config, templates — LF preferred
+*.py        text eol=lf
+*.html      text eol=lf
+*.yaml      text eol=lf
+*.yml       text eol=lf
+*.json      text eol=lf
+*.md        text eol=lf
+*.conf      text eol=lf
+*.cfg       text eol=lf
+
+# Binary files — no line ending conversion
+*.png       binary
+*.jpg       binary
+*.ico       binary
+*.db        binary
+*.pem       binary
+*.key       binary
+*.p12       binary

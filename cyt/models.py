@@ -127,6 +127,7 @@ class Sensor(Base):
     smb_share_path = Column(String(500), nullable=True)
     status = Column(String(20), default="unknown")  # online, offline, error, provisioning
     last_seen = Column(DateTime, nullable=True)
+    local_hostname = Column(String(255), nullable=True)  # Pi's $(hostname) — used for NAS dir matching
     kismet_version = Column(String(20), nullable=True)
     wifi_interface = Column(String(20), nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))

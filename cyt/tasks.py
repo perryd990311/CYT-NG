@@ -6,6 +6,7 @@ analysis, and data cleanup using APScheduler.
 Integrates with the Flask app context and emits SocketIO events on completion.
 """
 import logging
+import os
 from datetime import datetime, timezone, timedelta
 
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -35,6 +36,46 @@ def _run_ingestion(app):
             logger.info("Kismet ingestion completed")
         except Exception:
             logger.exception("Kismet ingestion failed")
+        finally:
+            _Session.remove()
+
+        # Update Sensor.last_seen from .last_sync heartbeat files.
+        # kismet_sync.sh writes {kismet_path}/{local_hostname}/.last_sync
+        # Match on sensor.local_hostname first, fall back to sensor.hostname.
+        session = _Session()
+        try:
+            if os.path.isdir(kismet_path):
+                updated = 0
+                for entry in os.scandir(kismet_path):
+                    if not entry.is_dir():
+                        continue
+                    sync_file = os.path.join(entry.path, ".last_sync")
+                    if not os.path.isfile(sync_file):
+                        continue
+                    try:
+                        raw = open(sync_file).read().strip()
+                        ts = datetime.fromisoformat(raw)
+                        if ts.tzinfo is None:
+                            ts = ts.replace(tzinfo=timezone.utc)
+                    except (ValueError, OSError):
+                        continue
+                    sensor = (
+                        session.query(Sensor).filter_by(local_hostname=entry.name).first()
+                        or session.query(Sensor).filter_by(hostname=entry.name).first()
+                    )
+                    if sensor:
+                        existing = sensor.last_seen
+                        if existing and existing.tzinfo is None:
+                            existing = existing.replace(tzinfo=timezone.utc)
+                        if existing is None or ts > existing:
+                            sensor.last_seen = ts
+                            updated += 1
+                if updated:
+                    session.commit()
+                    logger.info("Updated last_seen for %d sensor(s)", updated)
+        except Exception:
+            logger.exception("Sensor heartbeat update failed")
+            session.rollback()
         finally:
             _Session.remove()
 

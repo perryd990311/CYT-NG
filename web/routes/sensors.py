@@ -244,6 +244,8 @@ def _run_provision(app, sensor_id, ssh_password=None, nas_user=None, nas_passwor
         sensor.status = "online" if result["success"] else "error"
         if result.get("kismet_version"):
             sensor.kismet_version = result["kismet_version"]
+        if result.get("local_hostname"):
+            sensor.local_hostname = result["local_hostname"]
         db.commit()
 
         # Final status event

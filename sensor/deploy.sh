@@ -89,6 +89,9 @@ REMOTE_DIR="/tmp/cyt-deploy-$$"
 ssh $SSH_OPTS "$TARGET" "mkdir -p $REMOTE_DIR"
 # shellcheck disable=SC2086
 scp $SSH_OPTS "$INSTALL_SH" "$SYNC_SH" "${TARGET}:${REMOTE_DIR}/"
+# Strip CRLF in case files were checked out on Windows
+# shellcheck disable=SC2086
+ssh $SSH_OPTS "$TARGET" "sed -i 's/\r//' ${REMOTE_DIR}/install.sh ${REMOTE_DIR}/kismet_sync.sh"
 echo "  ✓ Files copied to $REMOTE_DIR"
 
 # ── Run install.sh on remote ──────────────────────────────────────────────

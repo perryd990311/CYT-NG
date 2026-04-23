@@ -40,6 +40,8 @@ PROVISION_STEPS = [
         "sudo systemctl enable --now kismet 2>/dev/null && echo started || echo 'kismet service not found'"),
     ("detect_kismet_version", "Detect Kismet version",          False,
         "kismet --version 2>&1 | head -1 || echo unknown"),
+    ("detect_local_hostname",  "Detect Pi local hostname",        False,
+        "hostname"),
 ]
 
 STEP_IDS = [s[0] for s in PROVISION_STEPS]
@@ -122,6 +124,7 @@ def provision_sensor(sensor, socketio, ssh_key_path=None, ssh_password=None,
 
     # ── Remaining steps via SSH ────────────────────────────────────────────
     kismet_version = None
+    local_hostname = None
     try:
         for step_id, label, is_critical, cmd in PROVISION_STEPS:
             if step_id in ("port_check", "connectivity"):
@@ -140,6 +143,8 @@ def provision_sensor(sensor, socketio, ssh_key_path=None, ssh_password=None,
 
             if step_id == "detect_kismet_version" and ok and msg:
                 kismet_version = msg.strip()[:60]
+            if step_id == "detect_local_hostname" and ok and msg:
+                local_hostname = msg.strip()[:255]
 
             results[step_id] = "ok" if ok else "error"
             emit(step_id, "ok" if ok else "error", msg)
@@ -152,7 +157,7 @@ def provision_sensor(sensor, socketio, ssh_key_path=None, ssh_password=None,
     finally:
         client.close()
 
-    return _build_result(results, kismet_version)
+    return _build_result(results, kismet_version, local_hostname)
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────
@@ -179,10 +184,10 @@ def _skip_remaining(results, emit):
             emit(step_id, "skipped", "Skipped due to earlier failure")
 
 
-def _build_result(results, kismet_version=None):
+def _build_result(results, kismet_version=None, local_hostname=None):
     critical_ids = {s[0] for s in PROVISION_STEPS if s[2]}
     success = all(results.get(s, "skipped") in ("ok",) for s in critical_ids)
-    return {"success": success, "steps": results, "kismet_version": kismet_version}
+    return {"success": success, "steps": results, "kismet_version": kismet_version, "local_hostname": local_hostname}
 
 
 def _install_sync_files(client, sensor):
