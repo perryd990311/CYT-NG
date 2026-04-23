@@ -1,20 +1,12 @@
 # CYT-NG Web Application
 # Target: Synology DS218+ (x86_64, Docker 20.10+)
-FROM python:3.12-slim AS base
+FROM python:3.12-bookworm AS base
 
 # Prevent Python from writing .pyc files and enable unbuffered output
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
-# System deps for cryptography + bcrypt (compiled wheels)
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-        gcc \
-        libffi-dev \
-        libssl-dev && \
-    rm -rf /var/lib/apt/lists/*
-
-# Create non-root user
+# Create non-root user (no compiler install needed — bookworm ships gcc/libssl)
 RUN groupadd -r cyt && useradd -r -g cyt -d /app -s /sbin/nologin cyt
 
 WORKDIR /app
