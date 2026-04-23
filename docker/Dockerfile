@@ -26,6 +26,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY cyt/ cyt/
 COPY web/ web/
+COPY sensor/ sensor/
 COPY config.json .
 COPY ignore_lists/ ignore_lists/
 

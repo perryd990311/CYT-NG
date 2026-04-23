@@ -27,7 +27,7 @@ PROVISION_STEPS = [
     ("install_kismet",      "Install Kismet & cifs-utils",      True,
         "sudo DEBIAN_FRONTEND=noninteractive apt-get install -y kismet cifs-utils 2>&1 | tail -5"),
     ("create_kismet_user",  "Create kismet system user",        False,
-        'id kismet &>/dev/null && echo "User already exists" || sudo useradd -r -m -G kismet kismet'),
+        'id kismet &>/dev/null && echo "User already exists" || sudo useradd -r -m -g kismet kismet'),
     ("create_log_dir",      "Create Kismet log directory",      False,
         "sudo mkdir -p /home/kismet/kismet_logs && sudo chown kismet:kismet /home/kismet/kismet_logs && echo ok"),
     ("install_sync_script", "Install sync script & systemd",    False, None),

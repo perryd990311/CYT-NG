@@ -28,7 +28,7 @@ apt-get install -y kismet cifs-utils
 # ---- Create Kismet user if needed ----
 if ! id "$KISMET_USER" &>/dev/null; then
     echo "[2/6] Creating kismet user..."
-    useradd -m -G kismet "$KISMET_USER"
+    useradd -m -g kismet "$KISMET_USER"
 else
     echo "[2/6] User $KISMET_USER exists, ensuring group membership..."
     usermod -aG kismet "$KISMET_USER"
