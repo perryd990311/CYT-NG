@@ -247,15 +247,58 @@ def test_connectivity(sensor_id):
     finally:
         client.close()
 
+    # 4. NAS share / last_sync check (server-side, no SSH needed)
+    from datetime import datetime, timezone
+    from flask import current_app
+    import os
+
+    kismet_path = current_app.config.get("KISMET_LOGS", "")
+    nas_dir = sensor.local_hostname or sensor.hostname
+    if kismet_path and nas_dir:
+        sensor_dir = os.path.join(kismet_path, nas_dir)
+        sync_file = os.path.join(sensor_dir, ".last_sync")
+        if not os.path.isdir(sensor_dir):
+            results.append(("NAS share directory", False,
+                            f"{sensor_dir} not found — check NAS directory name"))
+        elif not os.path.isfile(sync_file):
+            results.append(("NAS share directory", True, f"{sensor_dir} exists"))
+            results.append(("Last sync file", False, ".last_sync missing — sync script may not be running"))
+        else:
+            results.append(("NAS share directory", True, f"{sensor_dir} exists"))
+            try:
+                raw = open(sync_file).read().strip()
+                ts = datetime.fromisoformat(raw)
+                if ts.tzinfo is None:
+                    ts = ts.replace(tzinfo=timezone.utc)
+                age = datetime.now(timezone.utc) - ts
+                mins = int(age.total_seconds() // 60)
+                age_str = f"{mins}m ago" if mins < 120 else f"{mins // 60}h ago"
+                fresh = age.total_seconds() < 300  # warn if >5 min
+                results.append(("Last sync", fresh,
+                                f"{age_str} ({ts.strftime('%Y-%m-%d %H:%M:%S %Z')})",
+                                "ok" if fresh else "warn"))
+            except (ValueError, OSError) as exc:
+                results.append(("Last sync", False, f"Could not parse .last_sync: {exc}"))
+    else:
+        results.append(("NAS share check", False,
+                        "Skipped — KISMET_LOGS not configured or NAS directory not set"))
+
     return _conn_html(results)
 
 
 def _conn_html(results):
     """Render a compact result table fragment."""
     rows = ""
-    for label, ok, msg in results:
-        icon = '<i class="bi bi-check-circle-fill text-success"></i>' if ok else '<i class="bi bi-x-circle-fill text-danger"></i>'
-        rows += f'<tr><td class="pe-2">{icon}</td><td>{label}</td><td>{msg}</td></tr>\n'
+    for item in results:
+        label, ok, msg = item[0], item[1], item[2]
+        warn = len(item) > 3 and item[3] == "warn"
+        if ok:
+            icon = '<i class="bi bi-check-circle-fill text-success"></i>'
+        elif warn:
+            icon = '<i class="bi bi-exclamation-circle-fill text-warning"></i>'
+        else:
+            icon = '<i class="bi bi-x-circle-fill text-danger"></i>'
+        rows += f'<tr><td class="pe-2">{icon}</td><td>{label}</td><td class="text-muted small">{msg}</td></tr>\n'
     return f'<table class="table table-sm mb-0">{rows}</table>'
 
 
