@@ -153,10 +153,20 @@ else
     warn "NAS host $NAS_HOST did not respond to ping — proceeding, but mount may fail"
 fi
 
-# 4d. Mount (or verify already mounted)
+# 4d. Mount (or verify already mounted and live)
+MOUNT_LIVE=0
 if mountpoint -q "$NAS_MOUNT"; then
-    skip "$NAS_MOUNT already mounted"
-else
+    # mountpoint -q only checks the kernel table — verify the mount is actually responsive
+    if timeout 5 ls "$NAS_MOUNT" &>/dev/null; then
+        ok "$NAS_MOUNT already mounted and responsive"
+        MOUNT_LIVE=1
+    else
+        warn "$NAS_MOUNT is in the mount table but not responsive (stale mount) — remounting"
+        umount -l "$NAS_MOUNT" 2>/dev/null || true
+    fi
+fi
+
+if [ "$MOUNT_LIVE" -eq 0 ]; then
     MOUNT_ERR=$(mount "$NAS_MOUNT" 2>&1) && MOUNT_RC=0 || MOUNT_RC=$?
     if [ "$MOUNT_RC" -eq 0 ]; then
         ok "$NAS_MOUNT mounted"
