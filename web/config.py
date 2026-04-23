@@ -5,12 +5,29 @@ from pathlib import Path
 
 
 def _load_config_json():
-    """Load config.json from project root."""
+    """Load config.json from project root, then layer writable overrides."""
     config_path = Path(__file__).resolve().parent.parent / "config.json"
+    cfg = {}
     if config_path.exists():
         with open(config_path) as f:
-            return json.load(f)
-    return {}
+            cfg = json.load(f)
+    # Layer overrides from writable data volume (Docker)
+    override_path = Path("/data/cyt/config.json")
+    if override_path.is_file():
+        with open(override_path) as f:
+            overrides = json.load(f)
+        _deep_merge(cfg, overrides)
+    return cfg
+
+
+def _deep_merge(base: dict, overrides: dict) -> dict:
+    """Recursively merge overrides into base dict (mutates base)."""
+    for key, value in overrides.items():
+        if key in base and isinstance(base[key], dict) and isinstance(value, dict):
+            _deep_merge(base[key], value)
+        else:
+            base[key] = value
+    return base
 
 
 _cfg = _load_config_json()

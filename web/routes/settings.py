@@ -9,7 +9,17 @@ from flask_login import login_required
 
 bp = Blueprint("settings", __name__, url_prefix="/settings")
 
-_CONFIG_PATH = Path(__file__).resolve().parent.parent.parent / "config.json"
+# Baked-in default config (may be read-only in Docker)
+_DEFAULT_CONFIG_PATH = Path(__file__).resolve().parent.parent.parent / "config.json"
+# Writable override location on the persistent data volume
+_OVERRIDE_CONFIG_PATH = Path("/data/cyt/config.json")
+
+
+def _config_save_path() -> Path:
+    """Return the writable config path — prefer the data volume, fall back to app dir."""
+    if _OVERRIDE_CONFIG_PATH.parent.is_dir():
+        return _OVERRIDE_CONFIG_PATH
+    return _DEFAULT_CONFIG_PATH
 
 
 @bp.before_request
@@ -190,15 +200,33 @@ def update_config():
 
 
 def _load_config() -> dict:
-    """Read config.json from disk."""
-    if _CONFIG_PATH.exists():
-        with open(_CONFIG_PATH) as f:
-            return json.load(f)
-    return {}
+    """Read config — merge baked-in defaults with writable overrides."""
+    cfg = {}
+    if _DEFAULT_CONFIG_PATH.exists():
+        with open(_DEFAULT_CONFIG_PATH) as f:
+            cfg = json.load(f)
+    # Layer overrides on top (if they exist on the data volume)
+    if _OVERRIDE_CONFIG_PATH.is_file():
+        with open(_OVERRIDE_CONFIG_PATH) as f:
+            overrides = json.load(f)
+        _deep_merge(cfg, overrides)
+    return cfg
 
 
 def _save_config(cfg: dict) -> None:
-    """Write config dict to config.json."""
-    with open(_CONFIG_PATH, "w") as f:
+    """Write config to the writable data volume."""
+    save_path = _config_save_path()
+    save_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(save_path, "w") as f:
         json.dump(cfg, f, indent=2)
         f.write("\n")
+
+
+def _deep_merge(base: dict, overrides: dict) -> dict:
+    """Recursively merge overrides into base dict (mutates base)."""
+    for key, value in overrides.items():
+        if key in base and isinstance(base[key], dict) and isinstance(value, dict):
+            _deep_merge(base[key], value)
+        else:
+            base[key] = value
+    return base
