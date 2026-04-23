@@ -121,8 +121,18 @@ fi
 step 4 "Configuring NAS mount"
 mkdir -p "$NAS_MOUNT"
 
-if grep -qF "$NAS_SHARE" /etc/fstab 2>/dev/null; then
-    skip "fstab entry already present"
+# 4a. fstab entry — check it exists and references the right share + creds file
+FSTAB_LINE=$(grep -F "$NAS_SHARE" /etc/fstab 2>/dev/null || true)
+if [ -n "$FSTAB_LINE" ]; then
+    # Validate it points to our mount point and credentials file
+    if echo "$FSTAB_LINE" | grep -qF "$NAS_MOUNT" && echo "$FSTAB_LINE" | grep -qF "credentials=$CREDS_FILE"; then
+        skip "fstab entry already present and correct"
+    else
+        warn "fstab has an entry for $NAS_SHARE but it looks wrong:"
+        warn "  $FSTAB_LINE"
+        warn "  Expected mount point: $NAS_MOUNT, credentials=$CREDS_FILE"
+        warn "  Edit /etc/fstab manually to fix, then re-run with --reinstall"
+    fi
 else
     # Use printf to write the line — avoids shell expansion/quoting hazards
     printf '%s %s cifs credentials=%s,iocharset=utf8,vers=3.0,nofail,_netdev 0 0\n' \
@@ -130,13 +140,46 @@ else
     ok "fstab entry added"
 fi
 
+# 4b. Verify credentials file is referenced in fstab (sanity — catches manual edits)
+if ! grep -qF "credentials=$CREDS_FILE" /etc/fstab 2>/dev/null; then
+    warn "credentials=$CREDS_FILE not found in /etc/fstab — mount may fail after reboot"
+fi
+
+# 4c. NAS host reachability before attempting mount
+NAS_HOST=$(echo "$NAS_SHARE" | sed 's|^//||;s|/.*||')
+if ping -c1 -W2 "$NAS_HOST" &>/dev/null; then
+    ok "NAS host $NAS_HOST is reachable"
+else
+    warn "NAS host $NAS_HOST did not respond to ping — proceeding, but mount may fail"
+fi
+
+# 4d. Mount (or verify already mounted)
 if mountpoint -q "$NAS_MOUNT"; then
     skip "$NAS_MOUNT already mounted"
 else
-    if mount "$NAS_MOUNT" 2>/dev/null; then
+    MOUNT_ERR=$(mount "$NAS_MOUNT" 2>&1) && MOUNT_RC=0 || MOUNT_RC=$?
+    if [ "$MOUNT_RC" -eq 0 ]; then
         ok "$NAS_MOUNT mounted"
     else
-        warn "mount failed — NAS may be unreachable; will retry on next boot via _netdev"
+        warn "mount failed (exit $MOUNT_RC): $MOUNT_ERR"
+        warn "Will retry on next boot via _netdev — check NAS share path and credentials"
+    fi
+fi
+
+# 4e. Post-mount readability check
+if mountpoint -q "$NAS_MOUNT"; then
+    if [ -r "$NAS_MOUNT" ]; then
+        ok "$NAS_MOUNT is readable"
+    else
+        warn "$NAS_MOUNT is mounted but not readable — check NAS share permissions"
+    fi
+    # Verify we can write (sync script needs to create subdirs and .last_sync)
+    TEST_FILE="$NAS_MOUNT/.cyt_write_test_$$"
+    if touch "$TEST_FILE" 2>/dev/null; then
+        rm -f "$TEST_FILE"
+        ok "$NAS_MOUNT is writable"
+    else
+        warn "$NAS_MOUNT is mounted but not writable — sync will fail; check NAS share permissions"
     fi
 fi
 
