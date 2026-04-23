@@ -34,8 +34,10 @@ if ! mountpoint -q "$NAS_MOUNT"; then
 fi
 
 # Create sensor subdirectory on NAS (one per RPi hostname)
+# 755 so the CYT web container (different UID) can read .kismet files and .last_sync
 DEST_DIR="${NAS_MOUNT}/${HOSTNAME}"
 mkdir -p "$DEST_DIR"
+chmod 755 "$DEST_DIR"
 
 # Sync only .kismet files — rsync handles partial/incremental
 SYNC_COUNT=0
