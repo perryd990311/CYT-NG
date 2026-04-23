@@ -216,7 +216,11 @@ def _conn_html(results):
     rows = ""
     for label, ok, msg in results:
         icon = '<i class="bi bi-check-circle-fill text-success"></i>' if ok else '<i class="bi bi-x-circle-fill text-danger"></i>'
-        rows += f'<tr><td class="pe-2">{icon}</td><t, nas_user=None, nas_password=None):
+        rows += f'<tr><td class="pe-2">{icon}</td><td>{label}</td><td>{msg}</td></tr>\n'
+    return f'<table class="table table-sm mb-0">{rows}</table>'
+
+
+def _run_provision(app, sensor_id, ssh_password=None, nas_user=None, nas_password=None):
     from cyt.sensor_provisioner import provision_sensor
 
     with app.app_context():
@@ -226,12 +230,6 @@ def _conn_html(results):
             return
 
         socketio = app.extensions.get("socketio")
-        result = provision_sensor(
-            sensor, socketio,
-            ssh_key_path=sensor.ssh_key_path or None,
-            ssh_password=ssh_password,
-            nas_user=nas_user,
-            nas_password=nassions.get("socketio")
         result = provision_sensor(
             sensor, socketio,
             ssh_key_path=sensor.ssh_key_path or None,
