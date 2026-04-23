@@ -25,7 +25,9 @@ PROVISION_STEPS = [
     ("sudo_check",          "Verify sudo access",               True,  "sudo -n true 2>/dev/null || sudo true"),
     ("update_packages",     "Update package lists",             True,  "sudo apt-get update -qq 2>&1 | tail -3"),
     ("install_kismet",      "Install Kismet & cifs-utils",      True,
-        "sudo DEBIAN_FRONTEND=noninteractive apt-get install -y kismet cifs-utils 2>&1 | tail -5"),
+        "sudo DEBIAN_FRONTEND=noninteractive apt-get install -y kismet cifs-utils rsync 2>&1 | tail -5"),
+    ("create_kismet_group", "Create kismet system group",       False,
+        'getent group kismet &>/dev/null && echo "Group already exists" || sudo groupadd -r kismet'),
     ("create_kismet_user",  "Create kismet system user",        False,
         'id kismet &>/dev/null && echo "User already exists" || sudo useradd -r -m -g kismet kismet'),
     ("create_log_dir",      "Create Kismet log directory",      False,
@@ -34,6 +36,8 @@ PROVISION_STEPS = [
     ("mount_nas",           "Mount NAS share",                  False, None),
     ("enable_sync_timer",   "Enable sync timer",                False,
         "sudo systemctl daemon-reload && sudo systemctl enable cyt-kismet-sync.timer && sudo systemctl start cyt-kismet-sync.timer && echo ok"),
+    ("enable_kismet",       "Enable Kismet service",            False,
+        "sudo systemctl enable kismet 2>/dev/null && echo enabled || echo 'kismet service not found'"),
     ("detect_kismet_version", "Detect Kismet version",          False,
         "kismet --version 2>&1 | head -1 || echo unknown"),
 ]
@@ -234,7 +238,8 @@ WantedBy=timers.target
     # Move files into place
     cmds = [
         "sudo mv /tmp/cyt-kismet-sync /usr/local/bin/cyt-kismet-sync",
-        "sudo chmod +x /usr/local/bin/cyt-kismet-sync",
+        "sudo chown root:root /usr/local/bin/cyt-kismet-sync",
+        "sudo chmod 755 /usr/local/bin/cyt-kismet-sync",
         "sudo mv /tmp/cyt-kismet-sync.service /etc/systemd/system/cyt-kismet-sync.service",
         "sudo mv /tmp/cyt-kismet-sync.timer /etc/systemd/system/cyt-kismet-sync.timer",
         "sudo chmod 644 /etc/systemd/system/cyt-kismet-sync.service /etc/systemd/system/cyt-kismet-sync.timer",
@@ -246,7 +251,7 @@ WantedBy=timers.target
             err = stderr.read().decode("utf-8", errors="replace").strip()
             return False, f"Failed: {cmd!r} — {err}"
 
-    return True, "Sync script + systemd units installed"
+    return True, "Sync script + systemd units installed (root:root)"
 
 
 def _mount_nas(client, sensor, nas_user=None, nas_password=None):
@@ -294,15 +299,23 @@ def _mount_nas(client, sensor, nas_user=None, nas_password=None):
     if not ok:
         return False, f"Could not create mount point: {msg}"
 
-    # Add to fstab if not already there
-    fstab_entry = f"{nas_share} {nas_mount} cifs credentials={creds_file},iocharset=utf8,vers=3.0,nofail,_netdev 0 0"
+    # Add to fstab if not already there — write via SFTP to avoid shell quoting hazards
     check_cmd = f"grep -qF '{nas_share}' /etc/fstab && echo exists || echo missing"
     ok, msg = _run_cmd(client, check_cmd, timeout=10)
     if ok and "missing" in msg:
-        add_cmd = f"echo '{fstab_entry}' | sudo tee -a /etc/fstab > /dev/null && echo added"
-        ok, msg = _run_cmd(client, add_cmd, timeout=10)
-        if not ok:
-            return False, f"Could not update fstab: {msg}"
+        fstab_line = f"{nas_share} {nas_mount} cifs credentials={creds_file},iocharset=utf8,vers=3.0,nofail,_netdev 0 0\n"
+        try:
+            sftp = client.open_sftp()
+            try:
+                with sftp.open("/tmp/cyt-fstab-entry", "w") as f:
+                    f.write(fstab_line)
+            finally:
+                sftp.close()
+            ok, msg = _run_cmd(client, "sudo sh -c 'cat /tmp/cyt-fstab-entry >> /etc/fstab && rm /tmp/cyt-fstab-entry' && echo added", timeout=10)
+            if not ok:
+                return False, f"Could not update fstab: {msg}"
+        except Exception as exc:
+            return False, f"SFTP fstab write failed: {exc}"
 
     # Attempt mount
     ok, msg = _run_cmd(client, f"sudo mount {nas_mount} 2>&1 || true", timeout=20)
