@@ -7,15 +7,17 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
 # Create non-root user (no compiler install needed — bookworm ships gcc/libssl)
+RUN groupadd -r cyt && useradd -r -g cyt -d /app -s /sbin/nologin cyt
+
 # Copy application code
-COPY cyt/ cyt/
-COPY web/ web/
-COPY sensor/kismet_sync.sh sensor/kismet_sync.sh
-COPY config.json .
-COPY ignore_lists/ ignore_lists/
+COPY repo/cyt/ cyt/
+COPY repo/web/ web/
+COPY repo/sensor/kismet_sync.sh sensor/kismet_sync.sh
+COPY repo/config.json .
+COPY repo/ignore_lists/ ignore_lists/
 
 # Copy entrypoint and set permissions
-COPY docker/entrypoint.sh /entrypoint.sh
+COPY repo/docker/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
 # Create data directories
