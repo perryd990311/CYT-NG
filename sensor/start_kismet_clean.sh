@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # TRULY CLEAN Kismet startup - NO pkill commands whatsoever!
-cd /home/matt/Desktop/cytng
+cd /home/kismet || cd ~
 
 echo "$(date): Starting Kismet without any cleanup..."
 

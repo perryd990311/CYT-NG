@@ -9,6 +9,8 @@ from flask_login import login_required
 
 bp = Blueprint("settings", __name__, url_prefix="/settings")
 
+_CONFIG_PATH = Path(__file__).resolve().parent.parent.parent / "config.json"
+
 
 @bp.before_request
 @login_required
@@ -107,3 +109,96 @@ def update_ssid_ignore():
     _write_ignore_list(ssid_path, validated)
     flash(f"SSID ignore list updated ({len(validated)} entries).", "success")
     return redirect(url_for("settings.index"))
+
+
+@bp.route("/config", methods=["POST"])
+def update_config():
+    """Save editable config values back to config.json."""
+    cfg = _load_config()
+
+    # --- Timing ---
+    try:
+        val = int(request.form.get("check_interval", 60))
+        cfg.setdefault("timing", {})["check_interval"] = max(10, val)
+    except (ValueError, TypeError):
+        flash("Ingestion interval must be an integer.", "danger")
+
+    try:
+        val = int(request.form.get("analysis_interval_hours", 6))
+        cfg.setdefault("timing", {})["analysis_interval_hours"] = max(1, val)
+    except (ValueError, TypeError):
+        flash("Analysis interval must be an integer.", "danger")
+
+    try:
+        val = int(request.form.get("cleanup_interval_hours", 24))
+        cfg.setdefault("timing", {})["cleanup_interval_hours"] = max(1, val)
+    except (ValueError, TypeError):
+        flash("Cleanup interval must be an integer.", "danger")
+
+    try:
+        val = int(request.form.get("retention_days", 90))
+        cfg.setdefault("timing", {})["retention_days"] = max(1, val)
+    except (ValueError, TypeError):
+        flash("Retention days must be an integer.", "danger")
+
+    # --- Fingerprinting ---
+    try:
+        val = float(request.form.get("jaccard_threshold", 0.85))
+        cfg.setdefault("fingerprinting", {})["jaccard_threshold"] = round(max(0.0, min(1.0, val)), 2)
+    except (ValueError, TypeError):
+        flash("Jaccard threshold must be a number 0–1.", "danger")
+
+    try:
+        val = int(request.form.get("min_ssids_for_fingerprint", 2))
+        cfg.setdefault("fingerprinting", {})["min_ssids_for_fingerprint"] = max(1, val)
+    except (ValueError, TypeError):
+        flash("Min SSIDs must be an integer.", "danger")
+
+    # --- Paths ---
+    kismet_logs = request.form.get("kismet_logs", "").strip()
+    if kismet_logs:
+        cfg.setdefault("paths", {})["kismet_logs"] = kismet_logs
+
+    reports_dir = request.form.get("reports_dir", "").strip()
+    if reports_dir:
+        cfg.setdefault("paths", {})["reports_dir"] = reports_dir
+
+    # --- Sensor ---
+    try:
+        val = int(request.form.get("sync_interval_minutes", 5))
+        cfg.setdefault("sensor", {})["sync_interval_minutes"] = max(1, val)
+    except (ValueError, TypeError):
+        pass
+
+    smb_share = request.form.get("smb_share", "").strip()
+    if smb_share:
+        cfg.setdefault("sensor", {})["smb_share"] = smb_share
+
+    # Persist to config.json
+    _save_config(cfg)
+
+    # Reload into running app
+    current_app.config["RAW_CONFIG"] = cfg
+    current_app.config["KISMET_LOGS"] = cfg.get("paths", {}).get("kismet_logs", "")
+    current_app.config["REPORTS_DIR"] = cfg.get("paths", {}).get("reports_dir", "surveillance_reports")
+    current_app.config["JACCARD_THRESHOLD"] = cfg.get("fingerprinting", {}).get("jaccard_threshold", 0.85)
+    current_app.config["MIN_SSIDS_FOR_FINGERPRINT"] = cfg.get("fingerprinting", {}).get("min_ssids_for_fingerprint", 2)
+    current_app.config["TIMING"] = cfg.get("timing", {})
+
+    flash("Configuration saved.", "success")
+    return redirect(url_for("settings.index"))
+
+
+def _load_config() -> dict:
+    """Read config.json from disk."""
+    if _CONFIG_PATH.exists():
+        with open(_CONFIG_PATH) as f:
+            return json.load(f)
+    return {}
+
+
+def _save_config(cfg: dict) -> None:
+    """Write config dict to config.json."""
+    with open(_CONFIG_PATH, "w") as f:
+        json.dump(cfg, f, indent=2)
+        f.write("\n")

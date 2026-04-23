@@ -2,7 +2,7 @@
   "paths": {
     "base_dir": ".",
     "log_dir": "logs",
-    "kismet_logs": "/home/matt/kismet_logs/*.kismet",
+    "kismet_logs": "/data/kismet",
     "cyt_database": "cyt_data.db",
     "ignore_lists": {
       "mac": "ignore_lists/mac_list.json",

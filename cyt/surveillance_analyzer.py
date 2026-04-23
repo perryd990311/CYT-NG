@@ -54,7 +54,10 @@ class SurveillanceAnalyzer:
         # Find all Kismet databases from past 24 hours
         if not kismet_db_path:
             db_pattern = self.config['paths']['kismet_logs']
-            all_db_files = glob.glob(db_pattern)
+            # Support both directory paths and glob patterns
+            if '*' not in db_pattern:
+                db_pattern = os.path.join(db_pattern, "**", "*.kismet")
+            all_db_files = glob.glob(db_pattern, recursive=True)
             if not all_db_files:
                 raise FileNotFoundError(f"No Kismet database found at: {db_pattern}")
             

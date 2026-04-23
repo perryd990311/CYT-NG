@@ -64,7 +64,12 @@ db_path = config['paths']['kismet_logs']
 
 ######Find Newest DB file - SECURE
 try:
-    list_of_files = glob.glob(db_path)
+    # Support both directory paths and glob patterns
+    if '*' not in db_path:
+        search_pattern = os.path.join(db_path, "**", "*.kismet")
+    else:
+        search_pattern = db_path
+    list_of_files = glob.glob(search_pattern, recursive=True)
     if not list_of_files:
         raise FileNotFoundError(f"No Kismet database files found at: {db_path}")
     

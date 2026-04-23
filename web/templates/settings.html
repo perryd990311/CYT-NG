@@ -41,18 +41,78 @@
         <div class="card">
             <div class="card-header"><i class="bi bi-sliders"></i> Configuration</div>
             <div class="card-body small">
-                <table class="table table-sm mb-0">
-                    <tbody>
-                        <tr><td style="color:var(--cyt-text-muted);">Ingestion interval</td><td>{{ config.get('timing', {}).get('check_interval', '—') }}s</td></tr>
-                        <tr><td style="color:var(--cyt-text-muted);">Analysis interval</td><td>{{ config.get('timing', {}).get('analysis_interval_hours', '—') }}h</td></tr>
-                        <tr><td style="color:var(--cyt-text-muted);">Cleanup interval</td><td>{{ config.get('timing', {}).get('cleanup_interval_hours', '—') }}h</td></tr>
-                        <tr><td style="color:var(--cyt-text-muted);">Retention period</td><td>{{ config.get('timing', {}).get('retention_days', '—') }} days</td></tr>
-                        <tr><td style="color:var(--cyt-text-muted);">Jaccard threshold</td><td>{{ config.get('fingerprinting', {}).get('jaccard_threshold', '—') }}</td></tr>
-                        <tr><td style="color:var(--cyt-text-muted);">Min SSIDs</td><td>{{ config.get('fingerprinting', {}).get('min_ssids_for_fingerprint', '—') }}</td></tr>
-                        <tr><td style="color:var(--cyt-text-muted);">Kismet logs</td><td><code>{{ config.get('paths', {}).get('kismet_logs', '—') }}</code></td></tr>
-                        <tr><td style="color:var(--cyt-text-muted);">Reports dir</td><td><code>{{ config.get('paths', {}).get('reports_dir', '—') }}</code></td></tr>
-                    </tbody>
-                </table>
+                <form method="post" action="{{ url_for('settings.update_config') }}">
+                    <h6 class="text-secondary mt-0 mb-2">Timing</h6>
+                    <div class="row g-2 mb-2">
+                        <div class="col-6">
+                            <label class="form-label mb-0">Ingestion interval (s)</label>
+                            <input type="number" name="check_interval" class="form-control form-control-sm"
+                                   value="{{ config.get('timing', {}).get('check_interval', 60) }}" min="10">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label mb-0">Analysis interval (h)</label>
+                            <input type="number" name="analysis_interval_hours" class="form-control form-control-sm"
+                                   value="{{ config.get('timing', {}).get('analysis_interval_hours', 6) }}" min="1">
+                        </div>
+                    </div>
+                    <div class="row g-2 mb-2">
+                        <div class="col-6">
+                            <label class="form-label mb-0">Cleanup interval (h)</label>
+                            <input type="number" name="cleanup_interval_hours" class="form-control form-control-sm"
+                                   value="{{ config.get('timing', {}).get('cleanup_interval_hours', 24) }}" min="1">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label mb-0">Retention (days)</label>
+                            <input type="number" name="retention_days" class="form-control form-control-sm"
+                                   value="{{ config.get('timing', {}).get('retention_days', 90) }}" min="1">
+                        </div>
+                    </div>
+
+                    <h6 class="text-secondary mt-3 mb-2">Fingerprinting</h6>
+                    <div class="row g-2 mb-2">
+                        <div class="col-6">
+                            <label class="form-label mb-0">Jaccard threshold</label>
+                            <input type="number" name="jaccard_threshold" class="form-control form-control-sm"
+                                   value="{{ config.get('fingerprinting', {}).get('jaccard_threshold', 0.85) }}"
+                                   min="0" max="1" step="0.01">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label mb-0">Min SSIDs</label>
+                            <input type="number" name="min_ssids_for_fingerprint" class="form-control form-control-sm"
+                                   value="{{ config.get('fingerprinting', {}).get('min_ssids_for_fingerprint', 2) }}" min="1">
+                        </div>
+                    </div>
+
+                    <h6 class="text-secondary mt-3 mb-2">Paths</h6>
+                    <div class="mb-2">
+                        <label class="form-label mb-0">Kismet logs</label>
+                        <input type="text" name="kismet_logs" class="form-control form-control-sm font-monospace"
+                               value="{{ config.get('paths', {}).get('kismet_logs', '') }}">
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label mb-0">Reports directory</label>
+                        <input type="text" name="reports_dir" class="form-control form-control-sm font-monospace"
+                               value="{{ config.get('paths', {}).get('reports_dir', '') }}">
+                    </div>
+
+                    <h6 class="text-secondary mt-3 mb-2">Sensor Sync</h6>
+                    <div class="row g-2 mb-2">
+                        <div class="col-6">
+                            <label class="form-label mb-0">Sync interval (min)</label>
+                            <input type="number" name="sync_interval_minutes" class="form-control form-control-sm"
+                                   value="{{ config.get('sensor', {}).get('sync_interval_minutes', 5) }}" min="1">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label mb-0">SMB share</label>
+                            <input type="text" name="smb_share" class="form-control form-control-sm font-monospace"
+                                   value="{{ config.get('sensor', {}).get('smb_share', '') }}">
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-sm btn-outline-light mt-2">
+                        <i class="bi bi-save"></i> Save Configuration
+                    </button>
+                </form>
             </div>
         </div>
     </div>
