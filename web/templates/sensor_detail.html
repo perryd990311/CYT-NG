@@ -286,17 +286,52 @@
 
             bar.style.width = '100%';
             bar.setAttribute('aria-valuenow', 100);
+
+            const actions = `
+                <div class="d-flex gap-2 mt-2">
+                    <button class="btn btn-sm btn-outline-secondary" onclick="dismissProvision()">
+                        <i class="bi bi-x"></i> Dismiss
+                    </button>
+                    <button class="btn btn-sm btn-outline-info" onclick="retryProvision()">
+                        <i class="bi bi-arrow-repeat"></i> Retry / Reinstall
+                    </button>
+                </div>`;
+
             if (data.success) {
                 bar.classList.remove('bg-info', 'bg-danger');
                 bar.classList.add('bg-success');
-                resultDiv.innerHTML = '<div class="alert alert-success py-2 mb-0"><i class="bi bi-check-lg"></i> Provisioning complete — sensor is online.</div>';
+                resultDiv.innerHTML = '<div class="alert alert-success py-2 mb-0"><i class="bi bi-check-lg"></i> Provisioning complete — sensor is online.</div>' + actions;
             } else {
                 bar.classList.remove('bg-info', 'bg-success');
                 bar.classList.add('bg-danger');
-                resultDiv.innerHTML = '<div class="alert alert-danger py-2 mb-0"><i class="bi bi-exclamation-triangle"></i> Provisioning failed — check steps above for the failing step.</div>';
+                resultDiv.innerHTML = '<div class="alert alert-danger py-2 mb-0"><i class="bi bi-exclamation-triangle"></i> Provisioning failed — check steps above for the failing step.</div>' + actions;
             }
             resultDiv.style.display = '';
+
+            // Re-enable footer buttons (may have been server-side disabled when status=provisioning)
+            document.getElementById('btn-provision').disabled = false;
+            document.getElementById('btn-test-conn').disabled = false;
         });
+    }
+
+    window.dismissProvision = function() {
+        card.style.display = 'none';
+        resetProvisionCard();
+    };
+
+    window.retryProvision = function() {
+        resetProvisionCard();
+        document.getElementById('btn-provision').click();
+    };
+
+    function resetProvisionCard() {
+        stepsDiv.innerHTML = '';
+        bar.style.width = '0%';
+        bar.setAttribute('aria-valuenow', 0);
+        bar.className = 'progress-bar bg-info';
+        if (stepCount) stepCount.textContent = '';
+        resultDiv.innerHTML = '';
+        resultDiv.style.display = 'none';
     }
 })();
 </script>
