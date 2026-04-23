@@ -13,4 +13,7 @@ venv/
 *.log
 .tmp
 
+# Mockups — local preview only
+web/mockup/
+
 cyt_data.db
