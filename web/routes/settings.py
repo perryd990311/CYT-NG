@@ -1,5 +1,6 @@
 """Settings blueprint — application config, ignore lists, and credentials."""
 import json
+import os
 from pathlib import Path
 
 from flask import (
@@ -41,6 +42,23 @@ def _write_ignore_list(path: Path, data: list) -> None:
         json.dump(data, f, indent=2)
 
 
+def get_baseline_macs():
+    """Return a set of upper-cased MACs from the ignore list. Importable by other routes."""
+    mac_list_path = os.environ.get("IGNORE_LISTS", "ignore_lists") + "/mac_list.json"
+    try:
+        with open(mac_list_path) as f:
+            data = json.load(f)
+            if isinstance(data, dict):
+                items = data.get("macs", [])
+            elif isinstance(data, list):
+                items = data
+            else:
+                items = []
+            return {m.upper() for m in items if isinstance(m, str)}
+    except (FileNotFoundError, json.JSONDecodeError, TypeError):
+        return set()
+
+
 @bp.route("/")
 def index():
     from web.extensions import get_db
@@ -58,8 +76,6 @@ def index():
 
     db = get_db()
     total_devices = db.query(Device).count()
-    already_ignored = len(set(d.mac for d in db.query(Device.mac).all()) & set(mac_list))
-    not_yet_ignored = total_devices - already_ignored
 
     # Collect scheduler job info
     from cyt.tasks import scheduler
@@ -76,10 +92,63 @@ def index():
     return render_template(
         "settings.html",
         config=cfg,
-        mac_list=mac_list,
-        ssid_list=ssid_list,
+        mac_count=len(mac_list),
+        ssid_count=len(ssid_list),
         scheduler_jobs=jobs,
         scheduler_running=scheduler.running,
+        total_devices=total_devices,
+    )
+
+
+@bp.route("/ignore")
+def ignore_lists():
+    """Dedicated ignore list management page."""
+    from web.extensions import get_db
+    from cyt.models import Device
+
+    ignore_cfg = current_app.config.get("IGNORE_LISTS", {})
+    base = Path(current_app.root_path).parent
+
+    mac_path = base / ignore_cfg.get("mac_list", "ignore_lists/mac_list.json")
+    ssid_path = base / ignore_cfg.get("ssid_list", "ignore_lists/ssid_list.json")
+
+    mac_list = _read_ignore_list(mac_path)
+    ssid_list = _read_ignore_list(ssid_path)
+
+    db = get_db()
+    total_devices = db.query(Device).count()
+
+    # Build enrichment: manufacturer + friendly name for each ignored MAC
+    mac_upper_set = {m.upper() for m in mac_list if isinstance(m, str)}
+    mac_info = []
+    if mac_upper_set:
+        devices_in_baseline = (
+            db.query(Device)
+            .filter(Device.mac.in_(mac_upper_set))
+            .all()
+        )
+        device_map = {d.mac.upper(): d for d in devices_in_baseline}
+        for mac in mac_list:
+            d = device_map.get(mac.upper())
+            mac_info.append({
+                "mac": mac,
+                "manufacturer": d.manufacturer if d else "",
+                "device_type": d.device_type if d else "",
+                "last_seen": d.last_seen if d else None,
+            })
+    else:
+        mac_info = []
+
+    already_ignored = len(
+        set(d.mac.upper() for d in db.query(Device.mac).all()) & mac_upper_set
+    )
+    not_yet_ignored = total_devices - already_ignored
+
+    return render_template(
+        "ignore_lists.html",
+        mac_list=mac_list,
+        mac_info=mac_info,
+        ssid_list=ssid_list,
         total_devices=total_devices,
         not_yet_ignored=not_yet_ignored,
     )
@@ -105,7 +174,7 @@ def update_mac_ignore():
     mac_path = base / ignore_cfg.get("mac_list", "ignore_lists/mac_list.json")
     _write_ignore_list(mac_path, validated)
     flash(f"MAC ignore list updated ({len(validated)} entries).", "success")
-    return redirect(url_for("settings.index"))
+    return redirect(url_for("settings.ignore_lists"))
 
 
 @bp.route("/ignore/ssid", methods=["POST"])
@@ -128,7 +197,7 @@ def update_ssid_ignore():
     ssid_path = base / ignore_cfg.get("ssid_list", "ignore_lists/ssid_list.json")
     _write_ignore_list(ssid_path, validated)
     flash(f"SSID ignore list updated ({len(validated)} entries).", "success")
-    return redirect(url_for("settings.index"))
+    return redirect(url_for("settings.ignore_lists"))
 
 
 @bp.route("/baseline", methods=["POST"])
@@ -160,7 +229,7 @@ def baseline_devices():
         f"({len(merged)} total).",
         "success",
     )
-    return redirect(url_for("settings.index"))
+    return redirect(url_for("settings.ignore_lists"))
 
 
 @bp.route("/baseline/remove", methods=["POST"])
@@ -172,7 +241,7 @@ def baseline_remove():
     clean = InputValidator.validate_mac_address(mac)
     if not clean:
         flash(f"Invalid MAC: {mac}", "danger")
-        return redirect(url_for("settings.index"))
+        return redirect(url_for("settings.ignore_lists"))
 
     ignore_cfg = current_app.config.get("IGNORE_LISTS", {})
     base = Path(current_app.root_path).parent
@@ -187,7 +256,7 @@ def baseline_remove():
     else:
         flash(f"{clean} was not in the ignore list.", "warning")
 
-    return redirect(url_for("settings.index"))
+    return redirect(url_for("settings.ignore_lists"))
 
 
 @bp.route("/baseline/clear", methods=["POST"])
@@ -200,7 +269,36 @@ def baseline_clear():
     old = _read_ignore_list(mac_path)
     _write_ignore_list(mac_path, [])
     flash(f"Baseline cleared — removed {len(old)} MAC(s) from ignore list.", "success")
-    return redirect(url_for("settings.index"))
+    return redirect(url_for("settings.ignore_lists"))
+
+
+@bp.route("/baseline/remove-selected", methods=["POST"])
+def baseline_remove_selected():
+    """Remove multiple selected MACs from the ignore/baseline list."""
+    from cyt.input_validation import InputValidator
+
+    selected = request.form.getlist("selected_macs")
+    if not selected:
+        flash("No devices selected.", "warning")
+        return redirect(url_for("settings.ignore_lists"))
+
+    ignore_cfg = current_app.config.get("IGNORE_LISTS", {})
+    base = Path(current_app.root_path).parent
+    mac_path = base / ignore_cfg.get("mac_list", "ignore_lists/mac_list.json")
+
+    remove_set = set()
+    for mac in selected:
+        clean = InputValidator.validate_mac_address(mac)
+        if clean:
+            remove_set.add(clean.upper())
+
+    current = _read_ignore_list(mac_path)
+    updated = [m for m in current if m.upper() not in remove_set]
+    removed = len(current) - len(updated)
+    _write_ignore_list(mac_path, updated)
+
+    flash(f"Removed {removed} MAC(s) from ignore list.", "success")
+    return redirect(url_for("settings.ignore_lists"))
 
 
 @bp.route("/config", methods=["POST"])

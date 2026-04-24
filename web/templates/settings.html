@@ -7,68 +7,26 @@
 
 <div class="row g-3">
 
-    <!-- Baseline known devices -->
+    <!-- Ignore Lists link card -->
     <div class="col-12">
-        <div class="card border-warning">
-            <div class="card-header" style="background:var(--cyt-raised);">
-                <i class="bi bi-shield-check"></i> Baseline Known Devices
-                <span class="badge bg-secondary ms-2">{{ mac_list | length }} in ignore list</span>
-            </div>
-            <div class="card-body">
-                <p class="mb-2 small" style="color:var(--cyt-text-muted);">
-                    Capture all <strong>{{ total_devices }}</strong> currently known device(s) as your "home environment" baseline.
-                    This adds them to the MAC ignore list so future analysis only flags <em>new</em> devices.
-                    {% if not_yet_ignored > 0 %}
-                    <span class="badge bg-warning text-dark ms-1">{{ not_yet_ignored }} not yet ignored</span>
-                    {% else %}
-                    <span class="badge bg-success ms-1">All devices already ignored</span>
-                    {% endif %}
-                </p>
-                <div class="d-flex gap-2 mb-3">
-                    <form method="post" action="{{ url_for('settings.baseline_devices') }}"
-                          onsubmit="return confirm('Add all {{ total_devices }} known device(s) to the MAC ignore list?');">
-                        <button type="submit" class="btn btn-sm btn-warning text-dark"
-                                {% if not_yet_ignored == 0 %}disabled{% endif %}>
-                            <i class="bi bi-shield-fill-check"></i> Baseline All Known Devices
-                        </button>
-                    </form>
-                    {% if mac_list | length > 0 %}
-                    <form method="post" action="{{ url_for('settings.baseline_clear') }}"
-                          onsubmit="return confirm('Remove ALL {{ mac_list | length }} MAC(s) from the ignore list? You can re-baseline later.');">
-                        <button type="submit" class="btn btn-sm btn-outline-danger">
-                            <i class="bi bi-trash"></i> Clear Entire Baseline
-                        </button>
-                    </form>
-                    {% endif %}
+        <a href="{{ url_for('settings.ignore_lists') }}" class="card text-decoration-none border-warning"
+           style="transition: border-color 0.15s;">
+            <div class="card-body d-flex align-items-center justify-content-between py-3">
+                <div>
+                    <h6 class="mb-1" style="color:var(--cyt-text);">
+                        <i class="bi bi-funnel"></i> Ignore Lists &amp; Baseline
+                    </h6>
+                    <span class="small" style="color:var(--cyt-text-muted);">
+                        Manage MAC/SSID ignore lists, baseline known devices, add or remove entries.
+                    </span>
                 </div>
-
-                {% if mac_list | length > 0 %}
-                <div style="max-height: 260px; overflow-y: auto;">
-                    <table class="table table-sm table-hover mb-0">
-                        <thead style="position: sticky; top: 0; background: var(--cyt-raised);">
-                            <tr><th>MAC Address</th><th style="width:80px;"></th></tr>
-                        </thead>
-                        <tbody>
-                            {% for mac in mac_list %}
-                            <tr>
-                                <td class="font-monospace small">{{ mac }}</td>
-                                <td class="text-end">
-                                    <form method="post" action="{{ url_for('settings.baseline_remove') }}" class="d-inline"
-                                          onsubmit="return confirm('Remove {{ mac }} from ignore list?');">
-                                        <input type="hidden" name="mac" value="{{ mac }}">
-                                        <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-1" title="Remove">
-                                            <i class="bi bi-x-lg"></i>
-                                        </button>
-                                    </form>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-secondary">{{ mac_count }} MAC{{ 's' if mac_count != 1 else '' }}</span>
+                    <span class="badge bg-secondary">{{ ssid_count }} SSID{{ 's' if ssid_count != 1 else '' }}</span>
+                    <i class="bi bi-chevron-right" style="color:var(--cyt-text-muted);"></i>
                 </div>
-                {% endif %}
             </div>
-        </div>
+        </a>
     </div>
 
     <!-- Scheduled Tasks -->
@@ -175,40 +133,6 @@
 
                     <button type="submit" class="btn btn-sm btn-outline-light mt-2">
                         <i class="bi bi-save"></i> Save Configuration
-                    </button>
-                </form>
-            </div>
-        </div>
-    </div>
-
-    <!-- MAC ignore list -->
-    <div class="col-lg-6">
-        <div class="card">
-            <div class="card-header"><i class="bi bi-funnel"></i> MAC Ignore List ({{ mac_list | length }})</div>
-            <div class="card-body">
-                <form method="post" action="{{ url_for('settings.update_mac_ignore') }}">
-                    <textarea class="form-control font-monospace mb-2"
-                              name="mac_list" rows="8"
-                              placeholder="One MAC per line (AA:BB:CC:DD:EE:FF)">{{ mac_list | join('\n') }}</textarea>
-                    <button class="btn btn-sm btn-outline-light" type="submit">
-                        <i class="bi bi-save"></i> Save
-                    </button>
-                </form>
-            </div>
-        </div>
-    </div>
-
-    <!-- SSID ignore list -->
-    <div class="col-lg-6">
-        <div class="card">
-            <div class="card-header"><i class="bi bi-funnel"></i> SSID Ignore List ({{ ssid_list | length }})</div>
-            <div class="card-body">
-                <form method="post" action="{{ url_for('settings.update_ssid_ignore') }}">
-                    <textarea class="form-control font-monospace mb-2"
-                              name="ssid_list" rows="8"
-                              placeholder="One SSID per line">{{ ssid_list | join('\n') }}</textarea>
-                    <button class="btn btn-sm btn-outline-light" type="submit">
-                        <i class="bi bi-save"></i> Save
                     </button>
                 </form>
             </div>

@@ -1,0 +1,14 @@
+[Unit]
+Description=CYT-NG Kismet data sync to NAS
+After=network-online.target remote-fs.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/cyt-kismet-sync
+User=root
+Environment=KISMET_LOG_DIR=/kismet/
+Environment=NAS_MOUNT=/mnt/nas_kismet
+
+[Install]
+WantedBy=multi-user.target

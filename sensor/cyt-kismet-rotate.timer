@@ -1,0 +1,10 @@
+[Unit]
+Description=CYT-NG Kismet hourly log rotation
+
+[Timer]
+OnBootSec=60min
+OnUnitActiveSec=60min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

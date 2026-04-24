@@ -4,15 +4,28 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h4 class="mb-0"><i class="bi bi-phone"></i> Devices ({{ total }})</h4>
-  <form class="d-flex gap-2" method="get">
-    <input type="text" name="q" value="{{ search }}" class="form-control form-control-sm"
-           placeholder="Search MAC or manufacturer…"
-           hx-get="{{ url_for('devices.index') }}"
-           hx-trigger="keyup changed delay:400ms"
-           hx-target="#device-table"
-           hx-include="[name='q']"
-           hx-push-url="true">
-  </form>
+  <div class="d-flex gap-3 align-items-center">
+    {% if ignored_count is defined and ignored_count > 0 %}
+    <div class="form-check form-switch mb-0">
+      <input class="form-check-input" type="checkbox" id="toggle-ignored"
+             {% if show_ignored %}checked{% endif %}
+             onchange="window.location.href='{{ url_for('devices.index') }}?show_ignored=' + (this.checked ? '1' : '0') + '{% if search %}&q={{ search }}{% endif %}';">
+      <label class="form-check-label small" for="toggle-ignored" style="color:var(--cyt-text-muted);">
+        Show ignored ({{ ignored_count }})
+      </label>
+    </div>
+    {% endif %}
+    <form class="d-flex gap-2" method="get">
+      {% if show_ignored %}<input type="hidden" name="show_ignored" value="1">{% endif %}
+      <input type="text" name="q" value="{{ search }}" class="form-control form-control-sm"
+             placeholder="Search MAC or manufacturer…"
+             hx-get="{{ url_for('devices.index') }}{% if show_ignored %}?show_ignored=1{% endif %}"
+             hx-trigger="keyup changed delay:400ms"
+             hx-target="#device-table"
+             hx-include="[name='q']"
+             hx-push-url="true">
+    </form>
+  </div>
 </div>
 
 <div class="card">

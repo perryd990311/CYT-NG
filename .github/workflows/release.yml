@@ -21,16 +21,48 @@ jobs:
           TAG="${GITHUB_REF_NAME}"
           VERSION="${TAG#v}"
 
-          # Pull the section for this version from RELEASE_NOTES.md
-          NOTES=$(awk "/^## v${VERSION}[[:space:]]/{found=1; next} found && /^## v/{exit} found{print}" RELEASE_NOTES.md)
+          echo "::notice title=Release Info::Tag: $TAG, Version: $VERSION"
 
-          if [ -z "$NOTES" ]; then
-            NOTES="See [RELEASE_NOTES.md](RELEASE_NOTES.md) for full details."
+          # Try RELEASE_NOTES.md first (preferred)
+          NOTES=""
+          if [ -f RELEASE_NOTES.md ]; then
+            # Extract section for this version from RELEASE_NOTES.md
+            NOTES=$(awk "/^## v${VERSION}[[:space:]]/{found=1; next} found && /^## v/{exit} found{print}" RELEASE_NOTES.md | sed '/^$/d')
           fi
 
-          # Write to a file to safely pass multi-line content to later steps
+          # Fallback to CHANGELOG.md if RELEASE_NOTES.md not found or empty
+          if [ -z "$NOTES" ] && [ -f CHANGELOG.md ]; then
+            NOTES=$(awk "/^## \[${VERSION}\]/{found=1; next} found && /^## /{exit} found{print}" CHANGELOG.md | sed '/^$/d')
+          fi
+
+          # Fallback to git log between tags
+          if [ -z "$NOTES" ]; then
+            PREV_TAG=$(git tag --sort=-version:refname --merged ${TAG}^@ | head -n 1 || echo "")
+            if [ -n "$PREV_TAG" ]; then
+              NOTES=$(git log ${PREV_TAG}..${TAG} --oneline --no-decorate)
+            else
+              NOTES=$(git log ${TAG} --oneline --no-decorate)
+            fi
+            NOTES="### Release commits
+
+${NOTES}
+
+See full details at [Commits](https://github.com/${{ github.repository }}/compare/$PREV_TAG...$TAG)"
+          fi
+
+          # Final fallback
+          if [ -z "$NOTES" ]; then
+            NOTES="See [repository](https://github.com/${{ github.repository }}) for release details."
+          fi
+
+          # Write to file to safely pass multi-line content
           echo "$NOTES" > /tmp/release_notes.md
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+          # Output summary
+          echo "::group::Release notes (first 500 chars)"
+          head -c 500 /tmp/release_notes.md
+          echo "::endgroup::"
 
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2

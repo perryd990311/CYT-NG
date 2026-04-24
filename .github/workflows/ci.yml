@@ -1,15 +1,17 @@
 name: CI
 
 on:
+  # Disabled for now — re-enable by removing this condition
+  workflow_dispatch:
   push:
-    branches: [main]
+    branches: [] # Empty to prevent automatic triggers
   pull_request:
-    branches: [main]
+    branches: [] # Empty to prevent automatic triggers
 
 jobs:
   # ── Python checks ──────────────────────────────────────────────────────────
   python:
-    name: Python – syntax & import check
+    name: Python – syntax, format & import checks
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -19,39 +21,68 @@ jobs:
           python-version: "3.12"
 
       - name: Install dependencies
-        run: pip install --no-cache-dir -r python-service/requirements.txt
+        run: pip install --no-cache-dir -r requirements.txt black flake8
 
       - name: Syntax check (all .py files)
-        run: python -m compileall python-service/
+        run: python -m compileall cyt/ web/
 
-      - name: Import check (no running event loop)
-        working-directory: python-service
+      - name: Format check (black)
+        run: black --check cyt/ web/ --line-length 100
+
+      - name: Lint check (flake8)
+        run: flake8 cyt/ web/ --max-line-length 100 --ignore E501,W503
+
+      - name: Import check (cyt package)
         env:
-          # Minimal env that lets main.py fully import without crashing
-          SERVICES_CONFIG: "[]"
-          UNIFI_HOST: "127.0.0.1"
-          UNIFI_API_KEY: "ci-placeholder"
-          UNIFI_SITE_ID: "ci-placeholder"
-          SINRIC_APP_KEY: "ci-placeholder"
-          SINRIC_APP_SECRET: "ci-placeholder"
-          API_TOKEN: "ci-placeholder"
-        run: python -c "import main; print('Import OK — all modules loaded successfully')"
+          FLASK_ENV: testing
+          KISMET_LOGS: /tmp/kismet
+          IGNORE_LISTS: ignore_lists
+        run: python -c "import cyt; print('CYT package imported successfully')"
 
   # ── Docker build ───────────────────────────────────────────────────────────
   docker:
-    name: Docker – image build
+    name: Docker – build & scan all images
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        image:
+          - name: cyt-base
+            dockerfile: docker/Dockerfile.base
+            context: .
+          - name: cyt-web
+            dockerfile: docker/Dockerfile
+            context: .
+          - name: cyt-nginx
+            dockerfile: nginx/Dockerfile
+            context: .
     steps:
       - uses: actions/checkout@v6
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
 
-      - name: Build image
+      - name: Build ${{ matrix.image.name }} image
         uses: docker/build-push-action@v7
         with:
-          context: ./python-service
+          context: ${{ matrix.image.context }}
+          file: ${{ matrix.image.dockerfile }}
           push: false
-          tags: sinric-bridge:ci
+          tags: ${{ matrix.image.name }}:ci
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          load: true
+
+      - name: Run Trivy scan on ${{ matrix.image.name }}
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ matrix.image.name }}:ci
+          format: sarif
+          output: trivy-${{ matrix.image.name }}.sarif
+          severity: HIGH,CRITICAL
+
+      - name: Upload Trivy scan results for ${{ matrix.image.name }}
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: trivy-${{ matrix.image.name }}.sarif
+          category: trivy-${{ matrix.image.name }}

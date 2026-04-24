@@ -39,10 +39,27 @@ DEST_DIR="${NAS_MOUNT}/${HOSTNAME}"
 mkdir -p "$DEST_DIR"
 chmod 755 "$DEST_DIR"
 
-# Sync only .kismet files — rsync handles partial/incremental
+# Sync closed .kismet files only — skip the active (newest) file since
+# Kismet holds a write lock on it.  Hourly SIGHUP rotation (via
+# cyt-kismet-rotate.timer) keeps files small so data is never stale
+# for more than ~1 hour.
+NEWEST_FILE=""
+NEWEST_MTIME=0
+for f in "${KISMET_LOG_DIR}"/*.kismet; do
+    [ -f "$f" ] || continue
+    MTIME=$(stat -c '%Y' "$f" 2>/dev/null || stat -f '%m' "$f" 2>/dev/null)
+    if [ "$MTIME" -gt "$NEWEST_MTIME" ]; then
+        NEWEST_MTIME="$MTIME"
+        NEWEST_FILE="$f"
+    fi
+done
+
 SYNC_COUNT=0
 for f in "${KISMET_LOG_DIR}"/*.kismet; do
     [ -f "$f" ] || continue
+
+    # Skip the active file — it's still being written to
+    [ "$f" = "$NEWEST_FILE" ] && continue
 
     BASENAME="$(basename "$f")"
     DEST="${DEST_DIR}/${BASENAME}"

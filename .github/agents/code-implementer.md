@@ -189,6 +189,12 @@ When implementing updates:
    - **Kismet shared dir:** `/volume1/docker/kismet/` — mounted into cyt-web container AND exposed as SMB share for RPi sensors
    - `docker-compose.yaml` at project root is required for Synology Container Manager UI to discover the project
 
+5. **Post deploy**
+   - clean up old images: `docker image prune`
+   - monitor logs: `docker logs -f cyt-web`
+   - verify web UI functionality
+
+   
 ## Best Practices
 
 ✅ **Always:**

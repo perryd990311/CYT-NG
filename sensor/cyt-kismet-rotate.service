@@ -1,0 +1,12 @@
+[Unit]
+Description=CYT-NG Kismet log rotation (SIGHUP) then sync
+After=kismet.service
+ConditionPathExists=/kismet/
+Wants=cyt-kismet-sync.service
+
+[Service]
+Type=oneshot
+ExecStart=/bin/bash -c 'kill -HUP $(pgrep -x kismet) 2>/dev/null || true'
+# Give Kismet a moment to close the old file and open a new one
+ExecStartPost=/bin/sleep 5
+ExecStartPost=/usr/bin/systemctl start cyt-kismet-sync.service

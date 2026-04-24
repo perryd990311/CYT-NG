@@ -176,9 +176,12 @@ def _device_enrichment(db, devices):
 
 @bp.route("/")
 def index():
+    from web.routes.settings import get_baseline_macs
+
     db = get_db()
     page = request.args.get("page", 1, type=int)
     search = request.args.get("q", "").strip()
+    show_ignored = request.args.get("show_ignored", "0") == "1"
     per_page = 50
     offset = (page - 1) * per_page
 
@@ -190,6 +193,10 @@ def index():
             Device.mac.ilike(f"%{safe}%")
             | Device.manufacturer.ilike(f"%{safe}%")
         )
+
+    baseline_macs = get_baseline_macs()
+    if not show_ignored and baseline_macs:
+        query = query.filter(Device.mac.notin_(baseline_macs))
 
     total = query.count()
     devices = (
@@ -228,6 +235,8 @@ def index():
         device_ssids=device_ssids,
         enrichment=enrichment,
         new_threshold=new_threshold,
+        show_ignored=show_ignored,
+        ignored_count=len(baseline_macs),
     )
 
 

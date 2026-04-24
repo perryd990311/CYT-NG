@@ -75,11 +75,22 @@
     <div class="card">
       <div class="card-header d-flex justify-content-between align-items-center">
         <span><i class="bi bi-phone"></i> Recent Devices</span>
-        <span class="htmx-indicator spinner-border spinner-border-sm text-info"></span>
+        <div class="d-flex align-items-center gap-3">
+          {% if ignored_count is defined and ignored_count > 0 %}
+          <div class="form-check form-switch mb-0">
+            <input class="form-check-input" type="checkbox" id="toggle-dash-ignored"
+                   {% if show_ignored %}checked{% endif %}>
+            <label class="form-check-label small" for="toggle-dash-ignored" style="color:var(--cyt-text-muted);">
+              Show ignored ({{ ignored_count }})
+            </label>
+          </div>
+          {% endif %}
+          <span class="htmx-indicator spinner-border spinner-border-sm text-info"></span>
+        </div>
       </div>
       <div class="card-body p-0"
            id="device-list"
-           hx-get="{{ url_for('dashboard.api_devices') }}"
+           hx-get="{{ url_for('dashboard.api_devices') }}{% if show_ignored %}?show_ignored=1{% endif %}"
            hx-trigger="load, refresh, every 30s"
            hx-swap="innerHTML">
       </div>
@@ -204,6 +215,19 @@
 
   loadSparkline();
   window.refreshSparkline = loadSparkline;
+})();
+
+// Toggle ignored devices in dashboard device list
+(function () {
+  const toggle = document.getElementById('toggle-dash-ignored');
+  if (!toggle) return;
+  toggle.addEventListener('change', function () {
+    const list = document.getElementById('device-list');
+    const base = '{{ url_for("dashboard.api_devices") }}';
+    const url = this.checked ? base + '?show_ignored=1' : base;
+    list.setAttribute('hx-get', url);
+    htmx.trigger(list, 'refresh');
+  });
 })();
 </script>
 {% endblock %}

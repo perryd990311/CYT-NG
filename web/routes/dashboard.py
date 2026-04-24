@@ -6,6 +6,7 @@ from sqlalchemy import func
 
 from web.extensions import get_db, socketio
 from cyt.models import Device, Appearance, Sensor, AnalysisRun, KismetFileTracker
+from web.routes.settings import get_baseline_macs
 
 bp = Blueprint("dashboard", __name__)
 
@@ -30,6 +31,8 @@ def index():
     db = get_db()
     now = datetime.utcnow()
     five_min_ago = now - timedelta(minutes=5)
+    show_ignored = request.args.get("show_ignored", "0") == "1"
+    baseline_macs = get_baseline_macs()
 
     total_devices = db.query(Device).count()
     active_devices = (
@@ -58,14 +61,18 @@ def index():
         .subquery()
     )
     recurring_24h = db.query(func.count()).select_from(recurring_subq).scalar() or 0
-    top_persistent = (
+
+    top_q = (
         db.query(Device, func.count(Appearance.id).label("cnt"))
         .join(Appearance, Device.id == Appearance.device_id)
         .group_by(Device.id)
         .order_by(func.count(Appearance.id).desc())
-        .limit(10)
-        .all()
     )
+    if not show_ignored and baseline_macs:
+        top_q = top_q.filter(Device.mac.notin_(baseline_macs))
+    top_persistent = top_q.limit(10).all()
+
+    ignored_count = len(baseline_macs)
 
     return render_template(
         "dashboard.html",
@@ -79,6 +86,8 @@ def index():
         probes_24h=probes_24h,
         recurring_24h=recurring_24h,
         top_persistent=top_persistent,
+        show_ignored=show_ignored,
+        ignored_count=ignored_count,
     )
 
 
@@ -150,17 +159,23 @@ def api_devices():
 
     db = get_db()
     page = request.args.get("page", 1, type=int)
+    show_ignored = request.args.get("show_ignored", "0") == "1"
     per_page = 25
     offset = (page - 1) * per_page
 
+    query = db.query(Device)
+    if not show_ignored:
+        baseline_macs = get_baseline_macs()
+        if baseline_macs:
+            query = query.filter(Device.mac.notin_(baseline_macs))
+
+    total = query.count()
     devices = (
-        db.query(Device)
-        .order_by(Device.last_seen.desc())
+        query.order_by(Device.last_seen.desc())
         .offset(offset)
         .limit(per_page)
         .all()
     )
-    total = db.query(Device).count()
 
     if _is_htmx():
         device_ids = [d.id for d in devices]

@@ -1,0 +1,201 @@
+{% extends "base.html" %}
+
+{% block title %}Ignore Lists — CYT-NG{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center gap-2 mb-4">
+  <a href="{{ url_for('settings.index') }}" class="text-decoration-none" style="color:var(--cyt-text-muted);">
+    <i class="bi bi-gear"></i> Settings
+  </a>
+  <i class="bi bi-chevron-right small" style="color:var(--cyt-text-muted);"></i>
+  <h4 class="mb-0"><i class="bi bi-funnel"></i> Ignore Lists</h4>
+</div>
+
+<div class="row g-3">
+
+  <!-- ── Baseline controls ──────────────────────────────────── -->
+  <div class="col-12">
+    <div class="card border-warning">
+      <div class="card-header" style="background:var(--cyt-raised);">
+        <i class="bi bi-shield-check"></i> Baseline Known Devices
+        <span class="badge bg-secondary ms-2">{{ mac_list | length }} MAC{{ 's' if mac_list | length != 1 else '' }}</span>
+        <span class="badge bg-secondary ms-1">{{ ssid_list | length }} SSID{{ 's' if ssid_list | length != 1 else '' }}</span>
+      </div>
+      <div class="card-body">
+        <p class="mb-2 small" style="color:var(--cyt-text-muted);">
+          Capture all <strong>{{ total_devices }}</strong> currently known device(s) as your "home environment" baseline.
+          This adds them to the MAC ignore list so future analysis only flags <em>new</em> devices.
+          {% if not_yet_ignored > 0 %}
+          <span class="badge bg-warning text-dark ms-1">{{ not_yet_ignored }} not yet baselined</span>
+          {% else %}
+          <span class="badge bg-success ms-1">All devices baselined</span>
+          {% endif %}
+        </p>
+        <div class="d-flex gap-2">
+          <form method="post" action="{{ url_for('settings.baseline_devices') }}"
+                onsubmit="return confirm('Add all {{ total_devices }} known device(s) to the MAC ignore list?');">
+            <button type="submit" class="btn btn-sm btn-warning text-dark"
+                    {% if not_yet_ignored == 0 %}disabled{% endif %}>
+              <i class="bi bi-shield-fill-check"></i> Baseline All Known Devices
+            </button>
+          </form>
+          {% if mac_list | length > 0 %}
+          <form method="post" action="{{ url_for('settings.baseline_clear') }}"
+                onsubmit="return confirm('Remove ALL {{ mac_list | length }} MAC(s) from the ignore list? You can re-baseline later.');">
+            <button type="submit" class="btn btn-sm btn-outline-danger">
+              <i class="bi bi-trash"></i> Clear Entire Baseline
+            </button>
+          </form>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── MAC ignore list ────────────────────────────────────── -->
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-phone"></i> MAC Ignore List ({{ mac_list | length }})</span>
+        <div class="d-flex gap-2">
+          <button class="btn btn-sm btn-outline-danger" id="btn-remove-selected" disabled
+                  form="mac-select-form" type="submit"
+                  onclick="return confirm('Remove selected MACs from the ignore list?');">
+            <i class="bi bi-trash"></i> Remove Selected
+          </button>
+        </div>
+      </div>
+      <div class="card-body p-0">
+        {% if mac_info %}
+        <form id="mac-select-form" method="post" action="{{ url_for('settings.baseline_remove_selected') }}">
+          <div style="max-height: 420px; overflow-y: auto;">
+            <table class="table table-sm table-hover mb-0">
+              <thead style="position: sticky; top: 0; background: var(--cyt-raised); z-index: 1;">
+                <tr>
+                  <th style="width: 40px;">
+                    <input type="checkbox" id="select-all-mac" class="form-check-input"
+                           title="Select all">
+                  </th>
+                  <th>MAC Address</th>
+                  <th>Manufacturer</th>
+                  <th>Type</th>
+                  <th>Last Seen</th>
+                  <th style="width: 60px;"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for info in mac_info %}
+                <tr>
+                  <td>
+                    <input type="checkbox" class="form-check-input mac-select-cb"
+                           name="selected_macs" value="{{ info.mac }}">
+                  </td>
+                  <td class="font-monospace small">{{ info.mac }}</td>
+                  <td class="small">{{ info.manufacturer or '—' }}</td>
+                  <td class="small">{{ info.device_type or '—' }}</td>
+                  <td class="small">{{ info.last_seen.strftime('%Y-%m-%d %H:%M') if info.last_seen else '—' }}</td>
+                  <td class="text-end">
+                    <button type="button" class="btn btn-sm btn-outline-danger py-0 px-1 btn-mac-remove"
+                            data-mac="{{ info.mac }}" title="Remove">
+                      <i class="bi bi-x-lg"></i>
+                    </button>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </form>
+        {% else %}
+        <div class="p-4 text-center" style="color:var(--cyt-text-muted);">
+          <i class="bi bi-inbox d-block fs-3 mb-2"></i>
+          No MACs in ignore list. Use <strong>Baseline All Known Devices</strong> to populate.
+        </div>
+        {% endif %}
+      </div>
+
+      <!-- Raw edit toggle -->
+      <div class="card-footer">
+        <button class="btn btn-sm btn-outline-secondary" type="button"
+                data-bs-toggle="collapse" data-bs-target="#mac-raw-edit">
+          <i class="bi bi-pencil-square"></i> Edit Raw List
+        </button>
+        <div class="collapse mt-2" id="mac-raw-edit">
+          <form method="post" action="{{ url_for('settings.update_mac_ignore') }}">
+            <textarea class="form-control font-monospace mb-2" name="mac_list" rows="6"
+                      placeholder="One MAC per line (AA:BB:CC:DD:EE:FF)">{{ mac_list | join('\n') }}</textarea>
+            <button class="btn btn-sm btn-outline-light" type="submit">
+              <i class="bi bi-save"></i> Save
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── SSID ignore list ───────────────────────────────────── -->
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header">
+        <i class="bi bi-wifi"></i> SSID Ignore List ({{ ssid_list | length }})
+      </div>
+      <div class="card-body">
+        <form method="post" action="{{ url_for('settings.update_ssid_ignore') }}">
+          <textarea class="form-control font-monospace mb-2" name="ssid_list" rows="6"
+                    placeholder="One SSID per line">{{ ssid_list | join('\n') }}</textarea>
+          <button class="btn btn-sm btn-outline-light" type="submit">
+            <i class="bi bi-save"></i> Save
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Hidden single-remove form (driven by JS) -->
+<form id="single-remove-form" method="post" action="{{ url_for('settings.baseline_remove') }}" style="display:none;">
+  <input type="hidden" name="mac" id="single-remove-mac">
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  // Select-all checkbox
+  const selectAll = document.getElementById('select-all-mac');
+  const checkboxes = document.querySelectorAll('.mac-select-cb');
+  const removeBtn = document.getElementById('btn-remove-selected');
+
+  function updateRemoveBtn() {
+    const checked = document.querySelectorAll('.mac-select-cb:checked').length;
+    if (removeBtn) removeBtn.disabled = checked === 0;
+  }
+
+  if (selectAll) {
+    selectAll.addEventListener('change', function () {
+      checkboxes.forEach(cb => cb.checked = selectAll.checked);
+      updateRemoveBtn();
+    });
+  }
+
+  checkboxes.forEach(cb => {
+    cb.addEventListener('change', function () {
+      if (!this.checked && selectAll) selectAll.checked = false;
+      updateRemoveBtn();
+    });
+  });
+
+  // Single remove buttons
+  document.querySelectorAll('.btn-mac-remove').forEach(btn => {
+    btn.addEventListener('click', function () {
+      const mac = this.getAttribute('data-mac');
+      if (confirm('Remove ' + mac + ' from ignore list?')) {
+        document.getElementById('single-remove-mac').value = mac;
+        document.getElementById('single-remove-form').submit();
+      }
+    });
+  });
+})();
+</script>
+{% endblock %}
