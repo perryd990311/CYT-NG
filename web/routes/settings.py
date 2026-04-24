@@ -163,6 +163,46 @@ def baseline_devices():
     return redirect(url_for("settings.index"))
 
 
+@bp.route("/baseline/remove", methods=["POST"])
+def baseline_remove():
+    """Remove one MAC from the ignore/baseline list."""
+    from cyt.input_validation import InputValidator
+
+    mac = request.form.get("mac", "").strip()
+    clean = InputValidator.validate_mac_address(mac)
+    if not clean:
+        flash(f"Invalid MAC: {mac}", "danger")
+        return redirect(url_for("settings.index"))
+
+    ignore_cfg = current_app.config.get("IGNORE_LISTS", {})
+    base = Path(current_app.root_path).parent
+    mac_path = base / ignore_cfg.get("mac_list", "ignore_lists/mac_list.json")
+
+    current = _read_ignore_list(mac_path)
+    updated = [m for m in current if m.upper() != clean.upper()]
+
+    if len(updated) < len(current):
+        _write_ignore_list(mac_path, updated)
+        flash(f"Removed {clean} from ignore list.", "success")
+    else:
+        flash(f"{clean} was not in the ignore list.", "warning")
+
+    return redirect(url_for("settings.index"))
+
+
+@bp.route("/baseline/clear", methods=["POST"])
+def baseline_clear():
+    """Remove all MACs from the ignore/baseline list."""
+    ignore_cfg = current_app.config.get("IGNORE_LISTS", {})
+    base = Path(current_app.root_path).parent
+    mac_path = base / ignore_cfg.get("mac_list", "ignore_lists/mac_list.json")
+
+    old = _read_ignore_list(mac_path)
+    _write_ignore_list(mac_path, [])
+    flash(f"Baseline cleared — removed {len(old)} MAC(s) from ignore list.", "success")
+    return redirect(url_for("settings.index"))
+
+
 @bp.route("/config", methods=["POST"])
 def update_config():
     """Save editable config values back to config.json."""

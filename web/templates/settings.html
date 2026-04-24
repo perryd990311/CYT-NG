@@ -12,6 +12,7 @@
         <div class="card border-warning">
             <div class="card-header" style="background:var(--cyt-raised);">
                 <i class="bi bi-shield-check"></i> Baseline Known Devices
+                <span class="badge bg-secondary ms-2">{{ mac_list | length }} in ignore list</span>
             </div>
             <div class="card-body">
                 <p class="mb-2 small" style="color:var(--cyt-text-muted);">
@@ -23,13 +24,49 @@
                     <span class="badge bg-success ms-1">All devices already ignored</span>
                     {% endif %}
                 </p>
-                <form method="post" action="{{ url_for('settings.baseline_devices') }}"
-                      onsubmit="return confirm('Add all {{ total_devices }} known device(s) to the MAC ignore list? This cannot be undone automatically.');">
-                    <button type="submit" class="btn btn-sm btn-warning text-dark"
-                            {% if not_yet_ignored == 0 %}disabled{% endif %}>
-                        <i class="bi bi-shield-fill-check"></i> Baseline All Known Devices
-                    </button>
-                </form>
+                <div class="d-flex gap-2 mb-3">
+                    <form method="post" action="{{ url_for('settings.baseline_devices') }}"
+                          onsubmit="return confirm('Add all {{ total_devices }} known device(s) to the MAC ignore list?');">
+                        <button type="submit" class="btn btn-sm btn-warning text-dark"
+                                {% if not_yet_ignored == 0 %}disabled{% endif %}>
+                            <i class="bi bi-shield-fill-check"></i> Baseline All Known Devices
+                        </button>
+                    </form>
+                    {% if mac_list | length > 0 %}
+                    <form method="post" action="{{ url_for('settings.baseline_clear') }}"
+                          onsubmit="return confirm('Remove ALL {{ mac_list | length }} MAC(s) from the ignore list? You can re-baseline later.');">
+                        <button type="submit" class="btn btn-sm btn-outline-danger">
+                            <i class="bi bi-trash"></i> Clear Entire Baseline
+                        </button>
+                    </form>
+                    {% endif %}
+                </div>
+
+                {% if mac_list | length > 0 %}
+                <div style="max-height: 260px; overflow-y: auto;">
+                    <table class="table table-sm table-hover mb-0">
+                        <thead style="position: sticky; top: 0; background: var(--cyt-raised);">
+                            <tr><th>MAC Address</th><th style="width:80px;"></th></tr>
+                        </thead>
+                        <tbody>
+                            {% for mac in mac_list %}
+                            <tr>
+                                <td class="font-monospace small">{{ mac }}</td>
+                                <td class="text-end">
+                                    <form method="post" action="{{ url_for('settings.baseline_remove') }}" class="d-inline"
+                                          onsubmit="return confirm('Remove {{ mac }} from ignore list?');">
+                                        <input type="hidden" name="mac" value="{{ mac }}">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-1" title="Remove">
+                                            <i class="bi bi-x-lg"></i>
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% endif %}
             </div>
         </div>
     </div>

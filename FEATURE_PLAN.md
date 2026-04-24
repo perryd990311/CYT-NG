@@ -29,6 +29,7 @@
 - Show last sync time in status bar alongside data age
 
 ## Backlog
+- [ ] Persistent ignore lists across container rebuilds (mount `ignore_lists/` as a Docker volume or store in the SQLite DB so edits survive `docker compose build`)
 - [ ] Ignore list integration into fingerprinting
 - [ ] Device detail page enrichment (match popup data)
 - [ ] Export devices to CSV/JSON

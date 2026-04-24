@@ -113,7 +113,13 @@ def _device_enrichment(db, devices):
     try:
         with open(mac_list_path) as f:
             data = json.load(f)
-            baseline_macs = {m.upper() for m in data.get("macs", data) if isinstance(m, str)}
+            if isinstance(data, dict):
+                items = data.get("macs", [])
+            elif isinstance(data, list):
+                items = data
+            else:
+                items = []
+            baseline_macs = {m.upper() for m in items if isinstance(m, str)}
     except (FileNotFoundError, json.JSONDecodeError, TypeError):
         pass
 
