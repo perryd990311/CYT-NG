@@ -217,6 +217,35 @@ def _configure_kismet_site(client, sensor):
             stdout.channel.recv_exit_status()
             with sftp.open("/tmp/kismet_site.conf", "w") as f:
                 f.write(site_conf)
+            # rfkill service written in the second SFTP block below after building the string
+        finally:
+            sftp.close()
+    except Exception as exc:
+        return False, f"SFTP write failed: {exc}"
+
+    # rfkill unblock service — persists wifi unblock across reboots
+    rfkill_service = (
+        "[Unit]\n"
+        "Description=Unblock wifi rfkill at boot (CYT-NG)\n"
+        "Before=kismet.service\n"
+        "DefaultDependencies=no\n"
+        "After=sysinit.target\n"
+        "\n"
+        "[Service]\n"
+        "Type=oneshot\n"
+        "RemainAfterExit=yes\n"
+        "ExecStart=/bin/sh -c "
+        "'for f in /sys/class/rfkill/*/soft; do echo 0 > $f; done'\n"
+        "\n"
+        "[Install]\n"
+        "WantedBy=multi-user.target\n"
+    )
+
+    try:
+        sftp = client.open_sftp()
+        try:
+            with sftp.open("/tmp/cyt-rfkill-unblock.service", "w") as f:
+                f.write(rfkill_service)
         finally:
             sftp.close()
     except Exception as exc:
@@ -225,6 +254,12 @@ def _configure_kismet_site(client, sensor):
     cmds = [
         "sudo mv /tmp/kismet_site.conf /etc/kismet/kismet_site.conf",
         "sudo chmod 644 /etc/kismet/kismet_site.conf",
+        "sudo mv /tmp/cyt-rfkill-unblock.service /etc/systemd/system/cyt-rfkill-unblock.service",
+        "sudo chmod 644 /etc/systemd/system/cyt-rfkill-unblock.service",
+        "sudo systemctl daemon-reload",
+        "sudo systemctl enable cyt-rfkill-unblock.service",
+        # Unblock now (for this session too)
+        "sudo sh -c 'for f in /sys/class/rfkill/*/soft; do echo 0 > $f; done'",
         # Put the interface into monitor mode so Kismet can use it
         f"sudo ip link set {iface} down 2>/dev/null || true",
         f"sudo iw dev {iface} set type monitor 2>/dev/null || sudo iwconfig {iface} mode monitor 2>/dev/null || true",
@@ -234,12 +269,12 @@ def _configure_kismet_site(client, sensor):
     for cmd in cmds:
         _, stdout, stderr = client.exec_command(cmd, timeout=15)
         exit_code = stdout.channel.recv_exit_status()
-        # monitor-mode commands are best-effort; only fail on config write errors
+        # monitor-mode and rfkill commands are best-effort; only fail on config write errors
         if exit_code != 0 and "kismet_site.conf" in cmd:
             err = stderr.read().decode("utf-8", errors="replace").strip()
             return False, f"Failed: {cmd!r} — {err}"
 
-    return True, f"kismet_site.conf written (source={mon_iface}, log=/kismet/)"
+    return True, f"kismet_site.conf written (source={mon_iface}, log=/kismet/); rfkill unblock service enabled"
 
 
 def _install_sync_files(client, sensor):
