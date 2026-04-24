@@ -13,6 +13,7 @@
   </thead>
   <tbody>
     {% for d in devices %}
+    {% set enr = enrichment[d.id] if enrichment is defined and enrichment.get(d.id) else {} %}
     <tr class="device-row" role="button"
         data-mac="{{ d.mac }}"
         data-fname="{{ d.mac|friendly_name }}"
@@ -23,7 +24,14 @@
         data-first="{{ d.first_seen.strftime('%Y-%m-%d %H:%M') if d.first_seen else '' }}"
         data-last="{{ d.last_seen.strftime('%Y-%m-%d %H:%M') if d.last_seen else '' }}"
         data-ssids="{% if device_ssids is defined and device_ssids.get(d.id) %}{{ device_ssids[d.id]|join('|||') }}{% endif %}"
-        data-detail="{{ url_for('devices.detail', mac=d.mac) }}">
+        data-detail="{{ url_for('devices.detail', mac=d.mac) }}"
+        data-appearances="{{ enr.get('appearances', 0) }}"
+        data-span="{{ enr.get('span', '') }}"
+        data-sensors="{{ enr.get('sensors', '') }}"
+        data-signal="{{ enr.get('signal', '') }}"
+        data-fingerprint="{{ enr.get('fingerprint', '') }}"
+        data-baseline="{{ 'true' if enr.get('baseline') else 'false' }}"
+        data-notes="{{ enr.get('notes', '') }}">
       <td>
         <div class="d-flex align-items-center gap-2">
           <span class="color-dot" style="background:{{ d.mac|color_dot }}" title="{{ d.mac|color_dot }}"></span>

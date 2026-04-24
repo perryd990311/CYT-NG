@@ -428,7 +428,8 @@ a:hover { color: var(--cyt-brand); }
 }
 
 .device-popup {
-  position: absolute;
+  position: fixed;
+  top: 1rem;
   right: 2rem;
   width: 380px;
   max-width: calc(100vw - 3rem);
@@ -437,7 +438,6 @@ a:hover { color: var(--cyt-brand); }
   border: 1px solid var(--cyt-border-light);
   border-radius: 0.75rem;
   box-shadow: 0 16px 48px rgba(0,0,0,0.5), 0 0 0 1px rgba(34,211,238,0.06);
-  transform: translateY(-50%);
   overflow: hidden;
 }
 

@@ -146,6 +146,8 @@ def api_status():
 @bp.route("/api/devices")
 def api_devices():
     """Return recent devices as HTMX partial or JSON."""
+    from web.routes.devices import _device_ssid_sets, _device_enrichment
+
     db = get_db()
     page = request.args.get("page", 1, type=int)
     per_page = 25
@@ -161,12 +163,17 @@ def api_devices():
     total = db.query(Device).count()
 
     if _is_htmx():
+        device_ids = [d.id for d in devices]
+        device_ssids = _device_ssid_sets(db, device_ids)
+        enrichment = _device_enrichment(db, devices)
         return render_template(
             "partials/device_list.html",
             devices=devices,
             page=page,
             total=total,
             per_page=per_page,
+            device_ssids=device_ssids,
+            enrichment=enrichment,
         )
 
     return jsonify(

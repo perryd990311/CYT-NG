@@ -8,7 +8,7 @@ from flask_login import login_required
 from sqlalchemy import func
 
 from web.extensions import get_db
-from cyt.models import Device, Appearance
+from cyt.models import Device, Appearance, Sensor, Fingerprint
 from cyt.input_validation import InputValidator
 
 bp = Blueprint("devices", __name__, url_prefix="/devices")
@@ -60,6 +60,114 @@ def _device_ssid_sets(db, device_ids):
     return {did: sorted(ssids) for did, ssids in sets.items()}
 
 
+def _device_enrichment(db, devices):
+    """Return {device_id: dict} with popup enrichment data."""
+    if not devices:
+        return {}
+    device_ids = [d.id for d in devices]
+
+    # Appearance counts
+    count_rows = (
+        db.query(Appearance.device_id, func.count(Appearance.id).label("cnt"))
+        .filter(Appearance.device_id.in_(device_ids))
+        .group_by(Appearance.device_id)
+        .all()
+    )
+    counts = {r.device_id: r.cnt for r in count_rows}
+
+    # Last signal strength per device
+    signal_sub = (
+        db.query(
+            Appearance.device_id,
+            Appearance.signal_dbm,
+            func.row_number().over(
+                partition_by=Appearance.device_id,
+                order_by=Appearance.timestamp.desc()
+            ).label("rn")
+        )
+        .filter(
+            Appearance.device_id.in_(device_ids),
+            Appearance.signal_dbm.isnot(None),
+        )
+        .subquery()
+    )
+    signal_rows = db.query(signal_sub.c.device_id, signal_sub.c.signal_dbm).filter(signal_sub.c.rn == 1).all()
+    signals = {r.device_id: r.signal_dbm for r in signal_rows}
+
+    # Sensors per device
+    sensor_rows = (
+        db.query(Appearance.device_id, Sensor.name)
+        .join(Sensor, Appearance.sensor_id == Sensor.id)
+        .filter(Appearance.device_id.in_(device_ids))
+        .distinct()
+        .all()
+    )
+    sensors = defaultdict(list)
+    for did, sname in sensor_rows:
+        sensors[did].append(sname)
+
+    # Baseline MAC list
+    import os
+    baseline_macs = set()
+    mac_list_path = os.environ.get("IGNORE_LISTS", "ignore_lists") + "/mac_list.json"
+    try:
+        with open(mac_list_path) as f:
+            data = json.load(f)
+            baseline_macs = {m.upper() for m in data.get("macs", data) if isinstance(m, str)}
+    except (FileNotFoundError, json.JSONDecodeError, TypeError):
+        pass
+
+    result = {}
+    for d in devices:
+        # Time span
+        span = ""
+        if d.first_seen and d.last_seen:
+            delta = d.last_seen - d.first_seen
+            total_secs = int(delta.total_seconds())
+            if total_secs < 60:
+                span = f"{total_secs}s"
+            elif total_secs < 3600:
+                span = f"{total_secs // 60}m"
+            elif total_secs < 86400:
+                span = f"{total_secs // 3600}h {(total_secs % 3600) // 60}m"
+            else:
+                span = f"{total_secs // 86400}d {(total_secs % 86400) // 3600}h"
+
+        # Fingerprint info
+        fp_info = ""
+        if d.fingerprint_id and d.fingerprint:
+            fp_ssids = []
+            try:
+                fp_ssids = json.loads(d.fingerprint.ssids_json)
+            except (json.JSONDecodeError, TypeError):
+                pass
+            linked = len(d.fingerprint.devices) if d.fingerprint.devices else 0
+            fp_info = f"Cluster #{d.fingerprint_id} ({linked} MACs, {len(fp_ssids)} SSIDs)"
+
+        sig = signals.get(d.id)
+        sig_str = ""
+        if sig is not None:
+            if sig >= -30:
+                sig_str = f"{sig} dBm (excellent)"
+            elif sig >= -50:
+                sig_str = f"{sig} dBm (strong)"
+            elif sig >= -70:
+                sig_str = f"{sig} dBm (fair)"
+            else:
+                sig_str = f"{sig} dBm (weak)"
+
+        result[d.id] = {
+            "appearances": counts.get(d.id, 0),
+            "span": span,
+            "sensors": ", ".join(sorted(sensors.get(d.id, []))),
+            "signal": sig_str,
+            "fingerprint": fp_info,
+            "baseline": d.mac.upper() in baseline_macs,
+            "notes": d.notes or "",
+        }
+    return result
+
+
 @bp.route("/")
 def index():
     db = get_db()
@@ -87,6 +195,7 @@ def index():
 
     ssid_counts = _device_ssid_counts(db, [d.id for d in devices])
     device_ssids = _device_ssid_sets(db, [d.id for d in devices])
+    enrichment = _device_enrichment(db, devices)
     new_threshold = datetime.utcnow() - timedelta(hours=24)
 
     if request.headers.get("HX-Request") == "true":
@@ -98,6 +207,7 @@ def index():
             per_page=per_page,
             ssid_counts=ssid_counts,
             device_ssids=device_ssids,
+            enrichment=enrichment,
             new_threshold=new_threshold,
         )
 
@@ -110,6 +220,7 @@ def index():
         search=search,
         ssid_counts=ssid_counts,
         device_ssids=device_ssids,
+        enrichment=enrichment,
         new_threshold=new_threshold,
     )
 
