@@ -3,7 +3,7 @@
 # Called by cyt-kismet-sync.timer (systemd) or manually
 set -euo pipefail
 
-KISMET_LOG_DIR="${KISMET_LOG_DIR:-/home/kismet/kismet_logs}"
+KISMET_LOG_DIR="${KISMET_LOG_DIR:-/kismet/}"
 NAS_MOUNT="${NAS_MOUNT:-/mnt/nas_kismet}"
 HOSTNAME="$(hostname)"
 LOG_TAG="cyt-sync"

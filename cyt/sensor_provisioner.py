@@ -210,7 +210,7 @@ Wants=network-online.target
 Type=oneshot
 ExecStart=/usr/local/bin/cyt-kismet-sync
 User=root
-Environment=KISMET_LOG_DIR=/home/kismet/kismet_logs
+Environment=KISMET_LOG_DIR=/kismet/
 Environment=NAS_MOUNT={nas_mount}
 
 [Install]
