@@ -66,7 +66,7 @@ def index():
     )
 
     ssid_counts = _device_ssid_counts(db, [d.id for d in devices])
-    new_threshold = datetime.now(timezone.utc) - timedelta(hours=24)
+    new_threshold = datetime.utcnow() - timedelta(hours=24)
 
     if request.headers.get("HX-Request") == "true":
         return render_template(
