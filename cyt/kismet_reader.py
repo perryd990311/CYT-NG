@@ -33,7 +33,7 @@ class DeviceRecord:
 
 def scan_kismet_directory(path_pattern: str) -> List[str]:
     """Find all .kismet files matching the given glob pattern."""
-    files = sorted(glob.glob(path_pattern))
+    files = sorted(glob.glob(path_pattern, recursive=True))
     logger.info("Found %d .kismet files matching '%s'", len(files), path_pattern)
     return files
 
