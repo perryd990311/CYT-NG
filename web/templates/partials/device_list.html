@@ -13,7 +13,17 @@
   </thead>
   <tbody>
     {% for d in devices %}
-    <tr>
+    <tr class="device-row" role="button"
+        data-mac="{{ d.mac }}"
+        data-fname="{{ d.mac|friendly_name }}"
+        data-color="{{ d.mac|color_dot }}"
+        data-mfr="{{ d.manufacturer or '' }}"
+        data-type="{{ d.device_type or '' }}"
+        data-rand="{{ 'true' if d.is_randomized else 'false' }}"
+        data-first="{{ d.first_seen.strftime('%Y-%m-%d %H:%M') if d.first_seen else '' }}"
+        data-last="{{ d.last_seen.strftime('%Y-%m-%d %H:%M') if d.last_seen else '' }}"
+        data-ssids="{% if device_ssids is defined and device_ssids.get(d.id) %}{{ device_ssids[d.id]|join('|||') }}{% endif %}"
+        data-detail="{{ url_for('devices.detail', mac=d.mac) }}">
       <td>
         <div class="d-flex align-items-center gap-2">
           <span class="color-dot" style="background:{{ d.mac|color_dot }}" title="{{ d.mac|color_dot }}"></span>
