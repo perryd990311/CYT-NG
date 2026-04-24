@@ -88,3 +88,94 @@ You are a debugging expert for CYT-NG, a Wi-Fi probe request surveillance detect
 8. **Verify Resolution**: Test the fix end-to-end
 
 Always explain the root cause and why the fix resolves it.
+
+## Quick Diagnostic Commands
+
+### NAS / Docker Access
+```bash
+# SSH to NAS
+ssh -i ~/.ssh/id_ed25519 perryd@172.20.0.250
+
+# Container status
+/usr/local/bin/docker compose -p cyt-ng ps
+
+# Container logs (live or tail)
+/usr/local/bin/docker logs cyt-web --tail 100
+/usr/local/bin/docker logs -f cyt-web
+
+# Rebuild + restart
+cd /volume1/docker/cyt-ng && /usr/local/bin/docker compose -p cyt-ng build cyt-web && /usr/local/bin/docker compose -p cyt-ng up -d
+```
+
+### Database Queries (run on NAS)
+The CYT SQLite database is at `/volume1/docker/cyt-ng/data/cyt/cyt_data.db`.
+Inside the container, it's at `/data/cyt/cyt_data.db`.
+
+**Tables**: `devices`, `appearances`, `sensors`, `fingerprints`, `analysis_runs`, `kismet_file_tracker`, `users`
+
+```bash
+# Latest appearance (data freshness check)
+sqlite3 /volume1/docker/cyt-ng/data/cyt/cyt_data.db "SELECT timestamp FROM appearances ORDER BY timestamp DESC LIMIT 1;"
+
+# Current UTC time comparison
+date -u
+
+# Sensor status
+sqlite3 /volume1/docker/cyt-ng/data/cyt/cyt_data.db "SELECT name, status, last_seen FROM sensors;"
+
+# Kismet file ingestion status (most recent first)
+sqlite3 /volume1/docker/cyt-ng/data/cyt/cyt_data.db "SELECT file_path, last_processed_ts, records_imported, file_size FROM kismet_file_tracker ORDER BY last_processed_ts DESC LIMIT 5;"
+
+# Device counts and date range
+sqlite3 /volume1/docker/cyt-ng/data/cyt/cyt_data.db "SELECT COUNT(*), MIN(first_seen), MAX(last_seen) FROM devices;"
+
+# Appearance counts per day (recent)
+sqlite3 /volume1/docker/cyt-ng/data/cyt/cyt_data.db "SELECT date(timestamp), COUNT(*) FROM appearances GROUP BY date(timestamp) ORDER BY 1 DESC LIMIT 7;"
+```
+
+### Kismet Data Pipeline
+```bash
+# Kismet files on NAS (synced from Pi via SMB)
+ls -lt /volume1/docker/cyt-ng/kismet_data/raspberrypi/*.kismet | head -5
+
+# Docker volume mounts for cyt-web
+/usr/local/bin/docker inspect cyt-web --format '{{range .Mounts}}{{.Source}} -> {{.Destination}}{{println}}{{end}}'
+
+# Key mounts:
+#   /volume1/docker/cyt-ng/kismet_data  -> /data/kismet    (Kismet .kismet files)
+#   /volume1/docker/cyt-ng/data/cyt     -> /data/cyt       (CYT SQLite database)
+#   /volume1/docker/cyt-ng/ignore_lists -> /app/ignore_lists (MAC/SSID baselines)
+```
+
+### Sensor (Raspberry Pi)
+The Pi syncs `.kismet` files to the NAS via SMB share. The Pi's hostname in the sensor table is `RPi`. Kismet files land in `/volume1/docker/cyt-ng/kismet_data/raspberrypi/` owned by the `raspi` user.
+
+The `.last_sync` heartbeat file (if present) at `/data/kismet/raspberrypi/.last_sync` is read by `_run_ingestion()` in `cyt/tasks.py` to update `Sensor.last_seen`.
+
+## Known Issues & Patterns
+
+### Datetime Naive vs Aware
+**All datetimes in the CYT database are naive UTC.** This is by design.
+- Routes/queries use `datetime.utcnow()` — never `datetime.now(timezone.utc)`
+- Kismet reader uses `datetime.utcfromtimestamp()` — never `datetime.fromtimestamp(..., tz=timezone.utc)`
+- Mixing naive and aware datetimes causes `TypeError: can't compare offset-naive and offset-aware datetimes`
+- If this error appears in logs, check for any `timezone.utc` or `tz=` usage in the affected code path
+
+### Malformed Kismet Database
+The active `.kismet` file (the one Kismet is currently writing) may show `database disk image is malformed` errors when read via SQLite while it's being written over SMB. The fix is to copy the file to a temp location before reading (`process_kismet_file()` does this automatically).
+
+### Stale Data Age
+If the status bar shows high "Data age" (hundreds of minutes):
+1. Check container logs for ingestion errors: `docker logs cyt-web --tail 50`
+2. Verify the ingestion scheduler is running (runs every 60s per `config.json` timing.check_interval)
+3. Check if the latest `.kismet` file has grown: `ls -lt /volume1/docker/cyt-ng/kismet_data/raspberrypi/*.kismet | head -3`
+4. If the file is growing but ingestion errors show, it's likely a datetime or malformed-DB issue
+5. If the file hasn't changed, the Pi's Kismet or SMB sync is stalled
+
+### Ingestion Pipeline Flow
+1. APScheduler runs `_run_ingestion()` every 60s
+2. `scan_kismet_directory()` globs `/data/kismet/**/*.kismet`
+3. For each file, checks `KismetFileTracker.file_size` — skips if unchanged
+4. Copies file to temp (avoids SMB read corruption), reads via SQLite read-only
+5. Upserts `Device` records, creates `Appearance` records
+6. Updates `KismetFileTracker` with new size and timestamp

@@ -8,9 +8,11 @@ import glob
 import json
 import logging
 import os
+import shutil
 import sqlite3
+import tempfile
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
 
@@ -54,8 +56,22 @@ def process_kismet_file(
         List of DeviceRecord objects.
     """
     records = []
+    # Copy file to a temp location to avoid reading an actively-written
+    # .kismet SQLite file over SMB (which causes 'database disk image is
+    # malformed' errors).
+    tmp_copy = None
+    read_path = file_path
     try:
-        conn = sqlite3.connect(f"file:{file_path}?mode=ro", uri=True)
+        tmp_fd, tmp_copy = tempfile.mkstemp(suffix=".kismet")
+        os.close(tmp_fd)
+        shutil.copy2(file_path, tmp_copy)
+        read_path = tmp_copy
+    except OSError as e:
+        logger.warning("Could not copy %s to temp — reading in-place: %s", file_path, e)
+        tmp_copy = None
+
+    try:
+        conn = sqlite3.connect(f"file:{read_path}?mode=ro", uri=True)
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
 
@@ -109,8 +125,8 @@ def process_kismet_file(
             records.append(DeviceRecord(
                 mac=mac,
                 device_type=device_json.get("kismet.device.base.type", "unknown"),
-                first_seen=datetime.fromtimestamp(first_time, tz=timezone.utc),
-                last_seen=datetime.fromtimestamp(last_time, tz=timezone.utc),
+                first_seen=datetime.utcfromtimestamp(first_time),
+                last_seen=datetime.utcfromtimestamp(last_time),
                 ssids=ssids,
                 lat=lat,
                 lon=lon,
@@ -124,6 +140,12 @@ def process_kismet_file(
         logger.error("SQLite error reading %s: %s", file_path, e)
     except Exception as e:
         logger.error("Error processing %s: %s", file_path, e)
+    finally:
+        if tmp_copy and os.path.exists(tmp_copy):
+            try:
+                os.unlink(tmp_copy)
+            except OSError:
+                pass
 
     return records
 
@@ -190,7 +212,7 @@ def ingest_all(directory_pattern: str, session_factory, sensor_id: Optional[int]
             tracker = KismetFileTracker(file_path=file_path)
             session.add(tracker)
         tracker.file_size = current_size
-        tracker.last_processed_ts = datetime.now(timezone.utc)
+        tracker.last_processed_ts = datetime.utcnow()
         tracker.records_imported = (tracker.records_imported or 0) + len(records)
 
         session.commit()
