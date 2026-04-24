@@ -26,6 +26,7 @@ PROVISION_STEPS = [
     ("update_packages",     "Update package lists",             True,  "sudo apt-get update -qq 2>&1 | tail -3"),
     ("install_kismet",      "Install Kismet & cifs-utils",      True,
         "sudo DEBIAN_FRONTEND=noninteractive apt-get install -y kismet cifs-utils rsync 2>&1 | tail -5"),
+    ("configure_kismet",    "Configure kismet_site.conf",       False, None),
     ("create_kismet_group", "Create kismet system group",       False,
         'getent group kismet &>/dev/null && echo "Group already exists" || sudo groupadd -r kismet'),
     ("create_kismet_user",  "Create kismet system user",        False,
@@ -134,7 +135,9 @@ def provision_sensor(sensor, socketio, ssh_key_path=None, ssh_password=None,
             time.sleep(0.1)  # let UI render spinner
 
             # Dispatch special handlers
-            if step_id == "install_sync_script":
+            if step_id == "configure_kismet":
+                ok, msg = _configure_kismet_site(client, sensor)
+            elif step_id == "install_sync_script":
                 ok, msg = _install_sync_files(client, sensor)
             elif step_id == "mount_nas":
                 ok, msg = _mount_nas(client, sensor, nas_user=nas_user, nas_password=nas_password)
@@ -188,6 +191,55 @@ def _build_result(results, kismet_version=None, local_hostname=None):
     critical_ids = {s[0] for s in PROVISION_STEPS if s[2]}
     success = all(results.get(s, "skipped") in ("ok",) for s in critical_ids)
     return {"success": success, "steps": results, "kismet_version": kismet_version, "local_hostname": local_hostname}
+
+
+def _configure_kismet_site(client, sensor):
+    """Write /etc/kismet/kismet_site.conf with log path and capture source."""
+    iface = (sensor.wifi_interface or "wlan1").strip()
+    # If the interface name already ends in 'mon' treat it as the monitor iface,
+    # otherwise append 'mon' — Kismet expects the monitor-mode interface name.
+    mon_iface = iface if iface.endswith("mon") else f"{iface}mon"
+    sensor_name = (sensor.name or sensor.local_hostname or "sensor").replace(" ", "_")
+
+    site_conf = (
+        "# kismet_site.conf — managed by CYT-NG provisioner\n"
+        f"source={mon_iface}:name={sensor_name}\n"
+        "log_prefix=/kismet/\n"
+        "log_types=kismet\n"
+        "manuf_lookup=true\n"
+    )
+
+    try:
+        sftp = client.open_sftp()
+        try:
+            # Ensure config directory exists
+            _, stdout, _ = client.exec_command("sudo mkdir -p /etc/kismet", timeout=10)
+            stdout.channel.recv_exit_status()
+            with sftp.open("/tmp/kismet_site.conf", "w") as f:
+                f.write(site_conf)
+        finally:
+            sftp.close()
+    except Exception as exc:
+        return False, f"SFTP write failed: {exc}"
+
+    cmds = [
+        "sudo mv /tmp/kismet_site.conf /etc/kismet/kismet_site.conf",
+        "sudo chmod 644 /etc/kismet/kismet_site.conf",
+        # Put the interface into monitor mode so Kismet can use it
+        f"sudo ip link set {iface} down 2>/dev/null || true",
+        f"sudo iw dev {iface} set type monitor 2>/dev/null || sudo iwconfig {iface} mode monitor 2>/dev/null || true",
+        f"sudo ip link set {iface} name {mon_iface} 2>/dev/null || true",
+        f"sudo ip link set {mon_iface} up 2>/dev/null || true",
+    ]
+    for cmd in cmds:
+        _, stdout, stderr = client.exec_command(cmd, timeout=15)
+        exit_code = stdout.channel.recv_exit_status()
+        # monitor-mode commands are best-effort; only fail on config write errors
+        if exit_code != 0 and "kismet_site.conf" in cmd:
+            err = stderr.read().decode("utf-8", errors="replace").strip()
+            return False, f"Failed: {cmd!r} — {err}"
+
+    return True, f"kismet_site.conf written (source={mon_iface}, log=/kismet/)"
 
 
 def _install_sync_files(client, sensor):
