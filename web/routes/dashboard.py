@@ -1,5 +1,5 @@
 """Dashboard blueprint — landing page, status bar, live device feed."""
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta
 
 from flask import Blueprint, render_template, jsonify, request
 from sqlalchemy import func
@@ -28,7 +28,7 @@ def _is_htmx():
 @bp.route("/")
 def index():
     db = get_db()
-    now = datetime.now(timezone.utc)
+    now = datetime.utcnow()
     five_min_ago = now - timedelta(minutes=5)
 
     total_devices = db.query(Device).count()
@@ -85,7 +85,7 @@ def index():
 @bp.route("/partials/status-bar")
 def status_bar():
     db = get_db()
-    now = datetime.now(timezone.utc)
+    now = datetime.utcnow()
 
     latest_appearance = (
         db.query(Appearance)
@@ -114,7 +114,7 @@ def status_bar():
 def api_sparkline():
     """Hourly unique device counts for the last 24h dashboard sparkline."""
     db = get_db()
-    since = datetime.now(timezone.utc) - timedelta(hours=24)
+    since = datetime.utcnow() - timedelta(hours=24)
     rows = (
         db.query(
             func.strftime("%Y-%m-%d %H:00", Appearance.timestamp).label("bucket"),

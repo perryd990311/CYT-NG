@@ -5,6 +5,7 @@ from flask import Flask
 
 from web.config import Config
 from web.extensions import socketio, init_db
+from web.mac_visuals import color_dot_hsl, friendly_name, ssid_color_hsl
 
 
 def _parse_json(value):
@@ -27,6 +28,9 @@ def create_app(config_class=Config):
 
     # Custom Jinja filters
     app.jinja_env.filters["parse_json"] = _parse_json
+    app.jinja_env.filters["color_dot"] = color_dot_hsl
+    app.jinja_env.filters["friendly_name"] = friendly_name
+    app.jinja_env.filters["ssid_color"] = ssid_color_hsl
 
     # Extensions
     socketio.init_app(app, async_mode=app.config.get("SOCKETIO_ASYNC_MODE", "gevent"))

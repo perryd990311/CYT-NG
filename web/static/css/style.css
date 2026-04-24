@@ -382,6 +382,42 @@ a:hover { color: var(--cyt-brand); }
 .auth-card {
   background: linear-gradient(170deg, var(--cyt-surface) 0%, var(--cyt-surface-alt) 100%);
   border: 1px solid var(--cyt-border);
+}
+
+/* ── MAC Visual Identifiers ────────────────────────────────── */
+.color-dot {
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+  border: 1px solid rgba(255,255,255,0.08);
+}
+
+.mac-addr {
+  font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+  font-size: 0.82rem;
+  letter-spacing: 0.02em;
+}
+
+.friendly-name {
+  font-size: 0.72rem;
+  color: var(--cyt-purple);
+  font-weight: 500;
+  line-height: 1.2;
+  margin-top: 1px;
+}
+
+/* ── SSID Color Tags ──────────────────────────────────────── */
+.ssid-tag {
+  font-size: 0.68rem;
+  font-weight: 500;
+  padding: 0.12em 0.45em;
+  border-radius: 0.3rem;
+  white-space: nowrap;
+  display: inline-block;
+  margin: 1px 2px;
+  border: 1px solid transparent;
+}
   border-radius: 0.875rem;
   box-shadow: 0 12px 48px rgba(0,0,0,0.45), 0 0 0 1px var(--cyt-border);
 }

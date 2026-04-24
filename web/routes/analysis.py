@@ -1,6 +1,6 @@
 """Analysis blueprint — run surveillance analysis, view results, trends."""
 import threading
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta
 
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app
 from flask_login import login_required
@@ -52,7 +52,7 @@ def _execute_analysis(app, run_id):
             run.devices_analyzed = devices_count
             run.persistent_devices = persistent_count
             run.status = "completed"
-            run.finished_at = datetime.now(timezone.utc)
+            run.finished_at = datetime.utcnow()
             session.commit()
 
             socketio.emit("analysis_complete", {
@@ -63,7 +63,7 @@ def _execute_analysis(app, run_id):
             })
         except Exception as exc:
             run.status = "failed"
-            run.finished_at = datetime.now(timezone.utc)
+            run.finished_at = datetime.utcnow()
             session.commit()
             socketio.emit("analysis_complete", {"run_id": run_id, "error": str(exc)})
         finally:
@@ -77,7 +77,7 @@ def run():
     run = AnalysisRun(
         trigger="manual",
         status="running",
-        started_at=datetime.now(timezone.utc),
+        started_at=datetime.utcnow(),
     )
     db.add(run)
     db.commit()
@@ -105,7 +105,7 @@ def trends():
     """Long-term analytics view — aggregated stats over configurable window."""
     db = get_db()
     days = min(request.args.get("days", 30, type=int), 365)
-    since = datetime.now(timezone.utc) - timedelta(days=days)
+    since = datetime.utcnow() - timedelta(days=days)
 
     # Daily device counts (unique MACs seen per day)
     daily_devices = (
@@ -194,7 +194,7 @@ def trends_data():
     """JSON endpoint for trends chart data."""
     db = get_db()
     days = min(request.args.get("days", 30, type=int), 365)
-    since = datetime.now(timezone.utc) - timedelta(days=days)
+    since = datetime.utcnow() - timedelta(days=days)
 
     daily_devices = (
         db.query(

@@ -1,5 +1,5 @@
 """Authentication blueprint — login, logout, setup, Synology SSO."""
-from datetime import datetime, timezone
+from datetime import datetime
 
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_limiter import Limiter
@@ -45,7 +45,7 @@ def login():
         flash("Invalid username or password.", "danger")
         return render_template("login.html", sso_enabled=synology_sso_enabled()), 401
 
-    user.last_login = datetime.now(timezone.utc)
+    user.last_login = datetime.utcnow()
     db.commit()
 
     login_user(AuthUser(user))

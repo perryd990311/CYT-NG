@@ -1,7 +1,7 @@
 """Devices blueprint — browse and inspect detected wireless devices."""
 import json
 from collections import defaultdict
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 
 from flask import Blueprint, render_template, request, abort, jsonify
 from flask_login import login_required
@@ -40,6 +40,26 @@ def _device_ssid_counts(db, device_ids):
     return {did: len(ssids) for did, ssids in counts.items()}
 
 
+def _device_ssid_sets(db, device_ids):
+    """Return {device_id: sorted_ssid_list} for a list of device IDs."""
+    if not device_ids:
+        return {}
+    rows = (
+        db.query(Appearance.device_id, Appearance.ssids_json)
+        .filter(Appearance.device_id.in_(device_ids), Appearance.ssids_json.isnot(None))
+        .all()
+    )
+    sets = defaultdict(set)
+    for device_id, ssids_json in rows:
+        try:
+            for ssid in json.loads(ssids_json):
+                if ssid:
+                    sets[device_id].add(ssid)
+        except (json.JSONDecodeError, TypeError):
+            pass
+    return {did: sorted(ssids) for did, ssids in sets.items()}
+
+
 @bp.route("/")
 def index():
     db = get_db()
@@ -66,6 +86,7 @@ def index():
     )
 
     ssid_counts = _device_ssid_counts(db, [d.id for d in devices])
+    device_ssids = _device_ssid_sets(db, [d.id for d in devices])
     new_threshold = datetime.utcnow() - timedelta(hours=24)
 
     if request.headers.get("HX-Request") == "true":
@@ -76,6 +97,7 @@ def index():
             total=total,
             per_page=per_page,
             ssid_counts=ssid_counts,
+            device_ssids=device_ssids,
             new_threshold=new_threshold,
         )
 
@@ -87,6 +109,7 @@ def index():
         per_page=per_page,
         search=search,
         ssid_counts=ssid_counts,
+        device_ssids=device_ssids,
         new_threshold=new_threshold,
     )
 
@@ -140,7 +163,7 @@ def history(mac):
 
     # Default to 7 days, accept ?days=N (max 90)
     days = min(request.args.get("days", 7, type=int), 90)
-    since = datetime.now(timezone.utc) - timedelta(days=days)
+    since = datetime.utcnow() - timedelta(days=days)
 
     rows = (
         db.query(
@@ -165,7 +188,7 @@ def ssids():
     """Global view of all probed SSIDs with device counts and last-seen times."""
     db = get_db()
     days = min(request.args.get("days", 7, type=int), 90)
-    since = datetime.now(timezone.utc) - timedelta(days=days)
+    since = datetime.utcnow() - timedelta(days=days)
 
     rows = (
         db.query(Appearance.ssids_json, Appearance.device_id, Appearance.timestamp)

@@ -3,10 +3,10 @@
 <table class="table table-striped table-hover mb-0">
   <thead>
     <tr>
-      <th>MAC</th>
+      <th>Device</th>
       <th>Type</th>
       <th>Manufacturer</th>
-      <th>SSIDs</th>
+      <th>Probed SSIDs</th>
       <th>First Seen</th>
       <th>Last Seen</th>
     </tr>
@@ -15,22 +15,38 @@
     {% for d in devices %}
     <tr>
       <td>
-        <a href="{{ url_for('devices.detail', mac=d.mac) }}" class="text-info text-decoration-none">
-          {{ d.mac }}
-        </a>
-        {% if d.is_randomized %}
-        <span class="badge bg-warning text-dark ms-1" title="Randomized MAC">R</span>
-        {% endif %}
-        {% if new_threshold is defined and d.first_seen and d.first_seen >= new_threshold %}
-        <span class="badge ms-1" style="background:var(--cyt-green); color:#000; font-size:0.65rem;">NEW</span>
-        {% endif %}
+        <div class="d-flex align-items-center gap-2">
+          <span class="color-dot" style="background:{{ d.mac|color_dot }}" title="{{ d.mac|color_dot }}"></span>
+          <div>
+            <a href="{{ url_for('devices.detail', mac=d.mac) }}" class="text-info text-decoration-none mac-addr">
+              {{ d.mac }}
+            </a>
+            {% if d.is_randomized %}
+            <span class="badge bg-warning text-dark ms-1" style="font-size:0.6rem;padding:0.15em 0.4em" title="Randomized MAC">R</span>
+            {% endif %}
+            {% if new_threshold is defined and d.first_seen and d.first_seen >= new_threshold %}
+            <span class="badge ms-1" style="background:var(--cyt-green); color:#000; font-size:0.6rem; padding:0.15em 0.4em">NEW</span>
+            {% endif %}
+            <div class="friendly-name">{{ d.mac|friendly_name }}</div>
+          </div>
+        </div>
       </td>
       <td>{{ d.device_type or '—' }}</td>
       <td>{{ d.manufacturer or '—' }}</td>
       <td>
-        {% if ssid_counts is defined and ssid_counts.get(d.id, 0) > 0 %}
-        <span class="badge" style="background:var(--cyt-raised); color:var(--cyt-cyan);">{{ ssid_counts[d.id] }}</span>
-        {% else %}—{% endif %}
+        {% if device_ssids is defined and device_ssids.get(d.id) %}
+          {% for ssid in device_ssids[d.id][:5] %}
+            {% set sc = ssid|ssid_color %}
+            <span class="ssid-tag" style="background:{{ sc.bg }};border-color:{{ sc.border }};color:{{ sc.text }}">{{ ssid }}</span>
+          {% endfor %}
+          {% if device_ssids[d.id]|length > 5 %}
+            <span class="ssid-tag" style="background:var(--cyt-raised);color:var(--cyt-text-muted)">+{{ device_ssids[d.id]|length - 5 }}</span>
+          {% endif %}
+        {% elif ssid_counts is defined and ssid_counts.get(d.id, 0) > 0 %}
+          <span class="badge" style="background:var(--cyt-raised); color:var(--cyt-cyan);">{{ ssid_counts[d.id] }} SSIDs</span>
+        {% else %}
+          <span class="text-muted" style="font-size:0.8rem">—</span>
+        {% endif %}
       </td>
       <td>{{ d.first_seen.strftime('%Y-%m-%d %H:%M') if d.first_seen else '—' }}</td>
       <td>{{ d.last_seen.strftime('%Y-%m-%d %H:%M') if d.last_seen else '—' }}</td>
