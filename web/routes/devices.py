@@ -174,6 +174,16 @@ def _device_enrichment(db, devices):
     return result
 
 
+# Allowed sort columns — whitelist to prevent SQL injection
+_SORT_COLUMNS = {
+    "mac": Device.mac,
+    "type": Device.device_type,
+    "manufacturer": Device.manufacturer,
+    "first_seen": Device.first_seen,
+    "last_seen": Device.last_seen,
+}
+
+
 @bp.route("/")
 def index():
     from web.routes.settings import get_baseline_macs
@@ -182,6 +192,8 @@ def index():
     page = request.args.get("page", 1, type=int)
     search = request.args.get("q", "").strip()
     show_ignored = request.args.get("show_ignored", "0") == "1"
+    sort_col = request.args.get("sort", "last_seen")
+    sort_dir = request.args.get("dir", "desc")
     per_page = 50
     offset = (page - 1) * per_page
 
@@ -199,8 +211,12 @@ def index():
         query = query.filter(Device.mac.notin_(baseline_macs))
 
     total = query.count()
+
+    # Apply sort — whitelist-validated column
+    col = _SORT_COLUMNS.get(sort_col, Device.last_seen)
+    order = col.asc() if sort_dir == "asc" else col.desc()
     devices = (
-        query.order_by(Device.last_seen.desc())
+        query.order_by(order)
         .offset(offset)
         .limit(per_page)
         .all()
@@ -210,6 +226,8 @@ def index():
     device_ssids = _device_ssid_sets(db, [d.id for d in devices])
     enrichment = _device_enrichment(db, devices)
     new_threshold = datetime.utcnow() - timedelta(hours=24)
+
+    sort_ctx = {"sort": sort_col, "dir": sort_dir}
 
     if request.headers.get("HX-Request") == "true":
         return render_template(
@@ -222,6 +240,7 @@ def index():
             device_ssids=device_ssids,
             enrichment=enrichment,
             new_threshold=new_threshold,
+            **sort_ctx,
         )
 
     return render_template(
@@ -237,6 +256,7 @@ def index():
         new_threshold=new_threshold,
         show_ignored=show_ignored,
         ignored_count=len(baseline_macs),
+        **sort_ctx,
     )
 
 

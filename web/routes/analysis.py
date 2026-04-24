@@ -224,3 +224,53 @@ def trends_data():
         appearances=[r.appearances for r in daily_appearances],
         days=days,
     )
+
+
+@bp.route("/long-term")
+def long_term():
+    """Show devices present for 2+ days that are NOT already in the baseline."""
+    from web.routes.settings import get_baseline_macs
+
+    db = get_db()
+    min_days = max(request.args.get("days", 2, type=int), 1)
+    baseline_macs = get_baseline_macs()
+
+    all_devices = (
+        db.query(Device)
+        .filter(
+            Device.first_seen.isnot(None),
+            Device.last_seen.isnot(None),
+        )
+        .all()
+    )
+
+    min_delta = timedelta(days=min_days)
+    long_term_devices = []
+    device_ids = []
+    for d in all_devices:
+        if d.last_seen - d.first_seen >= min_delta and d.mac.upper() not in baseline_macs:
+            device_ids.append(d.id)
+            long_term_devices.append({"device": d, "appearances": 0, "days_seen": 0})
+
+    # Batch-fetch appearance counts
+    if device_ids:
+        count_rows = (
+            db.query(Appearance.device_id, func.count(Appearance.id).label("cnt"))
+            .filter(Appearance.device_id.in_(device_ids))
+            .group_by(Appearance.device_id)
+            .all()
+        )
+        counts = {r.device_id: r.cnt for r in count_rows}
+        for entry in long_term_devices:
+            d = entry["device"]
+            entry["appearances"] = counts.get(d.id, 0)
+            entry["days_seen"] = round((d.last_seen - d.first_seen).total_seconds() / 86400, 1)
+
+    long_term_devices.sort(key=lambda x: x["days_seen"], reverse=True)
+
+    return render_template(
+        "analysis_long_term.html",
+        devices=long_term_devices,
+        min_days=min_days,
+        baseline_count=len(baseline_macs),
+    )

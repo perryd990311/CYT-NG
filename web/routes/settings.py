@@ -301,6 +301,36 @@ def baseline_remove_selected():
     return redirect(url_for("settings.ignore_lists"))
 
 
+@bp.route("/baseline/add-selected", methods=["POST"])
+def baseline_add_selected():
+    """Add multiple selected MACs to the ignore/baseline list. Redirects to referrer."""
+    from cyt.input_validation import InputValidator
+
+    selected = request.form.getlist("selected_macs")
+    redirect_to = request.form.get("redirect", url_for("settings.ignore_lists"))
+    if not selected:
+        flash("No devices selected.", "warning")
+        return redirect(redirect_to)
+
+    ignore_cfg = current_app.config.get("IGNORE_LISTS", {})
+    base = Path(current_app.root_path).parent
+    mac_path = base / ignore_cfg.get("mac_list", "ignore_lists/mac_list.json")
+
+    existing = set(m.upper() for m in _read_ignore_list(mac_path))
+    added = 0
+    new_list = list(_read_ignore_list(mac_path))
+    for mac in selected:
+        clean = InputValidator.validate_mac_address(mac)
+        if clean and clean.upper() not in existing:
+            new_list.append(clean)
+            existing.add(clean.upper())
+            added += 1
+
+    _write_ignore_list(mac_path, sorted(new_list))
+    flash(f"Added {added} device(s) to ignore list.", "success")
+    return redirect(redirect_to)
+
+
 @bp.route("/config", methods=["POST"])
 def update_config():
     """Save editable config values back to config.json."""

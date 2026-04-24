@@ -1,14 +1,24 @@
 <!-- partials/device_list.html — HTMX partial for device table -->
+{% macro sort_link(col, label) %}
+  {% set current = sort|default('last_seen') %}
+  {% set current_dir = dir|default('desc') %}
+  {% set next_dir = 'asc' if (current == col and current_dir == 'desc') else 'desc' %}
+  {% set arrow = '▲' if (current == col and current_dir == 'asc') else ('▼' if current == col else '') %}
+  <a href="{{ url_for('devices.index', sort=col, dir=next_dir, q=request.args.get('q',''), show_ignored=request.args.get('show_ignored','0')) }}"
+     class="text-decoration-none" style="color:inherit; white-space:nowrap;">
+    {{ label }} <span style="opacity:0.6;font-size:0.7rem;">{{ arrow }}</span>
+  </a>
+{% endmacro %}
 {% if devices %}
 <table class="table table-striped table-hover mb-0">
   <thead>
     <tr>
-      <th>Device</th>
-      <th>Type</th>
-      <th>Manufacturer</th>
+      <th>{{ sort_link('mac', 'Device') }}</th>
+      <th>{{ sort_link('type', 'Type') }}</th>
+      <th>{{ sort_link('manufacturer', 'Manufacturer') }}</th>
       <th>Probed SSIDs</th>
-      <th>First Seen</th>
-      <th>Last Seen</th>
+      <th>{{ sort_link('first_seen', 'First Seen') }}</th>
+      <th>{{ sort_link('last_seen', 'Last Seen') }}</th>
     </tr>
   </thead>
   <tbody>
