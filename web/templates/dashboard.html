@@ -36,9 +36,42 @@
   </div>
 </div>
 
+<!-- 24h summary cards -->
+<div class="row g-3 mb-4">
+  <div class="col-4">
+    <div class="card stat-card">
+      <div class="stat-icon"><i class="bi bi-plus-circle"></i></div>
+      <span class="stat-value" style="color:var(--cyt-green);">{{ new_24h }}</span>
+      <span class="stat-label">New (24h)</span>
+    </div>
+  </div>
+  <div class="col-4">
+    <div class="card stat-card">
+      <div class="stat-icon"><i class="bi bi-arrow-repeat"></i></div>
+      <span class="stat-value" style="color:var(--cyt-amber);">{{ recurring_24h }}</span>
+      <span class="stat-label">Recurring (24h)</span>
+    </div>
+  </div>
+  <div class="col-4">
+    <div class="card stat-card">
+      <div class="stat-icon"><i class="bi bi-broadcast"></i></div>
+      <span class="stat-value" style="color:var(--cyt-purple);">{{ probes_24h }}</span>
+      <span class="stat-label">Probes (24h)</span>
+    </div>
+  </div>
+</div>
+
 <div class="row g-3">
   <!-- Recent devices -->
   <div class="col-lg-8">
+    <div class="card mb-3">
+      <div class="card-header"><i class="bi bi-activity"></i> Device Activity — Last 24 Hours</div>
+      <div class="card-body">
+        <div style="height:140px;">
+          <canvas id="sparklineChart"></canvas>
+        </div>
+      </div>
+    </div>
     <div class="card">
       <div class="card-header d-flex justify-content-between align-items-center">
         <span><i class="bi bi-phone"></i> Recent Devices</span>
@@ -74,6 +107,27 @@
       </div>
     </div>
 
+    <div class="card mb-3">
+      <div class="card-header"><i class="bi bi-shield-exclamation"></i> Top Persistent Devices</div>
+      <div class="card-body p-0">
+        {% if top_persistent %}
+        <div class="list-group list-group-flush">
+          {% for device, cnt in top_persistent %}
+          <a href="{{ url_for('devices.detail', mac=device.mac) }}"
+             class="list-group-item list-group-item-action d-flex justify-content-between align-items-center py-2"
+             style="background:transparent; border-color:var(--cyt-border);">
+            <span style="font-size:0.8rem; font-family:monospace; color:var(--cyt-cyan);">{{ device.mac }}</span>
+            <span class="badge {% if cnt >= 50 %}persistence-high{% elif cnt >= 20 %}persistence-medium{% else %}persistence-low{% endif %}"
+                  style="background:var(--cyt-raised); min-width:2.5rem; text-align:center;">{{ cnt }}</span>
+          </a>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="p-3" style="color:var(--cyt-text-muted); font-size:0.875rem;">No device data yet.</div>
+        {% endif %}
+      </div>
+    </div>
+
     <div class="card">
       <div class="card-header"><i class="bi bi-broadcast-pin"></i> Sensors</div>
       <div class="card-body">
@@ -92,4 +146,62 @@
     </div>
   </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  const style = getComputedStyle(document.documentElement);
+  const cyan = style.getPropertyValue('--cyt-cyan').trim();
+  const border = style.getPropertyValue('--cyt-border').trim();
+  const muted = style.getPropertyValue('--cyt-text-muted').trim();
+  let sparkChart = null;
+
+  function loadSparkline() {
+    fetch('{{ url_for("dashboard.api_sparkline") }}')
+      .then(r => r.json())
+      .then(data => {
+        const ctx = document.getElementById('sparklineChart');
+        if (!ctx) return;
+        if (sparkChart) sparkChart.destroy();
+        sparkChart = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: data.labels,
+            datasets: [{
+              label: 'Unique Devices',
+              data: data.data,
+              borderColor: cyan,
+              backgroundColor: cyan + '22',
+              borderWidth: 2,
+              pointRadius: 3,
+              pointHoverRadius: 5,
+              tension: 0.3,
+              fill: true,
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+              x: {
+                grid: { color: border + '40' },
+                ticks: { color: muted, font: { size: 10 } },
+              },
+              y: {
+                beginAtZero: true,
+                grid: { color: border + '40' },
+                ticks: { color: muted, font: { size: 10 }, precision: 0 },
+              }
+            }
+          }
+        });
+      });
+  }
+
+  loadSparkline();
+  window.refreshSparkline = loadSparkline;
+})();
+</script>
 {% endblock %}

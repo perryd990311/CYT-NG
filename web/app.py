@@ -1,8 +1,20 @@
 """CYT-NG Flask application factory."""
+import json
+
 from flask import Flask
 
 from web.config import Config
 from web.extensions import socketio, init_db
+
+
+def _parse_json(value):
+    """Jinja filter to parse a JSON string into a Python list."""
+    if not value:
+        return []
+    try:
+        return json.loads(value)
+    except (json.JSONDecodeError, TypeError):
+        return []
 
 
 def create_app(config_class=Config):
@@ -12,6 +24,9 @@ def create_app(config_class=Config):
         static_folder="static",
     )
     app.config.from_object(config_class)
+
+    # Custom Jinja filters
+    app.jinja_env.filters["parse_json"] = _parse_json
 
     # Extensions
     socketio.init_app(app, async_mode=app.config.get("SOCKETIO_ASYNC_MODE", "gevent"))

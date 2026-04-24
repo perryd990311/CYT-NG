@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Probed SSIDs — CYT-NG{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h4 class="mb-0"><i class="bi bi-wifi"></i> Probed SSIDs ({{ ssids|length }})</h4>
+  <div class="btn-group btn-group-sm" id="ssid-range">
+    <a class="btn btn-outline-secondary{% if days == 1 %} active{% endif %}"
+       href="{{ url_for('devices.ssids', days=1) }}">24h</a>
+    <a class="btn btn-outline-secondary{% if days == 7 %} active{% endif %}"
+       href="{{ url_for('devices.ssids', days=7) }}">7d</a>
+    <a class="btn btn-outline-secondary{% if days == 30 %} active{% endif %}"
+       href="{{ url_for('devices.ssids', days=30) }}">30d</a>
+    <a class="btn btn-outline-secondary{% if days == 90 %} active{% endif %}"
+       href="{{ url_for('devices.ssids', days=90) }}">90d</a>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body p-0">
+    {% if ssids %}
+    <table class="table table-striped table-hover mb-0">
+      <thead>
+        <tr>
+          <th>SSID</th>
+          <th>Devices</th>
+          <th>Probes</th>
+          <th>Last Seen</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in ssids %}
+        <tr>
+          <td>
+            <i class="bi bi-wifi me-1" style="color:var(--cyt-cyan);"></i>
+            <strong>{{ s.ssid }}</strong>
+          </td>
+          <td>
+            <span class="badge" style="background:var(--cyt-raised); color:var(--cyt-text);">{{ s.device_count }}</span>
+          </td>
+          <td>{{ s.probe_count }}</td>
+          <td>{{ s.last_seen.strftime('%Y-%m-%d %H:%M') if s.last_seen else '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="p-4 text-center text-muted">
+      <i class="bi bi-wifi-off fs-1 d-block mb-2"></i>
+      No SSID probes recorded in the last {{ days }} day{{ 's' if days != 1 else '' }}.
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

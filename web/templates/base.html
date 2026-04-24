@@ -61,9 +61,15 @@
         </a>
       </li>
       <li class="nav-item">
-        <a class="nav-link {% if request.endpoint and request.endpoint.startswith('devices') %}active{% endif %}"
+        <a class="nav-link {% if request.endpoint and request.endpoint.startswith('devices') and request.endpoint != 'devices.ssids' %}active{% endif %}"
            href="{{ url_for('devices.index') }}">
           <i class="bi bi-phone"></i> Devices
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link {% if request.endpoint == 'devices.ssids' %}active{% endif %}"
+           href="{{ url_for('devices.ssids') }}">
+          <i class="bi bi-wifi"></i> SSIDs
         </a>
       </li>
       <li class="nav-item">

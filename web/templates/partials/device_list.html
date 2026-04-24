@@ -6,6 +6,8 @@
       <th>MAC</th>
       <th>Type</th>
       <th>Manufacturer</th>
+      <th>SSIDs</th>
+      <th>First Seen</th>
       <th>Last Seen</th>
     </tr>
   </thead>
@@ -19,9 +21,18 @@
         {% if d.is_randomized %}
         <span class="badge bg-warning text-dark ms-1" title="Randomized MAC">R</span>
         {% endif %}
+        {% if new_threshold is defined and d.first_seen and d.first_seen >= new_threshold %}
+        <span class="badge ms-1" style="background:var(--cyt-green); color:#000; font-size:0.65rem;">NEW</span>
+        {% endif %}
       </td>
       <td>{{ d.device_type or '—' }}</td>
       <td>{{ d.manufacturer or '—' }}</td>
+      <td>
+        {% if ssid_counts is defined and ssid_counts.get(d.id, 0) > 0 %}
+        <span class="badge" style="background:var(--cyt-raised); color:var(--cyt-cyan);">{{ ssid_counts[d.id] }}</span>
+        {% else %}—{% endif %}
+      </td>
+      <td>{{ d.first_seen.strftime('%Y-%m-%d %H:%M') if d.first_seen else '—' }}</td>
       <td>{{ d.last_seen.strftime('%Y-%m-%d %H:%M') if d.last_seen else '—' }}</td>
     </tr>
     {% endfor %}

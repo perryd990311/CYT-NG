@@ -2,6 +2,7 @@
 from datetime import datetime, timezone, timedelta
 
 from flask import Blueprint, render_template, jsonify, request
+from sqlalchemy import func
 
 from web.extensions import get_db, socketio
 from cyt.models import Device, Appearance, Sensor, AnalysisRun, KismetFileTracker
@@ -46,6 +47,26 @@ def index():
         .first()
     )
 
+    day_ago = now - timedelta(hours=24)
+    new_24h = db.query(Device).filter(Device.first_seen >= day_ago).count()
+    probes_24h = db.query(Appearance).filter(Appearance.timestamp >= day_ago).count()
+    recurring_subq = (
+        db.query(Appearance.device_id)
+        .filter(Appearance.timestamp >= day_ago)
+        .group_by(Appearance.device_id)
+        .having(func.count(Appearance.id) > 1)
+        .subquery()
+    )
+    recurring_24h = db.query(func.count()).select_from(recurring_subq).scalar() or 0
+    top_persistent = (
+        db.query(Device, func.count(Appearance.id).label("cnt"))
+        .join(Appearance, Device.id == Appearance.device_id)
+        .group_by(Device.id)
+        .order_by(func.count(Appearance.id).desc())
+        .limit(10)
+        .all()
+    )
+
     return render_template(
         "dashboard.html",
         total_devices=total_devices,
@@ -54,6 +75,10 @@ def index():
         sensors_online=sensors_online,
         sensors_total=sensors_total,
         last_run=last_run,
+        new_24h=new_24h,
+        probes_24h=probes_24h,
+        recurring_24h=recurring_24h,
+        top_persistent=top_persistent,
     )
 
 
@@ -82,6 +107,27 @@ def status_bar():
         kismet_files=kismet_files,
         sensors_online=sensors_online,
         sensors_total=sensors_total,
+    )
+
+
+@bp.route("/api/sparkline")
+def api_sparkline():
+    """Hourly unique device counts for the last 24h dashboard sparkline."""
+    db = get_db()
+    since = datetime.now(timezone.utc) - timedelta(hours=24)
+    rows = (
+        db.query(
+            func.strftime("%Y-%m-%d %H:00", Appearance.timestamp).label("bucket"),
+            func.count(func.distinct(Appearance.device_id)).label("devices"),
+        )
+        .filter(Appearance.timestamp >= since)
+        .group_by("bucket")
+        .order_by("bucket")
+        .all()
+    )
+    return jsonify(
+        labels=[r.bucket[-5:] for r in rows],
+        data=[r.devices for r in rows],
     )
 
 

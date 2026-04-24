@@ -18,10 +18,11 @@
     setStatus('<i class="bi bi-circle-fill text-danger"></i> disconnected');
   });
 
-  // Real-time device update — refresh the device list partial
+  // Real-time device update — refresh the device list partial + sparkline
   socket.on("device_update", function () {
     var el = document.getElementById("device-list");
     if (el) htmx.trigger(el, "refresh");
+    if (typeof window.refreshSparkline === "function") window.refreshSparkline();
   });
 
   // Real-time status update — refresh status bar

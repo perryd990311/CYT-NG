@@ -124,7 +124,9 @@
           </td>
           <td>
             {% if a.ssids_json %}
-              {{ a.ssids_json }}
+              {% for ssid in a.ssids_json | parse_json %}
+              <span class="badge me-1" style="background:var(--cyt-raised); color:var(--cyt-text); font-size:0.75rem;">{{ ssid }}</span>
+              {% endfor %}
             {% else %}—{% endif %}
           </td>
         </tr>

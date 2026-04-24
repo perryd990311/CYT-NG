@@ -20,6 +20,26 @@ def require_login():
     pass
 
 
+def _device_ssid_counts(db, device_ids):
+    """Return {device_id: ssid_count} for a list of device IDs."""
+    if not device_ids:
+        return {}
+    rows = (
+        db.query(Appearance.device_id, Appearance.ssids_json)
+        .filter(Appearance.device_id.in_(device_ids), Appearance.ssids_json.isnot(None))
+        .all()
+    )
+    counts = defaultdict(set)
+    for device_id, ssids_json in rows:
+        try:
+            for ssid in json.loads(ssids_json):
+                if ssid:
+                    counts[device_id].add(ssid)
+        except (json.JSONDecodeError, TypeError):
+            pass
+    return {did: len(ssids) for did, ssids in counts.items()}
+
+
 @bp.route("/")
 def index():
     db = get_db()
@@ -45,6 +65,9 @@ def index():
         .all()
     )
 
+    ssid_counts = _device_ssid_counts(db, [d.id for d in devices])
+    new_threshold = datetime.now(timezone.utc) - timedelta(hours=24)
+
     if request.headers.get("HX-Request") == "true":
         return render_template(
             "partials/device_list.html",
@@ -52,6 +75,8 @@ def index():
             page=page,
             total=total,
             per_page=per_page,
+            ssid_counts=ssid_counts,
+            new_threshold=new_threshold,
         )
 
     return render_template(
@@ -61,6 +86,8 @@ def index():
         total=total,
         per_page=per_page,
         search=search,
+        ssid_counts=ssid_counts,
+        new_threshold=new_threshold,
     )
 
 
@@ -131,3 +158,48 @@ def history(mac):
         data=[r.cnt for r in rows],
         days=days,
     )
+
+
+@bp.route("/ssids")
+def ssids():
+    """Global view of all probed SSIDs with device counts and last-seen times."""
+    db = get_db()
+    days = min(request.args.get("days", 7, type=int), 90)
+    since = datetime.now(timezone.utc) - timedelta(days=days)
+
+    rows = (
+        db.query(Appearance.ssids_json, Appearance.device_id, Appearance.timestamp)
+        .filter(Appearance.timestamp >= since, Appearance.ssids_json.isnot(None))
+        .all()
+    )
+
+    ssid_data = defaultdict(lambda: {"devices": set(), "count": 0, "last_seen": None})
+    for ssids_json, device_id, ts in rows:
+        try:
+            parsed = json.loads(ssids_json)
+        except (json.JSONDecodeError, TypeError):
+            continue
+        for ssid in parsed:
+            if not ssid:
+                continue
+            entry = ssid_data[ssid]
+            entry["devices"].add(device_id)
+            entry["count"] += 1
+            if entry["last_seen"] is None or (ts and ts > entry["last_seen"]):
+                entry["last_seen"] = ts
+
+    ssid_list = sorted(
+        [
+            {
+                "ssid": ssid,
+                "device_count": len(info["devices"]),
+                "probe_count": info["count"],
+                "last_seen": info["last_seen"],
+            }
+            for ssid, info in ssid_data.items()
+        ],
+        key=lambda x: x["device_count"],
+        reverse=True,
+    )
+
+    return render_template("ssids.html", ssids=ssid_list, days=days)
