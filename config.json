@@ -22,7 +22,8 @@
     },
     "analysis_interval_hours": 6,
     "cleanup_interval_hours": 24,
-    "retention_days": 90
+    "retention_days": 90,
+    "kismet_file_retention_days": 7
   },
   "search": {
     "lat_min": 31.3,

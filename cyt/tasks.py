@@ -194,6 +194,69 @@ def _run_cleanup(app):
             _Session.remove()
 
 
+def _run_kismet_file_cleanup(app):
+    """Remove old .kismet files from the NAS after they've been fully ingested.
+
+    Keeps the most recent file per sensor directory (likely still being written)
+    and deletes older files that have been tracked and ingested.
+    """
+    with app.app_context():
+        from web.extensions import _Session
+        from cyt.models import KismetFileTracker
+
+        kismet_path = app.config.get("KISMET_LOGS", "")
+        if not kismet_path or not os.path.isdir(kismet_path):
+            return
+
+        timing = app.config.get("TIMING", {})
+        keep_days = timing.get("kismet_file_retention_days", 7)
+        cutoff = datetime.now(timezone.utc) - timedelta(days=keep_days)
+
+        session = _Session()
+        try:
+            # Find tracked files that were last processed more than keep_days ago
+            old_tracked = (
+                session.query(KismetFileTracker)
+                .filter(KismetFileTracker.last_processed_ts < cutoff)
+                .all()
+            )
+
+            removed = 0
+            for tracker in old_tracked:
+                fpath = tracker.file_path
+                if not os.path.isfile(fpath):
+                    # Already gone — clean up the tracker row
+                    session.delete(tracker)
+                    removed += 1
+                    continue
+
+                # Safety: never delete the newest file in any sensor directory
+                parent = os.path.dirname(fpath)
+                siblings = sorted(
+                    (f for f in os.listdir(parent) if f.endswith(".kismet")),
+                    key=lambda f: os.path.getmtime(os.path.join(parent, f)),
+                )
+                if siblings and os.path.basename(fpath) == siblings[-1]:
+                    continue  # skip the most recent file
+
+                try:
+                    os.remove(fpath)
+                    session.delete(tracker)
+                    removed += 1
+                    logger.info("Removed old .kismet file: %s", fpath)
+                except OSError as e:
+                    logger.warning("Could not remove %s: %s", fpath, e)
+
+            if removed:
+                session.commit()
+                logger.info("Kismet file cleanup: removed %d old file(s)", removed)
+        except Exception:
+            logger.exception("Kismet file cleanup failed")
+            session.rollback()
+        finally:
+            _Session.remove()
+
+
 def init_scheduler(app):
     """
     Configure and start the background scheduler.
@@ -250,6 +313,15 @@ def init_scheduler(app):
             hours=cleanup_hours,
             args=[app],
             id="data_cleanup",
+            replace_existing=True,
+        )
+
+        scheduler.add_job(
+            _run_kismet_file_cleanup,
+            "interval",
+            hours=cleanup_hours,
+            args=[app],
+            id="kismet_file_cleanup",
             replace_existing=True,
         )
 

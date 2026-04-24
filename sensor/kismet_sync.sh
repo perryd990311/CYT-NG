@@ -61,5 +61,24 @@ else
     log "Synced $SYNC_COUNT file(s) to NAS"
 fi
 
+# ── Purge old .kismet files from the Pi ─────────────────────────────────
+# Keep the most recent files to avoid deleting the active log.
+# Older files have already been synced to the NAS and ingested.
+KEEP_COUNT="${KEEP_LOCAL_FILES:-2}"
+FILE_COUNT=$(find "${KISMET_LOG_DIR}" -maxdepth 1 -name "*.kismet" -type f | wc -l)
+if [ "$FILE_COUNT" -gt "$KEEP_COUNT" ]; then
+    PURGE_COUNT=$((FILE_COUNT - KEEP_COUNT))
+    # Sort by modification time, oldest first — delete all but the newest $KEEP_COUNT
+    find "${KISMET_LOG_DIR}" -maxdepth 1 -name "*.kismet" -type f -printf '%T@ %p\n' \
+        | sort -n \
+        | head -n "$PURGE_COUNT" \
+        | cut -d' ' -f2- \
+        | while IFS= read -r old_file; do
+            rm -f "$old_file"
+            log "Purged old local log: $(basename "$old_file")"
+        done
+    log "Purged $PURGE_COUNT old .kismet file(s) from Pi (kept newest $KEEP_COUNT)"
+fi
+
 # Write health-check timestamp
 echo "$(date -Iseconds)" > "${DEST_DIR}/.last_sync"

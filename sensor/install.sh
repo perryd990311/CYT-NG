@@ -239,9 +239,19 @@ systemctl daemon-reload
 systemctl enable --now cyt-kismet-sync.timer
 ok "cyt-kismet-sync.timer enabled and started"
 
-# ── [6/7] Configure Kismet log directory ─────────────────────────────────
+# ── [6/7] Configure Kismet log directory + rotation ──────────────────────
 step 6 "Configuring Kismet"
 KISMET_CONF="/etc/kismet/kismet.conf"
+KISMET_SITE="/etc/kismet/kismet_site.conf"
+
+# Deploy CYT site config (log rotation, log types, flush rate)
+if [ -f "$SCRIPT_DIR/kismet_site.conf" ]; then
+    install -o root -g root -m 644 "$SCRIPT_DIR/kismet_site.conf" "$KISMET_SITE"
+    ok "kismet_site.conf deployed (6h rotation, kismet-only logging)"
+else
+    warn "kismet_site.conf not found at $SCRIPT_DIR — log rotation not configured"
+fi
+
 if [ -f "$KISMET_CONF" ]; then
     if grep -q "^log_prefix=" "$KISMET_CONF" 2>/dev/null; then
         # Update existing log_prefix line
