@@ -7,6 +7,33 @@
 
 <div class="row g-3">
 
+    <!-- Baseline known devices -->
+    <div class="col-12">
+        <div class="card border-warning">
+            <div class="card-header" style="background:var(--cyt-raised);">
+                <i class="bi bi-shield-check"></i> Baseline Known Devices
+            </div>
+            <div class="card-body">
+                <p class="mb-2 small" style="color:var(--cyt-text-muted);">
+                    Capture all <strong>{{ total_devices }}</strong> currently known device(s) as your "home environment" baseline.
+                    This adds them to the MAC ignore list so future analysis only flags <em>new</em> devices.
+                    {% if not_yet_ignored > 0 %}
+                    <span class="badge bg-warning text-dark ms-1">{{ not_yet_ignored }} not yet ignored</span>
+                    {% else %}
+                    <span class="badge bg-success ms-1">All devices already ignored</span>
+                    {% endif %}
+                </p>
+                <form method="post" action="{{ url_for('settings.baseline_devices') }}"
+                      onsubmit="return confirm('Add all {{ total_devices }} known device(s) to the MAC ignore list? This cannot be undone automatically.');">
+                    <button type="submit" class="btn btn-sm btn-warning text-dark"
+                            {% if not_yet_ignored == 0 %}disabled{% endif %}>
+                        <i class="bi bi-shield-fill-check"></i> Baseline All Known Devices
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <!-- Scheduled Tasks -->
     <div class="col-lg-6">
         <div class="card">

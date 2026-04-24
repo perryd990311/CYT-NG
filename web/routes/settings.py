@@ -43,6 +43,9 @@ def _write_ignore_list(path: Path, data: list) -> None:
 
 @bp.route("/")
 def index():
+    from web.extensions import get_db
+    from cyt.models import Device
+
     cfg = current_app.config["RAW_CONFIG"]
     ignore_cfg = current_app.config.get("IGNORE_LISTS", {})
     base = Path(current_app.root_path).parent
@@ -52,6 +55,11 @@ def index():
 
     mac_list = _read_ignore_list(mac_path)
     ssid_list = _read_ignore_list(ssid_path)
+
+    db = get_db()
+    total_devices = db.query(Device).count()
+    already_ignored = len(set(d.mac for d in db.query(Device.mac).all()) & set(mac_list))
+    not_yet_ignored = total_devices - already_ignored
 
     # Collect scheduler job info
     from cyt.tasks import scheduler
@@ -72,6 +80,8 @@ def index():
         ssid_list=ssid_list,
         scheduler_jobs=jobs,
         scheduler_running=scheduler.running,
+        total_devices=total_devices,
+        not_yet_ignored=not_yet_ignored,
     )
 
 
@@ -118,6 +128,38 @@ def update_ssid_ignore():
     ssid_path = base / ignore_cfg.get("ssid_list", "ignore_lists/ssid_list.json")
     _write_ignore_list(ssid_path, validated)
     flash(f"SSID ignore list updated ({len(validated)} entries).", "success")
+    return redirect(url_for("settings.index"))
+
+
+@bp.route("/baseline", methods=["POST"])
+def baseline_devices():
+    """Capture all current DB devices as known — merge into MAC ignore list."""
+    from web.extensions import get_db
+    from cyt.models import Device
+    from cyt.input_validation import InputValidator
+
+    db = get_db()
+    all_macs = [d.mac for d in db.query(Device.mac).all()]
+
+    ignore_cfg = current_app.config.get("IGNORE_LISTS", {})
+    base = Path(current_app.root_path).parent
+    mac_path = base / ignore_cfg.get("mac_list", "ignore_lists/mac_list.json")
+
+    existing = set(_read_ignore_list(mac_path))
+    new_macs = []
+    for mac in all_macs:
+        clean = InputValidator.validate_mac_address(mac)
+        if clean and clean not in existing:
+            new_macs.append(clean)
+
+    merged = sorted(existing | set(new_macs))
+    _write_ignore_list(mac_path, merged)
+
+    flash(
+        f"Baseline complete — {len(new_macs)} new device(s) added to ignore list "
+        f"({len(merged)} total).",
+        "success",
+    )
     return redirect(url_for("settings.index"))
 
 
