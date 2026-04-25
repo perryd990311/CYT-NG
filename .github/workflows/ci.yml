@@ -80,60 +80,67 @@ jobs:
           sarif_file: trivy-cyt-base.sarif
           category: trivy-cyt-base
 
-  docker:
-    name: Docker – build & scan ${{ matrix.image.name }}
+  # cyt-web depends on cyt-base — use plain docker build so FROM cyt-base:latest resolves locally
+  docker-web:
+    name: Docker – build & scan cyt-web
     needs: docker-base
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        image:
-          - name: cyt-web
-            dockerfile: docker/Dockerfile
-            context: .
-          - name: cyt-nginx
-            dockerfile: nginx/Dockerfile
-            context: nginx/
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Build cyt-base
+        run: docker build -f docker/Dockerfile.base --build-arg REPO_PREFIX= -t cyt-base:latest .
+
+      - name: Build cyt-web
+        run: docker build -f docker/Dockerfile --build-arg REPO_PREFIX= -t cyt-web:ci .
+
+      - name: Run Trivy scan on cyt-web
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: cyt-web:ci
+          format: sarif
+          output: trivy-cyt-web.sarif
+          severity: HIGH,CRITICAL
+
+      - name: Upload Trivy scan results for cyt-web
+        uses: github/codeql-action/upload-sarif@v4
+        if: always()
+        with:
+          sarif_file: trivy-cyt-web.sarif
+          category: trivy-cyt-web
+
+  # cyt-nginx is independent — can use buildx with GHA cache
+  docker-nginx:
+    name: Docker – build & scan cyt-nginx
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
 
-      - name: Rebuild cyt-base from cache
-        if: matrix.image.name == 'cyt-web'
+      - name: Build cyt-nginx image
         uses: docker/build-push-action@v7
         with:
-          context: .
-          file: docker/Dockerfile.base
-          build-args: REPO_PREFIX=
+          context: nginx/
+          file: nginx/Dockerfile
           push: false
-          tags: cyt-base:latest
-          cache-from: type=gha
-          load: true
-
-      - name: Build ${{ matrix.image.name }} image
-        uses: docker/build-push-action@v7
-        with:
-          context: ${{ matrix.image.context }}
-          file: ${{ matrix.image.dockerfile }}
-          build-args: REPO_PREFIX=
-          push: false
-          tags: ${{ matrix.image.name }}:ci
+          tags: cyt-nginx:ci
           cache-from: type=gha
           cache-to: type=gha,mode=max
           load: true
 
-      - name: Run Trivy scan on ${{ matrix.image.name }}
+      - name: Run Trivy scan on cyt-nginx
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: ${{ matrix.image.name }}:ci
+          image-ref: cyt-nginx:ci
           format: sarif
-          output: trivy-${{ matrix.image.name }}.sarif
+          output: trivy-cyt-nginx.sarif
           severity: HIGH,CRITICAL
 
-      - name: Upload Trivy scan results for ${{ matrix.image.name }}
+      - name: Upload Trivy scan results for cyt-nginx
         uses: github/codeql-action/upload-sarif@v4
         if: always()
         with:
-          sarif_file: trivy-${{ matrix.image.name }}.sarif
-          category: trivy-${{ matrix.image.name }}
+          sarif_file: trivy-cyt-nginx.sarif
+          category: trivy-cyt-nginx
