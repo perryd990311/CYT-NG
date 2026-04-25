@@ -8,6 +8,10 @@ on:
   pull_request:
     branches: [] # Empty to prevent automatic triggers
 
+permissions:
+  contents: read
+  security-events: write
+
 jobs:
   # ── Python checks ──────────────────────────────────────────────────────────
   python:
@@ -70,7 +74,7 @@ jobs:
           severity: HIGH,CRITICAL
 
       - name: Upload Trivy scan results for cyt-base
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         if: always()
         with:
           sarif_file: trivy-cyt-base.sarif
@@ -128,7 +132,7 @@ jobs:
           severity: HIGH,CRITICAL
 
       - name: Upload Trivy scan results for ${{ matrix.image.name }}
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         if: always()
         with:
           sarif_file: trivy-${{ matrix.image.name }}.sarif
