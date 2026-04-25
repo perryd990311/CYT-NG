@@ -2,6 +2,11 @@
 .env
 docker/.env
 **/.env
+secure_credentials/
+*.pem
+*.key
+*.p12
+*.pfx
 
 # Python
 __pycache__/
@@ -15,5 +20,8 @@ venv/
 
 # Mockups — local preview only
 web/mockup/
+
+# Agent instructions — contain deployment-specific details
+.github/agents/
 
 cyt_data.db

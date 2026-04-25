@@ -5,7 +5,7 @@
 #   sudo bash install.sh [--reinstall] [--unattended]
 #
 # Environment variables (all optional except NAS_SHARE):
-#   NAS_SHARE      SMB share UNC path   e.g. //172.20.0.250/kismet_data  (REQUIRED)
+#   NAS_SHARE      SMB share UNC path   e.g. //YOUR_NAS_IP/kismet_data  (REQUIRED)
 #   NAS_USER       SMB username         prompts interactively if not set
 #   NAS_PASS       SMB password         prompts interactively if not set
 #   WIFI_IFACE     Kismet capture iface e.g. wlan1  (default: wlan1)
@@ -55,7 +55,7 @@ echo ""
 [ "$(id -u)" -eq 0 ] || die "Run as root: sudo bash install.sh"
 
 [ -n "$NAS_SHARE" ] || die "NAS_SHARE is not set.
-  Manual:      NAS_SHARE=//172.20.0.250/kismet_data sudo bash install.sh
+  Manual:      NAS_SHARE=//YOUR_NAS_IP/kismet_data sudo bash install.sh
   Unattended:  NAS_SHARE=... NAS_USER=... NAS_PASS=... sudo bash install.sh --unattended"
 
 if [ "$UNATTENDED" -eq 1 ]; then

@@ -50,7 +50,7 @@
   },
   "sensor": {
     "sync_interval_minutes": 5,
-    "smb_share": "//172.20.0.250/docker/cyt-ng/kismet_data",
+    "smb_share": "//YOUR_NAS_IP/kismet_data",
     "health_check_interval_minutes": 10
   },
   "fingerprinting": {

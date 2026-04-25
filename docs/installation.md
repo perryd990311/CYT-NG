@@ -18,8 +18,9 @@ On Synology, Docker is available through **Container Manager** (DSM 7.2+) or the
 SSH into your NAS and set up the working directory:
 
 ```bash
-mkdir -p /volume1/docker/cyt-ng
-cd /volume1/docker/cyt-ng
+# Adapt this path to your host — e.g. /volume1/docker/cyt-ng on Synology
+mkdir -p /path/to/cyt-ng
+cd /path/to/cyt-ng
 
 # Clone the repo — the trailing "repo" forces the folder name
 git clone https://github.com/perryd990311/CYT-NG.git repo
@@ -83,7 +84,7 @@ Sensors sync `.kismet` files to the NAS via SMB.
 
 1. In DSM, go to **Control Panel → Shared Folder → Create**
 2. Name it `kismet_data` (or similar)
-3. Note the local path (e.g., `/volume1/docker/cyt-ng/kismet_data`)
+3. Note the local path (e.g., the `kismet_data` directory alongside the repo)
 
 ### Set permissions
 
@@ -135,7 +136,7 @@ If your NAS already has a valid certificate (Let's Encrypt or CA-signed) managed
 
 1. In DSM, go to **Control Panel → Security → Certificate**
 2. Select the certificate and click **Export** — this downloads a `.zip` containing `cert.pem`, `privkey.pem`, and `chain.pem` (or similar)
-3. Extract the files to a directory on the NAS, e.g., `/volume1/docker/cyt-ng/certs/`
+3. Extract the files to a directory on the NAS, e.g., `certs/` alongside the repo
 4. Set the paths in `.env`:
 
 ```env
@@ -167,11 +168,11 @@ Because the base image bakes in all pip packages, a normal `docker compose build
 ### Build the base image (first time, or after dependency changes)
 
 ```bash
-cd /volume1/docker/cyt-ng
+cd /path/to/cyt-ng
 docker build -f repo/docker/Dockerfile.base -t cyt-base:latest .
 ```
 
-> **Note:** The build context is the project root (`/volume1/docker/cyt-ng`), not the repo subdirectory. The Dockerfile references paths like `repo/requirements.txt` relative to this context.
+> **Note:** The build context is the project root (`/path/to/cyt-ng`), not the repo subdirectory. The Dockerfile references paths like `repo/requirements.txt` relative to this context.
 
 ### Build and start the app
 
@@ -205,7 +206,7 @@ You should see:
 ## Updating
 
 ```bash
-cd /volume1/docker/cyt-ng
+cd /path/to/cyt-ng
 git -C repo pull   # or push from dev machine
 
 # If requirements.txt changed, rebuild the base image first:

@@ -1,9 +1,9 @@
 # CYT-NG base image — build once, reuse forever.
 # Rebuild only when requirements.txt changes or Python minor version bumps.
 #
-# Build (run from the PARENT of the repo — same context as docker-compose):
-#   ssh nas "cd /volume1/docker/cyt-ng && \
-#     /usr/local/bin/docker build -f repo/docker/Dockerfile.base -t cyt-base:latest ."
+# Build (run from the project root — the parent of the repo directory):
+#   cd /path/to/cyt-ng
+#   docker build -f repo/docker/Dockerfile.base -t cyt-base:latest .
 #
 # After rebuilding the base, rebuild the app:
 #   /usr/local/bin/docker compose build --no-cache cyt-web

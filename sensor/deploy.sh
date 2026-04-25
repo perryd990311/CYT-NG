@@ -8,8 +8,8 @@
 #   bash deploy.sh [options] USER@HOST
 #
 # Required:
-#   USER@HOST      SSH target, e.g.  pi@10.0.1.102  or  kismet@raspberrypi
-#   NAS_SHARE      SMB path,  e.g.  //172.20.0.250/kismet_data
+#   USER@HOST      SSH target, e.g.  pi@raspberrypi  or  kismet@sensor-01
+#   NAS_SHARE      SMB path,  e.g.  //YOUR_NAS_IP/kismet_data
 #   NAS_USER       NAS SMB username
 #   NAS_PASS       NAS SMB password
 #
@@ -25,11 +25,11 @@
 #   --dry-run      Show what would be run; do not connect
 #
 # Examples:
-#   NAS_SHARE=//172.20.0.250/kismet_data NAS_USER=raspi NAS_PASS=s3cr3t \
-#     bash deploy.sh pi@10.0.1.102
+#   NAS_SHARE=//YOUR_NAS_IP/kismet_data NAS_USER=sensor NAS_PASS=s3cr3t \
+#     bash deploy.sh pi@SENSOR_IP
 #
-#   NAS_SHARE=//172.20.0.250/kismet_data NAS_USER=raspi NAS_PASS=s3cr3t \
-#     WIFI_IFACE=wlan1 bash deploy.sh --reinstall pi@10.0.1.102
+#   NAS_SHARE=//YOUR_NAS_IP/kismet_data NAS_USER=sensor NAS_PASS=s3cr3t \
+#     WIFI_IFACE=wlan1 bash deploy.sh --reinstall pi@SENSOR_IP
 set -euo pipefail
 
 # ── Parse args ──────────────────────────────────────────────────────────────

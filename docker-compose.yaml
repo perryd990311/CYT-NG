@@ -1,5 +1,5 @@
-# CYT-NG Docker Compose — Synology DS218+ (Container Manager)
-# Place at: /volume1/docker/cyt-ng/docker-compose.yaml
+# CYT-NG Docker Compose
+# Adapt volume paths and networking to your host before launching.
 
 services:
   cyt-web:
@@ -8,24 +8,22 @@ services:
       dockerfile: docker/Dockerfile
     container_name: cyt-web
     restart: unless-stopped
-    user: "1031:100"
+    # Set user to match your host UID:GID for volume permissions
+    # user: "1000:1000"
     env_file: .env
     environment:
       - KISMET_DATA_PATH=/data/kismet
       - CYT_DATABASE_PATH=/data/cyt/cyt_data.db
     volumes:
-      # Kismet data — NAS SMB share (//172.20.0.250/docker/cyt-ng/kismet_data → /volume1/docker/cyt-ng/kismet_data on host)
-      - /volume1/docker/cyt-ng/kismet_data:/data/kismet:ro
+      # Kismet data — directory where sensors sync .kismet files
+      - ./kismet_data:/data/kismet:ro
       # Persistent CYT database & reports
-      - /volume1/docker/cyt-ng/data/cyt:/data/cyt
-      - /volume1/docker/cyt-ng/data/logs:/data/logs
-      - /volume1/docker/cyt-ng/data/reports:/data/reports
-      - /volume1/docker/cyt-ng/data/kml:/data/kml
+      - ./data/cyt:/data/cyt
+      - ./data/logs:/data/logs
+      - ./data/reports:/data/reports
+      - ./data/kml:/data/kml
       # Ignore lists (editable from host)
-      - /volume1/docker/cyt-ng/ignore_lists:/app/ignore_lists
-    networks:
-      vlan5:
-        ipv4_address: 10.0.1.205
+      - ./ignore_lists:/app/ignore_lists
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/status')"]
       interval: 30s
@@ -50,13 +48,10 @@ services:
       - "80:80"
     volumes:
       # Mount real certs here, or let entrypoint.sh auto-generate self-signed
-      - /volume1/docker/cyt-ng/certs:/etc/nginx/certs
+      - ./certs:/etc/nginx/certs
     depends_on:
       cyt-web:
         condition: service_healthy
-    networks:
-      vlan5:
-        ipv4_address: 10.0.1.204
     read_only: true
     tmpfs:
       - /tmp
@@ -64,7 +59,3 @@ services:
       - /run
     security_opt:
       - no-new-privileges:true
-
-networks:
-  vlan5:
-    external: true
