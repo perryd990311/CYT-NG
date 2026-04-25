@@ -178,6 +178,7 @@ When implementing updates:
    - SSH to NAS: `perryd@172.20.0.250`
    - Navigate to: `/volume1/docker/cyt-ng/`
    - Pull latest code or modify files
+   - tear down/clean project containers:  `/usr/local/bin/docker compose -p cyt-ng clean cyt-web`
    - Rebuild app image (base is pre-built): `/usr/local/bin/docker compose -p cyt-ng build cyt-web`
    - Restart: `/usr/local/bin/docker compose -p cyt-ng up -d`
    - Verify: `curl -k https://localhost/api/health`
@@ -194,7 +195,7 @@ When implementing updates:
    - monitor logs: `docker logs -f cyt-web`
    - verify web UI functionality
 
-   
+
 ## Best Practices
 
 ✅ **Always:**
@@ -222,7 +223,7 @@ When implementing updates:
 → Test Flask directly: `curl http://localhost:8000/api/health`
 
 **Kismet data not syncing?**
-→ Check shared Kismet dir: `ls -la /volume1/docker/kismet/`  
+→ Check shared Kismet dir: `ls -la /volume1/docker/cyt-ng/kismet_data/`  
 → Verify SMB share is accessible: `smbclient -L //172.20.0.250 -U perryd`  
 → Verify RPi sensor status from web UI  
 → Check sensor health: `ssh pi@<sensor-ip> systemctl status kismet`  

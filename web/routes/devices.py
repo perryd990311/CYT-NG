@@ -212,15 +212,41 @@ def index():
 
     total = query.count()
 
-    # Apply sort — whitelist-validated column
-    col = _SORT_COLUMNS.get(sort_col, Device.last_seen)
-    order = col.asc() if sort_dir == "asc" else col.desc()
-    devices = (
-        query.order_by(order)
-        .offset(offset)
-        .limit(per_page)
-        .all()
-    )
+    # Apply sort — whitelist-validated column, or subquery for ssids
+    if sort_col == "ssids":
+        # Subquery: count distinct SSIDs per device from appearances
+        ssid_sub = (
+            db.query(
+                Appearance.device_id,
+                func.count(func.distinct(Appearance.ssids_json)).label("ssid_cnt"),
+            )
+            .filter(Appearance.ssids_json.isnot(None))
+            .group_by(Appearance.device_id)
+            .subquery()
+        )
+        query = query.outerjoin(ssid_sub, Device.id == ssid_sub.c.device_id)
+        order_expr = ssid_sub.c.ssid_cnt
+        order = order_expr.asc() if sort_dir == "asc" else order_expr.desc()
+        # nulls (no SSIDs) sort last
+        from sqlalchemy import case
+        devices = (
+            query.order_by(
+                case((order_expr.is_(None), 1), else_=0),
+                order,
+            )
+            .offset(offset)
+            .limit(per_page)
+            .all()
+        )
+    else:
+        col = _SORT_COLUMNS.get(sort_col, Device.last_seen)
+        order = col.asc() if sort_dir == "asc" else col.desc()
+        devices = (
+            query.order_by(order)
+            .offset(offset)
+            .limit(per_page)
+            .all()
+        )
 
     ssid_counts = _device_ssid_counts(db, [d.id for d in devices])
     device_ssids = _device_ssid_sets(db, [d.id for d in devices])

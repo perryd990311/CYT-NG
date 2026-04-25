@@ -32,14 +32,17 @@ def require_login():
 def _read_ignore_list(path: Path) -> list:
     if path.is_file():
         with open(path) as f:
-            return json.load(f)
+            data = json.load(f)
+            if isinstance(data, list):
+                return [m for m in data if isinstance(m, str)]
     return []
 
 
 def _write_ignore_list(path: Path, data: list) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
+    clean = [m for m in data if isinstance(m, str)]
     with open(path, "w") as f:
-        json.dump(data, f, indent=2)
+        json.dump(clean, f, indent=2)
 
 
 def get_baseline_macs():
@@ -163,9 +166,8 @@ def update_mac_ignore():
 
     validated = []
     for mac in entries:
-        clean = InputValidator.validate_mac_address(mac)
-        if clean:
-            validated.append(clean)
+        if InputValidator.validate_mac_address(mac):
+            validated.append(mac.upper())
         else:
             flash(f"Invalid MAC skipped: {mac}", "warning")
 
@@ -186,9 +188,8 @@ def update_ssid_ignore():
 
     validated = []
     for ssid in entries:
-        clean = InputValidator.validate_ssid(ssid)
-        if clean:
-            validated.append(clean)
+        if InputValidator.validate_ssid(ssid):
+            validated.append(ssid)
         else:
             flash(f"Invalid SSID skipped: {ssid}", "warning")
 
@@ -217,9 +218,8 @@ def baseline_devices():
     existing = set(_read_ignore_list(mac_path))
     new_macs = []
     for mac in all_macs:
-        clean = InputValidator.validate_mac_address(mac)
-        if clean and clean not in existing:
-            new_macs.append(clean)
+        if InputValidator.validate_mac_address(mac) and mac.upper() not in {m.upper() for m in existing}:
+            new_macs.append(mac.upper())
 
     merged = sorted(existing | set(new_macs))
     _write_ignore_list(mac_path, merged)
@@ -238,8 +238,7 @@ def baseline_remove():
     from cyt.input_validation import InputValidator
 
     mac = request.form.get("mac", "").strip()
-    clean = InputValidator.validate_mac_address(mac)
-    if not clean:
+    if not InputValidator.validate_mac_address(mac):
         flash(f"Invalid MAC: {mac}", "danger")
         return redirect(url_for("settings.ignore_lists"))
 
@@ -248,13 +247,13 @@ def baseline_remove():
     mac_path = base / ignore_cfg.get("mac_list", "ignore_lists/mac_list.json")
 
     current = _read_ignore_list(mac_path)
-    updated = [m for m in current if m.upper() != clean.upper()]
+    updated = [m for m in current if m.upper() != mac.upper()]
 
     if len(updated) < len(current):
         _write_ignore_list(mac_path, updated)
-        flash(f"Removed {clean} from ignore list.", "success")
+        flash(f"Removed {mac.upper()} from ignore list.", "success")
     else:
-        flash(f"{clean} was not in the ignore list.", "warning")
+        flash(f"{mac.upper()} was not in the ignore list.", "warning")
 
     return redirect(url_for("settings.ignore_lists"))
 
@@ -288,9 +287,8 @@ def baseline_remove_selected():
 
     remove_set = set()
     for mac in selected:
-        clean = InputValidator.validate_mac_address(mac)
-        if clean:
-            remove_set.add(clean.upper())
+        if InputValidator.validate_mac_address(mac):
+            remove_set.add(mac.upper())
 
     current = _read_ignore_list(mac_path)
     updated = [m for m in current if m.upper() not in remove_set]
@@ -320,10 +318,9 @@ def baseline_add_selected():
     added = 0
     new_list = list(_read_ignore_list(mac_path))
     for mac in selected:
-        clean = InputValidator.validate_mac_address(mac)
-        if clean and clean.upper() not in existing:
-            new_list.append(clean)
-            existing.add(clean.upper())
+        if InputValidator.validate_mac_address(mac) and mac.upper() not in existing:
+            new_list.append(mac.upper())
+            existing.add(mac.upper())
             added += 1
 
     _write_ignore_list(mac_path, sorted(new_list))
