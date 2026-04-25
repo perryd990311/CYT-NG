@@ -92,7 +92,7 @@ jobs:
             context: .
           - name: cyt-nginx
             dockerfile: nginx/Dockerfile
-            context: .
+            context: nginx/
     steps:
       - uses: actions/checkout@v6
 
