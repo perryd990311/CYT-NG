@@ -192,10 +192,17 @@
         const ctx = document.getElementById('sparklineChart');
         if (!ctx) return;
         if (sparkChart) sparkChart.destroy();
+        // Convert UTC ISO labels to browser-local HH:MM
+        const pad = n => n < 10 ? '0' + n : n;
+        const localLabels = data.labels.map(iso => {
+          const dt = new Date(iso.replace(' ', 'T'));
+          if (isNaN(dt)) return iso;
+          return pad(dt.getHours()) + ':' + pad(dt.getMinutes());
+        });
         sparkChart = new Chart(ctx, {
           type: 'line',
           data: {
-            labels: data.labels,
+            labels: localLabels,
             datasets: [{
               label: 'Unique Devices',
               data: data.data,

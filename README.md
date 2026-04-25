@@ -2,7 +2,7 @@
 
 ![CYT-NG Dashboard](docs/images/dashboard.png)
 
-# Chasing Your Tail — Next Generation
+# CYT — NG v2.0
 
 **Know who keeps showing up.**
 

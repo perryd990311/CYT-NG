@@ -126,7 +126,7 @@ def api_sparkline():
         .all()
     )
     return jsonify(
-        labels=[r.bucket[-5:] for r in rows],
+        labels=[r.bucket + ":00Z" for r in rows],
         data=[r.devices for r in rows],
     )
 

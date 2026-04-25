@@ -241,14 +241,22 @@
   const tickFont  = { size: 10 };
   const tickColor = muted;
 
-  // ── Hourly Activity Chart ──
+  // ── Hourly Activity Chart (shift UTC hours to browser local time) ──
+  const utcHourlyData = {{ hourly_data | tojson }};
+  const tzOffset = new Date().getTimezoneOffset() / -60;
+  const localHourlyLabels = [];
+  const localHourlyData = [];
+  for (let i = 0; i < 24; i++) {
+    localHourlyLabels.push(String(i).padStart(2, '0'));
+    localHourlyData.push(utcHourlyData[((i - tzOffset) % 24 + 24) % 24]);
+  }
   new Chart(document.getElementById('hourlyChart'), {
     type: 'bar',
     data: {
-      labels: {{ hourly_labels | tojson }},
+      labels: localHourlyLabels,
       datasets: [{
         label: 'Devices',
-        data: {{ hourly_data | tojson }},
+        data: localHourlyData,
         backgroundColor: cyan + '40',
         borderColor: cyan,
         borderWidth: 1,
