@@ -194,6 +194,8 @@ def index():
     show_ignored = request.args.get("show_ignored", "0") == "1"
     sort_col = request.args.get("sort", "last_seen")
     sort_dir = request.args.get("dir", "desc")
+    signal_min = request.args.get("signal_min", type=int)
+    signal_max = request.args.get("signal_max", type=int)
     per_page = 50
     offset = (page - 1) * per_page
 
@@ -205,6 +207,19 @@ def index():
             Device.mac.ilike(f"%{safe}%")
             | Device.manufacturer.ilike(f"%{safe}%")
         )
+
+    # Signal strength filter — find devices with appearances in the dBm range
+    if signal_min is not None or signal_max is not None:
+        signal_sub = (
+            db.query(Appearance.device_id)
+            .filter(Appearance.signal_dbm.isnot(None))
+        )
+        if signal_min is not None:
+            signal_sub = signal_sub.filter(Appearance.signal_dbm >= signal_min)
+        if signal_max is not None:
+            signal_sub = signal_sub.filter(Appearance.signal_dbm <= signal_max)
+        signal_device_ids = signal_sub.distinct().subquery()
+        query = query.filter(Device.id.in_(db.query(signal_device_ids.c.device_id)))
 
     baseline_macs = get_baseline_macs()
     if not show_ignored and baseline_macs:
@@ -282,6 +297,8 @@ def index():
         new_threshold=new_threshold,
         show_ignored=show_ignored,
         ignored_count=len(baseline_macs),
+        signal_min=signal_min,
+        signal_max=signal_max,
         **sort_ctx,
     )
 
