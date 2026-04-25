@@ -131,6 +131,8 @@ def _run_scheduled_analysis(app):
             clusters, fps = run_fingerprinting(
                 session, threshold=threshold, min_ssids=min_ssids
             )
+            # Expire cached objects so count() hits the DB fresh
+            session.expire_all()
             devices_count = session.query(Device).count()
             persistent_count = (
                 session.query(Device)

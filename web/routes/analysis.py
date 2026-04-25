@@ -48,6 +48,8 @@ def _execute_analysis(app, run_id):
             # Run SSID fingerprinting
             clusters, fps = run_fingerprinting(session, threshold=threshold, min_ssids=min_ssids)
 
+            # Expire cached objects so count() hits the DB fresh
+            session.expire_all()
             devices_count = session.query(Device).count()
             persistent_count = session.query(Device).filter(Device.fingerprint_id.isnot(None)).count()
 

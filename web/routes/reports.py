@@ -8,7 +8,7 @@ from flask import (
 from flask_login import login_required
 
 from web.extensions import get_db
-from cyt.models import AnalysisRun
+from cyt.models import AnalysisRun, Device
 
 bp = Blueprint("reports", __name__, url_prefix="/reports")
 
@@ -22,6 +22,7 @@ def require_login():
 @bp.route("/")
 def index():
     db = get_db()
+    total_devices = db.query(Device).count()
     runs = (
         db.query(AnalysisRun)
         .filter(AnalysisRun.status == "completed")
@@ -29,7 +30,7 @@ def index():
         .limit(50)
         .all()
     )
-    return render_template("reports.html", runs=runs)
+    return render_template("reports.html", runs=runs, total_devices=total_devices)
 
 
 @bp.route("/<int:run_id>/download")
