@@ -1,13 +1,15 @@
 """Analysis blueprint — run surveillance analysis, view results, trends."""
+import json
 import threading
+from collections import Counter
 from datetime import datetime, timedelta
 
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app
 from flask_login import login_required
-from sqlalchemy import func
+from sqlalchemy import func, case
 
 from web.extensions import get_db, socketio
-from cyt.models import AnalysisRun, Device, Fingerprint, Appearance
+from cyt.models import AnalysisRun, Device, Fingerprint, Appearance, Sensor
 
 bp = Blueprint("analysis", __name__, url_prefix="/analysis")
 
@@ -223,6 +225,235 @@ def trends_data():
         devices=[r.devices for r in daily_devices],
         appearances=[r.appearances for r in daily_appearances],
         days=days,
+    )
+
+
+@bp.route("/stats")
+def stats():
+    """Analysis statistics dashboard — all derived metrics from the data."""
+    db = get_db()
+    days = min(request.args.get("days", 30, type=int), 365)
+    since = datetime.utcnow() - timedelta(days=days)
+
+    # ── Summary stat cards ──
+    total_devices = (
+        db.query(func.count(func.distinct(Appearance.device_id)))
+        .filter(Appearance.timestamp >= since)
+        .scalar()
+    ) or 0
+
+    persistent_devices = (
+        db.query(func.count(Device.id))
+        .filter(Device.fingerprint_id.isnot(None))
+        .scalar()
+    ) or 0
+
+    randomized_count = (
+        db.query(func.count(Device.id))
+        .filter(Device.is_randomized == True)
+        .join(Appearance, Device.id == Appearance.device_id)
+        .filter(Appearance.timestamp >= since)
+        .scalar()
+    ) or 0
+    randomization_pct = round(randomized_count / total_devices * 100) if total_devices else 0
+
+    fingerprint_clusters = db.query(func.count(Fingerprint.id)).scalar() or 0
+
+    # Unique SSIDs — parse ssids_json from appearances
+    ssid_rows = (
+        db.query(Appearance.ssids_json)
+        .filter(Appearance.timestamp >= since, Appearance.ssids_json.isnot(None))
+        .all()
+    )
+    ssid_counter = Counter()
+    for (raw,) in ssid_rows:
+        try:
+            ssids = json.loads(raw) if isinstance(raw, str) else raw
+            if isinstance(ssids, list):
+                for s in ssids:
+                    if isinstance(s, str) and s:
+                        ssid_counter[s] += 1
+        except (json.JSONDecodeError, TypeError):
+            pass
+    unique_ssids = len(ssid_counter)
+
+    total_appearances = (
+        db.query(func.count(Appearance.id))
+        .filter(Appearance.timestamp >= since)
+        .scalar()
+    ) or 0
+    avg_appearances = round(total_appearances / total_devices, 1) if total_devices else 0
+
+    # ── Hourly activity pattern ──
+    hourly = (
+        db.query(
+            func.strftime("%H", Appearance.timestamp).label("hour"),
+            func.count(func.distinct(Appearance.device_id)).label("devices"),
+        )
+        .filter(Appearance.timestamp >= since)
+        .group_by("hour")
+        .order_by("hour")
+        .all()
+    )
+    hourly_map = {r.hour: r.devices for r in hourly}
+    hourly_labels = [str(h).zfill(2) for h in range(24)]
+    hourly_data = [hourly_map.get(str(h).zfill(2), 0) for h in range(24)]
+
+    # ── New devices per day ──
+    new_per_day = (
+        db.query(
+            func.date(Device.first_seen).label("day"),
+            func.count(Device.id).label("cnt"),
+        )
+        .filter(Device.first_seen >= since)
+        .group_by("day")
+        .order_by("day")
+        .all()
+    )
+    new_day_labels = [str(r.day) for r in new_per_day]
+    new_day_data = [r.cnt for r in new_per_day]
+
+    # ── Top probed SSIDs ──
+    # Count devices per SSID (from the counter, need device-level counts)
+    ssid_device_counter = Counter()
+    ssid_first_seen = {}
+    ssid_last_seen = {}
+    for (raw,) in ssid_rows:
+        try:
+            ssids = json.loads(raw) if isinstance(raw, str) else raw
+            if isinstance(ssids, list):
+                seen = set()
+                for s in ssids:
+                    if isinstance(s, str) and s and s not in seen:
+                        ssid_device_counter[s] += 1
+                        seen.add(s)
+        except (json.JSONDecodeError, TypeError):
+            pass
+
+    # Get first/last seen per SSID from appearances
+    # (simplified: use the ssid_counter keys and query timestamps)
+    top_ssids = ssid_device_counter.most_common(15)
+
+    # ── Signal strength distribution ──
+    signal_buckets = [
+        ("Very Close (-20 to -40)", -40, -20),
+        ("Near (-40 to -60)", -60, -40),
+        ("Medium (-60 to -75)", -75, -60),
+        ("Far (-75 to -90)", -90, -75),
+        ("Distant (< -90)", -200, -90),
+    ]
+    signal_data = []
+    for label, lo, hi in signal_buckets:
+        cnt = (
+            db.query(func.count(func.distinct(Appearance.device_id)))
+            .filter(
+                Appearance.timestamp >= since,
+                Appearance.signal_dbm.isnot(None),
+                Appearance.signal_dbm >= lo,
+                Appearance.signal_dbm <= hi,
+            )
+            .scalar()
+        ) or 0
+        signal_data.append({"label": label, "count": cnt, "min": lo, "max": hi})
+
+    # ── Fingerprint clusters ──
+    clusters = (
+        db.query(Fingerprint)
+        .order_by(Fingerprint.appearance_count.desc())
+        .limit(10)
+        .all()
+    )
+    cluster_info = []
+    for fp in clusters:
+        mac_count = db.query(func.count(Device.id)).filter(Device.fingerprint_id == fp.id).scalar() or 0
+        try:
+            pool = json.loads(fp.ssids_json) if fp.ssids_json else []
+        except (json.JSONDecodeError, TypeError):
+            pool = []
+        cluster_info.append({
+            "canonical_mac": fp.canonical_mac,
+            "mac_count": mac_count,
+            "ssids": pool,
+            "first_seen": fp.first_seen,
+            "last_seen": fp.last_seen,
+            "appearances": fp.appearance_count,
+        })
+
+    # ── Dwell time distribution ──
+    # Per-device per-day dwell = max(timestamp) - min(timestamp)
+    dwell_rows = (
+        db.query(
+            func.julianday(func.max(Appearance.timestamp))
+            - func.julianday(func.min(Appearance.timestamp))
+        )
+        .filter(Appearance.timestamp >= since)
+        .group_by(Appearance.device_id, func.date(Appearance.timestamp))
+        .all()
+    )
+    dwell_buckets = {"<1 min": 0, "1-5 min": 0, "5-15 min": 0, "15-60 min": 0, "1-4 hr": 0, ">4 hr": 0}
+    for (delta_days,) in dwell_rows:
+        if delta_days is None:
+            continue
+        mins = delta_days * 24 * 60
+        if mins < 1:
+            dwell_buckets["<1 min"] += 1
+        elif mins < 5:
+            dwell_buckets["1-5 min"] += 1
+        elif mins < 15:
+            dwell_buckets["5-15 min"] += 1
+        elif mins < 60:
+            dwell_buckets["15-60 min"] += 1
+        elif mins < 240:
+            dwell_buckets["1-4 hr"] += 1
+        else:
+            dwell_buckets[">4 hr"] += 1
+
+    # ── Sensor coverage ──
+    sensors = db.query(Sensor).all()
+    sensor_stats = []
+    for s in sensors:
+        cnt = (
+            db.query(func.count(Appearance.id))
+            .filter(Appearance.sensor_id == s.id, Appearance.timestamp >= since)
+            .scalar()
+        ) or 0
+        sensor_stats.append({"name": s.name, "status": s.status, "sightings": cnt})
+
+    # Multi-sensor overlap (devices seen by 2+ sensors)
+    if len(sensors) >= 2:
+        overlap = (
+            db.query(func.count())
+            .select_from(
+                db.query(Appearance.device_id)
+                .filter(Appearance.timestamp >= since, Appearance.sensor_id.isnot(None))
+                .group_by(Appearance.device_id)
+                .having(func.count(func.distinct(Appearance.sensor_id)) >= 2)
+                .subquery()
+            )
+            .scalar()
+        ) or 0
+    else:
+        overlap = 0
+
+    return render_template(
+        "analysis_stats.html",
+        days=days,
+        total_devices=total_devices,
+        persistent_devices=persistent_devices,
+        randomization_pct=randomization_pct,
+        fingerprint_clusters=fingerprint_clusters,
+        unique_ssids=unique_ssids,
+        avg_appearances=avg_appearances,
+        hourly_labels=hourly_labels,
+        hourly_data=hourly_data,
+        new_day_labels=new_day_labels,
+        new_day_data=new_day_data,
+        top_ssids=top_ssids,
+        signal_data=signal_data,
+        cluster_info=cluster_info,
+        dwell_buckets=dwell_buckets,
+        sensor_stats=sensor_stats,
+        overlap=overlap,
     )
 
 
