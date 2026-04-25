@@ -111,7 +111,9 @@
         </p>
         <p class="mb-1"><strong>Started:</strong> {{ localtime(last_run.started_at) }}</p>
         <p class="mb-1"><strong>Devices:</strong> {{ last_run.devices_analyzed }}</p>
-        <p class="mb-0"><strong>Alerts:</strong> {{ last_run.alerts_generated }}</p>
+        <p class="mb-0"><strong>Persistent:</strong>
+          <span class="badge bg-{{ 'danger' if last_run.persistent_devices else 'success' }}">{{ last_run.persistent_devices or 0 }}</span>
+        </p>
         {% else %}
         <p class="text-muted mb-0">No analysis runs yet.</p>
         {% endif %}
@@ -123,17 +125,29 @@
       <div class="card-header"><i class="bi bi-shield-exclamation"></i> Top Persistent Devices</div>
       <div class="card-body p-0">
         {% if top_persistent %}
-        <div class="list-group list-group-flush">
-          {% for device, cnt in top_persistent %}
-          <a href="{{ url_for('devices.detail', mac=device.mac) }}"
-             class="list-group-item list-group-item-action d-flex justify-content-between align-items-center py-2"
-             style="background:transparent; border-color:var(--cyt-border);">
-            <span style="font-size:0.8rem; font-family:monospace; color:var(--cyt-cyan);">{{ device.mac }}</span>
-            <span class="badge {% if cnt >= 50 %}persistence-high{% elif cnt >= 20 %}persistence-medium{% else %}persistence-low{% endif %}"
-                  style="background:var(--cyt-raised); min-width:2.5rem; text-align:center;">{{ cnt }}</span>
-          </a>
-          {% endfor %}
-        </div>
+        <form method="post" action="{{ url_for('settings.baseline_add_selected') }}">
+          <input type="hidden" name="redirect" value="{{ url_for('dashboard.index') }}">
+          <div class="list-group list-group-flush">
+            {% for device, cnt in top_persistent %}
+            <div class="list-group-item d-flex align-items-center py-2"
+                 style="background:transparent; border-color:var(--cyt-border);">
+              <input type="checkbox" class="form-check-input me-2 persistent-cb" name="selected_macs" value="{{ device.mac }}">
+              <a href="{{ url_for('devices.detail', mac=device.mac) }}" class="flex-grow-1 text-decoration-none"
+                 style="font-size:0.8rem; font-family:monospace; color:var(--cyt-cyan);">{{ device.mac }}</a>
+              <span class="badge {% if cnt >= 50 %}persistence-high{% elif cnt >= 20 %}persistence-medium{% else %}persistence-low{% endif %}"
+                    style="background:var(--cyt-raised); min-width:2.5rem; text-align:center;">{{ cnt }}</span>
+            </div>
+            {% endfor %}
+          </div>
+          <div class="p-2 d-flex gap-2">
+            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="this.closest('form').querySelectorAll('.persistent-cb').forEach(c=>c.checked=!c.checked)">
+              <i class="bi bi-check2-square"></i> Toggle All
+            </button>
+            <button type="submit" class="btn btn-sm btn-outline-success">
+              <i class="bi bi-plus-circle"></i> Add Selected to Baseline
+            </button>
+          </div>
+        </form>
         {% else %}
         <div class="p-3" style="color:var(--cyt-text-muted); font-size:0.875rem;">No device data yet.</div>
         {% endif %}

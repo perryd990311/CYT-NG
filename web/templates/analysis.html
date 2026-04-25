@@ -31,7 +31,7 @@
           <th>Started</th>
           <th>Trigger</th>
           <th>Devices</th>
-          <th>Alerts</th>
+          <th>Persistent</th>
           <th>Status</th>
           <th></th>
         </tr>
@@ -43,7 +43,11 @@
           <td>{{ localtime(r.started_at) }}</td>
           <td><span class="badge bg-secondary">{{ r.trigger }}</span></td>
           <td>{{ r.devices_analyzed }}</td>
-          <td>{{ r.alerts_generated }}</td>
+          <td>
+            {% if r.persistent_devices %}
+            <span class="badge bg-{{ 'danger' if r.persistent_devices > 0 else 'success' }}">{{ r.persistent_devices }}</span>
+            {% else %}0{% endif %}
+          </td>
           <td>
             <span class="badge bg-{% if r.status == 'completed' %}success{% elif r.status == 'running' %}warning{% else %}danger{% endif %}">
               {{ r.status }}

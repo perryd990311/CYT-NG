@@ -29,7 +29,11 @@
         <strong>Finished</strong><br>{{ localtime(run.finished_at, fmt='long') }}
       </div>
       <div class="col-md-3">
-        <strong>Devices / Alerts</strong><br>{{ run.devices_analyzed }} / {{ run.alerts_generated }}
+        <strong>Devices</strong><br>{{ run.devices_analyzed }}
+      </div>
+      <div class="col-md-3">
+        <strong>Persistent</strong><br>
+        <span class="badge bg-{{ 'danger' if run.persistent_devices else 'success' }}">{{ run.persistent_devices or 0 }}</span>
       </div>
     </div>
   </div>
