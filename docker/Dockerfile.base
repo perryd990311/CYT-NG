@@ -10,13 +10,16 @@
 
 FROM python:3.12-slim
 
+# Path prefix: "repo/" on NAS (context is parent dir), empty in CI (context is repo root)
+ARG REPO_PREFIX=repo/
+
 # Build deps — only needed here, not in the app image
 RUN apt-get update && \
     apt-get install -y --no-install-recommends gcc libffi-dev libssl-dev && \
     rm -rf /var/lib/apt/lists/*
 
 # Install all Python dependencies
-COPY repo/requirements.txt /tmp/requirements.txt
+COPY ${REPO_PREFIX}requirements.txt /tmp/requirements.txt
 RUN pip install --no-cache-dir -r /tmp/requirements.txt && \
     rm /tmp/requirements.txt
 

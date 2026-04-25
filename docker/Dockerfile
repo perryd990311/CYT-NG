@@ -10,15 +10,18 @@ FROM cyt-base:latest
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
+# Path prefix: "repo/" on NAS (context is parent dir), empty in CI (context is repo root)
+ARG REPO_PREFIX=repo/
+
 # Copy application code
-COPY repo/cyt/ cyt/
-COPY repo/web/ web/
-COPY repo/sensor/kismet_sync.sh sensor/kismet_sync.sh
-COPY repo/config.json .
-COPY repo/ignore_lists/ ignore_lists/
+COPY ${REPO_PREFIX}cyt/ cyt/
+COPY ${REPO_PREFIX}web/ web/
+COPY ${REPO_PREFIX}sensor/kismet_sync.sh sensor/kismet_sync.sh
+COPY ${REPO_PREFIX}config.json .
+COPY ${REPO_PREFIX}ignore_lists/ ignore_lists/
 
 # Entrypoint
-COPY repo/docker/entrypoint.sh /entrypoint.sh
+COPY ${REPO_PREFIX}docker/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
 # Data directories

@@ -54,6 +54,7 @@ jobs:
         with:
           context: .
           file: docker/Dockerfile.base
+          build-args: REPO_PREFIX=
           push: false
           tags: cyt-base:ci
           cache-from: type=gha
@@ -100,6 +101,7 @@ jobs:
         with:
           context: .
           file: docker/Dockerfile.base
+          build-args: REPO_PREFIX=
           push: false
           tags: cyt-base:latest
           cache-from: type=gha
@@ -110,6 +112,7 @@ jobs:
         with:
           context: ${{ matrix.image.context }}
           file: ${{ matrix.image.dockerfile }}
+          build-args: REPO_PREFIX=
           push: false
           tags: ${{ matrix.image.name }}:ci
           cache-from: type=gha
