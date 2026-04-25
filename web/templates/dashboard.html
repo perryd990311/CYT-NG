@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "macros/localtime.html" import localtime %}
 {% block title %}Dashboard — CYT-NG{% endblock %}
 
 {% block content %}
@@ -108,7 +109,7 @@
             {{ last_run.status }}
           </span>
         </p>
-        <p class="mb-1"><strong>Started:</strong> {{ last_run.started_at.strftime('%Y-%m-%d %H:%M') if last_run.started_at else '—' }}</p>
+        <p class="mb-1"><strong>Started:</strong> {{ localtime(last_run.started_at) }}</p>
         <p class="mb-1"><strong>Devices:</strong> {{ last_run.devices_analyzed }}</p>
         <p class="mb-0"><strong>Alerts:</strong> {{ last_run.alerts_generated }}</p>
         {% else %}

@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "macros/localtime.html" import localtime %}
 
 {% block title %}Reports — CYT-NG{% endblock %}
 
@@ -24,7 +25,7 @@
             {% for run in runs %}
             <tr>
                 <td>#{{ run.id }}</td>
-                <td>{{ run.started_at.strftime('%Y-%m-%d %H:%M') if run.started_at else '—' }}</td>
+                <td>{{ localtime(run.started_at) }}</td>
                 <td>{{ run.devices_analyzed or '—' }}</td>
                 <td>
                     {% if run.persistent_devices is not none %}

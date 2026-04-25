@@ -1,4 +1,5 @@
 <!-- partials/device_list.html — HTMX partial for device table -->
+{% from "macros/localtime.html" import localtime %}
 {% macro sort_link(col, label) %}
   {% set current = sort|default('last_seen') %}
   {% set current_dir = dir|default('desc') %}
@@ -31,8 +32,8 @@
         data-mfr="{{ d.manufacturer or '' }}"
         data-type="{{ d.device_type or '' }}"
         data-rand="{{ 'true' if d.is_randomized else 'false' }}"
-        data-first="{{ d.first_seen.strftime('%Y-%m-%d %H:%M') if d.first_seen else '' }}"
-        data-last="{{ d.last_seen.strftime('%Y-%m-%d %H:%M') if d.last_seen else '' }}"
+        data-first="{{ d.first_seen.strftime('%Y-%m-%dT%H:%M:%SZ') if d.first_seen else '' }}"
+        data-last="{{ d.last_seen.strftime('%Y-%m-%dT%H:%M:%SZ') if d.last_seen else '' }}"
         data-ssids="{% if device_ssids is defined and device_ssids.get(d.id) %}{{ device_ssids[d.id]|join('|||') }}{% endif %}"
         data-detail="{{ url_for('devices.detail', mac=d.mac) }}"
         data-appearances="{{ enr.get('appearances', 0) }}"
@@ -76,8 +77,8 @@
           <span class="text-muted" style="font-size:0.8rem">—</span>
         {% endif %}
       </td>
-      <td>{{ d.first_seen.strftime('%Y-%m-%d %H:%M') if d.first_seen else '—' }}</td>
-      <td>{{ d.last_seen.strftime('%Y-%m-%d %H:%M') if d.last_seen else '—' }}</td>
+      <td>{{ localtime(d.first_seen) }}</td>
+      <td>{{ localtime(d.last_seen) }}</td>
     </tr>
     {% endfor %}
   </tbody>

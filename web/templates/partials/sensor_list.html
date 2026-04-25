@@ -1,3 +1,4 @@
+{% from "macros/localtime.html" import localtime %}
 {% if sensors %}
 <div class="row g-3">
     {% for s in sensors %}
@@ -16,7 +17,7 @@
                     {% if s.kismet_version %}· Kismet {{ s.kismet_version }}{% endif %}
                 </p>
                 <p class="card-text small" style="color:var(--cyt-text-muted);">
-                    Last seen: {{ s.last_seen.strftime('%Y-%m-%d %H:%M') if s.last_seen else 'never' }}
+                    Last seen: {{ localtime(s.last_seen, fallback='never') }}
                 </p>
             </div>
             <div class="card-footer text-end">

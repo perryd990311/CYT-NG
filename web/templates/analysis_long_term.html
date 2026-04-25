@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "macros/localtime.html" import localtime %}
 {% block title %}Long-Term Devices — CYT-NG{% endblock %}
 
 {% block content %}
@@ -72,8 +73,8 @@
               </span>
             </td>
             <td>{{ entry.appearances }}</td>
-            <td>{{ d.first_seen.strftime('%Y-%m-%d %H:%M') if d.first_seen else '—' }}</td>
-            <td>{{ d.last_seen.strftime('%Y-%m-%d %H:%M') if d.last_seen else '—' }}</td>
+            <td>{{ localtime(d.first_seen) }}</td>
+            <td>{{ localtime(d.last_seen) }}</td>
           </tr>
           {% endfor %}
         </tbody>

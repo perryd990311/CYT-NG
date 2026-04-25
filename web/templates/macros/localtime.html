@@ -1,0 +1,13 @@
+{#- Render a datetime as a <time> element that JS converts to browser local time.
+    Usage: {% from "macros/localtime.html" import localtime %}
+           {{ localtime(device.first_seen) }}
+           {{ localtime(device.last_seen, fmt='long') }}
+    Formats: 'short' = YYYY-MM-DD HH:MM, 'long' = YYYY-MM-DD HH:MM:SS
+-#}
+{% macro localtime(dt, fmt='short', fallback='—') -%}
+{%- if dt -%}
+<time class="localtime" datetime="{{ dt.strftime('%Y-%m-%dT%H:%M:%SZ') }}" data-fmt="{{ fmt }}">{{ dt.strftime('%Y-%m-%d %H:%M:%S') if fmt == 'long' else dt.strftime('%Y-%m-%d %H:%M') }}</time>
+{%- else -%}
+{{ fallback }}
+{%- endif -%}
+{%- endmacro %}

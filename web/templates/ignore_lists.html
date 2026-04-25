@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "macros/localtime.html" import localtime %}
 
 {% block title %}Ignore Lists — CYT-NG{% endblock %}
 
@@ -93,7 +94,7 @@
                   <td class="font-monospace small">{{ info.mac }}</td>
                   <td class="small">{{ info.manufacturer or '—' }}</td>
                   <td class="small">{{ info.device_type or '—' }}</td>
-                  <td class="small">{{ info.last_seen.strftime('%Y-%m-%d %H:%M') if info.last_seen else '—' }}</td>
+                  <td class="small">{{ localtime(info.last_seen) }}</td>
                   <td class="text-end">
                     <button type="button" class="btn btn-sm btn-outline-danger py-0 px-1 btn-mac-remove"
                             data-mac="{{ info.mac }}" title="Remove">

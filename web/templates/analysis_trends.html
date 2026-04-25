@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "macros/localtime.html" import localtime %}
 {% block title %}Trends — CYT-NG{% endblock %}
 
 {% block content %}
@@ -88,8 +89,8 @@
               <td>
                 <strong{% if d.count >= 50 %} class="persistence-high"{% elif d.count >= 20 %} class="persistence-medium"{% else %} class="persistence-low"{% endif %}>{{ d.count }}</strong>
               </td>
-              <td>{{ d.first.strftime('%Y-%m-%d %H:%M') if d.first else '—' }}</td>
-              <td>{{ d.last.strftime('%Y-%m-%d %H:%M') if d.last else '—' }}</td>
+              <td>{{ localtime(d.first) }}</td>
+              <td>{{ localtime(d.last) }}</td>
             </tr>
             {% endfor %}
           </tbody>
@@ -115,7 +116,7 @@
           <a href="{{ url_for('analysis.results', run_id=r.id) }}"
              class="list-group-item d-flex justify-content-between align-items-center">
             <div>
-              <small style="color:var(--cyt-text-muted);">{{ r.started_at.strftime('%Y-%m-%d %H:%M') if r.started_at else '—' }}</small>
+              <small style="color:var(--cyt-text-muted);">{{ localtime(r.started_at) }}</small>
               <br>
               <span class="badge bg-secondary" style="font-size:0.65rem;">{{ r.trigger }}</span>
               {{ r.devices_analyzed }} devices

@@ -34,6 +34,29 @@
   // Expose for console debugging
   window.cytSocket = socket;
 
+  // ── Local-time conversion ────────────────────────────────
+  // Converts <time class="localtime" datetime="...Z"> to browser local time.
+  function convertLocalTimes(root) {
+    (root || document).querySelectorAll("time.localtime").forEach(function (el) {
+      var iso = el.getAttribute("datetime");
+      if (!iso) return;
+      var d = new Date(iso);
+      if (isNaN(d)) return;
+      var fmt = el.getAttribute("data-fmt") || "short";
+      var pad = function (n) { return n < 10 ? "0" + n : n; };
+      var s = d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate())
+            + " " + pad(d.getHours()) + ":" + pad(d.getMinutes());
+      if (fmt === "long") s += ":" + pad(d.getSeconds());
+      el.textContent = s;
+    });
+  }
+  // Run on page load
+  convertLocalTimes();
+  // Re-run after every HTMX swap (for partials loaded dynamically)
+  document.body.addEventListener("htmx:afterSwap", function (evt) {
+    convertLocalTimes(evt.detail.target);
+  });
+
   // ── HTMX global config ───────────────────────────────────
   document.body.addEventListener("htmx:configRequest", function (evt) {
     // Ensure HX-Request header is always sent (for partial detection)

@@ -49,7 +49,7 @@ Defer to these agents for domain work:
 ### SSH Session Management
 ```bash
 # Initial connection
-ssh -i ~/.ssh/id_ed25519 perryd@172.20.0.250 -p 22
+ssh perryd@172.20.0.250 -p 22
 
 # Verify Docker access (use full path — PATH is empty in non-interactive SSH)
 /usr/local/bin/docker ps  # Should list running containers

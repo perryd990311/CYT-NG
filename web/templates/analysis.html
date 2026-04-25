@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "macros/localtime.html" import localtime %}
 {% block title %}Analysis — CYT-NG{% endblock %}
 
 {% block content %}
@@ -39,7 +40,7 @@
         {% for r in runs %}
         <tr>
           <td>{{ r.id }}</td>
-          <td>{{ r.started_at.strftime('%Y-%m-%d %H:%M') if r.started_at else '—' }}</td>
+          <td>{{ localtime(r.started_at) }}</td>
           <td><span class="badge bg-secondary">{{ r.trigger }}</span></td>
           <td>{{ r.devices_analyzed }}</td>
           <td>{{ r.alerts_generated }}</td>
