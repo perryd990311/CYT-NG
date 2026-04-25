@@ -1,7 +1,7 @@
 """Sensors blueprint — manage Kismet sensor Raspberry Pis."""
 import re
 import socket
-from datetime import datetime, timezone
+from datetime import datetime
 
 from flask import Blueprint, render_template, request, flash, redirect, url_for, jsonify
 from flask_login import login_required
@@ -43,7 +43,7 @@ def index():
     )
     dbsize_map = dict(dbsize_q)
 
-    now = datetime.now(timezone.utc)
+    now = datetime.utcnow()
     sensor_stats = []
     for s in sensors:
         sightings = sightings_map.get(s.id, 0)

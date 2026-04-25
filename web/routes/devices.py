@@ -109,7 +109,7 @@ def _device_enrichment(db, devices):
     # Baseline MAC list
     import os
     baseline_macs = set()
-    mac_list_path = os.environ.get("IGNORE_LISTS", "ignore_lists") + "/mac_list.json"
+    mac_list_path = os.environ.get("IGNORE_LISTS", "ignore_lists") + "/maclist.json"
     try:
         with open(mac_list_path) as f:
             data = json.load(f)

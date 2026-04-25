@@ -94,7 +94,7 @@ Always explain the root cause and why the fix resolves it.
 ### NAS / Docker Access
 ```bash
 # SSH to NAS
-ssh -i ~/.ssh/id_ed25519 perryd@172.20.0.250
+ssh perryd@172.20.0.250
 
 # Container status
 /usr/local/bin/docker compose -p cyt-ng ps

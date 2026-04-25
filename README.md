@@ -1,117 +1,206 @@
-# Chasing Your Tail NG (CYT-NG)
+<div align="center">
 
-A Wi-Fi probe request surveillance detection system. Kismet sensors on Raspberry Pis capture wireless frames and sync `.kismet` SQLite files to a Synology NAS. A Flask web UI provides real-time monitoring, device tracking, analysis, and reporting.
+![CYT-NG Dashboard](docs/images/dashboard.png)
 
-## Architecture
+# Chasing Your Tail — Next Generation
+
+**Know who keeps showing up.**
+
+CYT-NG is a centralized Wi-Fi surveillance detection system that monitors your home, office, or any fixed location for recurring wireless devices. Distributed Raspberry Pi sensors capture probe requests in real time and feed them into an analysis engine that spots patterns humans would miss — revealing who keeps coming back and how often.
+
+[![Python 3.12](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)](https://python.org)
+[![Flask](https://img.shields.io/badge/Flask-3.x-000?logo=flask)](https://flask.palletsprojects.com)
+[![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)](https://docs.docker.com/compose/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+
+</div>
+
+---
+
+## The Problem
+
+Every wireless device — phone, laptop, smartwatch — constantly broadcasts **probe requests** looking for known networks. Those broadcasts include a unique identifier and often the names of networks the device has connected to before. Anyone sitting outside your home or workplace with a Wi-Fi adapter can passively catalog every device that comes and goes.
+
+CYT-NG turns that same technique into a **defensive tool**. Deploy sensors at fixed locations — your home, your office, your vehicle — and let the system build a picture of who keeps appearing nearby. Baseline your own devices, and anything that shows up repeatedly without explanation gets flagged.
+
+> **Looking for the portable version?** The original [Chasing Your Tail](https://github.com/ArgeliusLabs/Chasing-Your-Tail-NG) was designed for mobile use — carry a sensor with you and detect if the same device follows you from place to place. CYT-NG takes a different approach: **fixed-location monitoring** with centralized analysis, multi-sensor correlation, and a full web UI.
+
+## How It Works
 
 ```
-RPi (Kismet sensor) --SMB sync--> Synology NAS (Docker)
-                                    cyt-nginx   (TLS reverse proxy)
-                                    cyt-web     (Flask + SocketIO)
-                                        cyt/    analysis engine
-                                        SQLite  CYT database
+┌──────────────────┐     ┌──────────────────┐
+│  RPi Sensor #1   │     │  RPi Sensor #2   │
+│  (Kismet + WiFi) │     │  (Kismet + WiFi) │
+└────────┬─────────┘     └────────┬─────────┘
+         │  SMB sync every 5 min  │
+         └──────────┬─────────────┘
+                    ▼
+         ┌─────────────────────┐
+         │   Synology NAS      │
+         │  ┌───────────────┐  │
+         │  │   cyt-nginx   │  │  ← TLS reverse proxy
+         │  │  (port 443)   │  │
+         │  └───────┬───────┘  │
+         │          ▼          │
+         │  ┌───────────────┐  │
+         │  │    cyt-web    │  │  ← Flask + SocketIO
+         │  │  (Gunicorn)   │  │
+         │  └───────┬───────┘  │
+         │          ▼          │
+         │  ┌───────────────┐  │
+         │  │  Analysis     │  │  ← Fingerprinting, persistence
+         │  │  Engine       │  │    scoring, pattern detection
+         │  └───────────────┘  │
+         └─────────────────────┘
 ```
 
-## Stack
+1. **Sensors listen.** Raspberry Pis with monitor-mode Wi-Fi adapters run [Kismet](https://www.kismetwireless.net/) to capture probe requests within range.
+2. **Data syncs automatically.** Each sensor pushes `.kismet` SQLite databases to a Synology NAS share on a timer.
+3. **The engine ingests.** A background scheduler reads new Kismet files, deduplicates devices, and builds an appearance timeline.
+4. **Analysis runs.** SSID fingerprinting (Jaccard similarity) clusters MAC-randomized devices. Persistence scoring flags devices that appear too often across too many time windows.
+5. **You get answers.** The web UI shows dashboards, device timelines, signal analysis, and downloadable reports.
 
-- **Python 3.12**, Flask, Flask-SocketIO, HTMX, Chart.js, SQLAlchemy, SQLite
-- **Docker**: `cyt-web` (Gunicorn + gevent) + `cyt-nginx` (TLS reverse proxy)
-- **Auth**: Synology DSM OAuth2 SSO + local bcrypt fallback via Flask-Login
-- **Target**: Synology DS218+ (x86_64, DSM 7.3.2)
+---
 
-## Directory Layout
+## Features
 
-```
-cyt/              Python package  analysis engine, models, security modules
-  models.py       SQLAlchemy models (Device, Appearance, Fingerprint, User, Sensor)
-  kismet_reader.py          Incremental .kismet file ingestion
-  surveillance_detector.py  Persistence scoring engine
-  surveillance_analyzer.py  GPS correlation + KML export
-  sensor_provisioner.py     SSH-based RPi sensor provisioning
-  fingerprint.py            SSID fingerprint similarity (Jaccard)
-  tasks.py                  APScheduler background tasks
-  secure_database.py        Parameterized Kismet DB queries
-  secure_credentials.py     Fernet-encrypted credential storage
-  input_validation.py       MAC/SSID/path sanitization
-web/              Flask application
-  app.py          App factory
-  routes/         Blueprints: dashboard, devices, analysis, sensors, settings, auth
-  templates/      Jinja2 templates + HTMX partials
-  auth/           Synology OAuth2 + local login
-  static/         CSS, JS
-docker/           Dockerfile + entrypoint.sh
-nginx/            TLS reverse proxy config
-sensor/           RPi provisioning scripts (install.sh, kismet_sync.sh)
-```
+### Real-Time Dashboard
 
-## Requirements
+Live device counts, 24-hour activity sparklines, sensor health, and persistent device alerts — all updating via WebSocket.
 
-- Docker + Docker Compose (deployment target: Synology NAS)
-- Raspberry Pi with Kismet and a monitor-mode Wi-Fi adapter (sensors)
-- SMB share on NAS for `.kismet` file sync
+![Dashboard](docs/images/dashboard.png)
 
-## Deployment
+### Device Browser
+
+Search, sort, and drill into any detected device. See full appearance timelines, probed SSIDs, signal strength history, and manufacturer info. Filter by signal range to focus on close-proximity devices.
+
+![Devices](docs/images/devices.png)
+
+### SSID Intelligence
+
+Browse all probed SSIDs across your sensor network. See which devices are looking for the same networks — a strong indicator they belong to the same person.
+
+![SSIDs](docs/images/ssids.png)
+
+### Surveillance Analysis
+
+One-click analysis runs SSID fingerprinting with configurable Jaccard thresholds to cluster MAC-randomized devices that share probe pools. Persistence scoring flags devices that keep coming back.
+
+![Analysis](docs/images/analysis.png)
+
+### Statistics Dashboard
+
+Eight interactive panels covering hourly activity patterns, new device trends, top probed SSIDs, signal strength distribution, fingerprint clusters, dwell time analysis, and multi-sensor coverage overlap.
+
+![Statistics](docs/images/statistics.png)
+
+### Sensor Management
+
+Add, provision, and monitor Raspberry Pi sensors directly from the web UI. The 11-step automated provisioner handles everything over SSH — from installing Kismet to mounting NAS shares — with live progress streaming.
+
+![Sensors](docs/images/sensors.png)
+
+### Reports & KML Export
+
+Download analysis reports and KML files for mapping device locations in Google Earth. GPS correlation powered by optional WiGLE API integration.
+
+### Trends & Long-Term Tracking
+
+Daily device and appearance trends over configurable time ranges. Long-term device tracking identifies persistent watchers across days, weeks, and months.
+
+---
+
+## Quick Start
+
+### What You Need
+
+| Component | Details |
+|-----------|---------|
+| **NAS** | Synology (or any Docker host) with Docker Compose |
+| **Sensor(s)** | Raspberry Pi + monitor-mode Wi-Fi adapter (e.g., Alfa AWUS036ACM) |
+| **Network** | SMB share accessible from sensors to NAS |
+
+### Deploy in 3 Steps
 
 ```bash
-# Push to NAS bare git remote (triggers post-receive hook)
-git push nas main
+# 1. Clone to your NAS
+git clone https://github.com/perryd990311/CYT-NG.git
+cd CYT-NG
 
-# Rebuild and restart on NAS
-ssh user@nas "cd /volume1/docker/cyt-ng/repo && \
-  docker compose build --no-cache cyt-web && \
-  docker compose up -d"
+# 2. Configure
+cp .env.example .env
+# Edit .env with your SECRET_KEY and optional OAuth2/WiGLE credentials
+
+# 3. Launch
+docker compose up -d
 ```
 
-The `.env` file on the NAS holds secrets (`SECRET_KEY`, `WIGLE_TOKEN`, OAuth2 credentials). See `.env.example`.
+Open `https://your-nas-ip` and create your first admin account.
 
-## Sensor Provisioning
+> **Full setup guides** — including NAS configuration, sensor hardware, and Synology SSO — are in the [docs/](docs/) folder.
 
-From the web UI (Settings  Sensors  Add Sensor), fill in hostname, SSH user/port, Wi-Fi interface, and SMB share path. Click **Provision / Reinstall**  the UI prompts for SSH and NAS credentials (never stored), then runs 11 steps over SSH:
+---
 
-1. TCP port check
-2. SSH connectivity
-3. Sudo check
-4. `apt-get update`
-5. Install Kismet
-6. Create `kismet` user
-7. Create log directory
-8. Install sync script (`sensor/kismet_sync.sh`)
-9. Mount NAS share (writes `/etc/cyt-nas.creds` via SFTP, chmod 600)
-10. Enable sync timer
-11. Detect Kismet version
+## Documentation
 
-Progress is streamed live via SocketIO.
+| Guide | Description |
+|-------|-------------|
+| [Installation](docs/installation.md) | Docker deployment on Synology NAS |
+| [Sensor Setup](docs/sensor-setup.md) | Raspberry Pi hardware, Kismet, and provisioning |
+| [Synology SSO](docs/synology-sso.md) | OAuth2 single sign-on with DSM or local auth |
+| [Configuration](docs/configuration.md) | `config.json` and `.env` reference |
+| [Security](docs/security.md) | Security model and hardening details |
 
-## Configuration
+---
 
-`config.json`  paths, timing, search bounds, fingerprinting thresholds.  
-`.env`  secrets only (never committed).
+## Tech Stack
 
-Key config sections:
-- `paths`: kismet_logs, cyt_database, ignore_lists, reports_dir, kml_dir
-- `timing`: check_interval, time_windows (5/10/15/20 min)
-- `search`: lat/lon bounds for WiGLE
-- `fingerprinting`: jaccard_threshold (0.85), min_ssids_for_fingerprint (2)
+| Layer | Technology |
+|-------|-----------|
+| **Backend** | Python 3.12, Flask, Flask-SocketIO, SQLAlchemy, APScheduler |
+| **Frontend** | HTMX, Chart.js, Bootstrap 5 (dark theme) |
+| **Database** | SQLite (CYT database) + Kismet SQLite files |
+| **Infrastructure** | Docker Compose, Gunicorn + gevent, Nginx (TLS) |
+| **Auth** | Synology DSM OAuth2 SSO + local bcrypt fallback |
+| **Security** | Fernet encryption, parameterized SQL, rate limiting, CSP headers |
 
-## Security
+---
 
-- All SQL queries use parameterized statements  no string-format SQL
-- No `exec()` or `eval()` anywhere in active code
-- Input validated via `cyt/input_validation.py` (MAC, SSID, paths)
-- API credentials encrypted via Fernet + PBKDF2 (`cyt/secure_credentials.py`)
-- Docker containers run as non-root (`cyt:cyt`)
-- Nginx enforces HSTS, X-Content-Type-Options, X-Frame-Options, CSP
-- Rate limiting on auth endpoints (Flask-Limiter)
-- SSH/NAS credentials used once during provisioning and never persisted
+## Project Structure
 
-## Author
+```
+cyt/                Analysis engine (Python package)
+  ├── models.py              SQLAlchemy models
+  ├── kismet_reader.py       Incremental .kismet ingestion
+  ├── fingerprint.py         SSID Jaccard similarity clustering
+  ├── surveillance_detector.py  Persistence scoring
+  ├── sensor_provisioner.py  SSH-based RPi setup
+  └── tasks.py               Background scheduler jobs
 
-@perryd990311 / @matt0177
+web/                Flask web application
+  ├── app.py                 App factory
+  ├── routes/                Blueprints (dashboard, devices, analysis, sensors, settings, auth, reports)
+  ├── templates/             Jinja2 + HTMX partials
+  ├── auth/                  OAuth2 + local login
+  └── static/                CSS, JS
+
+docker/             Docker build files
+nginx/              TLS reverse proxy config
+sensor/             RPi provisioning scripts
+docs/               Setup and configuration guides
+```
+
+---
+
+## Authors
+
+**@perryd990311**
 
 ## License
 
-MIT License
+[MIT](LICENSE)
 
 ## Disclaimer
 
-Intended for legitimate security research, network administration, and personal safety purposes. Users are responsible for complying with all applicable laws in their jurisdiction.
+CYT-NG is intended for legitimate security research, network administration, and personal safety purposes. Users are responsible for complying with all applicable laws in their jurisdiction regarding wireless monitoring.
+

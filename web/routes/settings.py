@@ -47,7 +47,7 @@ def _write_ignore_list(path: Path, data: list) -> None:
 
 def get_baseline_macs():
     """Return a set of upper-cased MACs from the ignore list. Importable by other routes."""
-    mac_list_path = os.environ.get("IGNORE_LISTS", "ignore_lists") + "/mac_list.json"
+    mac_list_path = os.environ.get("IGNORE_LISTS", "ignore_lists") + "/maclist.json"
     try:
         with open(mac_list_path) as f:
             data = json.load(f)
@@ -71,8 +71,8 @@ def index():
     ignore_cfg = current_app.config.get("IGNORE_LISTS", {})
     base = Path(current_app.root_path).parent
 
-    mac_path = base / ignore_cfg.get("mac_list", "ignore_lists/mac_list.json")
-    ssid_path = base / ignore_cfg.get("ssid_list", "ignore_lists/ssid_list.json")
+    mac_path = base / ignore_cfg.get("mac", "ignore_lists/maclist.json")
+    ssid_path = base / ignore_cfg.get("ssid", "ignore_lists/ssidlist.json")
 
     mac_list = _read_ignore_list(mac_path)
     ssid_list = _read_ignore_list(ssid_path)
@@ -112,8 +112,8 @@ def ignore_lists():
     ignore_cfg = current_app.config.get("IGNORE_LISTS", {})
     base = Path(current_app.root_path).parent
 
-    mac_path = base / ignore_cfg.get("mac_list", "ignore_lists/mac_list.json")
-    ssid_path = base / ignore_cfg.get("ssid_list", "ignore_lists/ssid_list.json")
+    mac_path = base / ignore_cfg.get("mac", "ignore_lists/maclist.json")
+    ssid_path = base / ignore_cfg.get("ssid", "ignore_lists/ssidlist.json")
 
     mac_list = _read_ignore_list(mac_path)
     ssid_list = _read_ignore_list(ssid_path)
@@ -173,7 +173,7 @@ def update_mac_ignore():
 
     ignore_cfg = current_app.config.get("IGNORE_LISTS", {})
     base = Path(current_app.root_path).parent
-    mac_path = base / ignore_cfg.get("mac_list", "ignore_lists/mac_list.json")
+    mac_path = base / ignore_cfg.get("mac", "ignore_lists/maclist.json")
     _write_ignore_list(mac_path, validated)
     flash(f"MAC ignore list updated ({len(validated)} entries).", "success")
     return redirect(url_for("settings.ignore_lists"))
@@ -195,7 +195,7 @@ def update_ssid_ignore():
 
     ignore_cfg = current_app.config.get("IGNORE_LISTS", {})
     base = Path(current_app.root_path).parent
-    ssid_path = base / ignore_cfg.get("ssid_list", "ignore_lists/ssid_list.json")
+    ssid_path = base / ignore_cfg.get("ssid", "ignore_lists/ssidlist.json")
     _write_ignore_list(ssid_path, validated)
     flash(f"SSID ignore list updated ({len(validated)} entries).", "success")
     return redirect(url_for("settings.ignore_lists"))
@@ -213,7 +213,7 @@ def baseline_devices():
 
     ignore_cfg = current_app.config.get("IGNORE_LISTS", {})
     base = Path(current_app.root_path).parent
-    mac_path = base / ignore_cfg.get("mac_list", "ignore_lists/mac_list.json")
+    mac_path = base / ignore_cfg.get("mac", "ignore_lists/maclist.json")
 
     existing = set(_read_ignore_list(mac_path))
     new_macs = []
@@ -244,7 +244,7 @@ def baseline_remove():
 
     ignore_cfg = current_app.config.get("IGNORE_LISTS", {})
     base = Path(current_app.root_path).parent
-    mac_path = base / ignore_cfg.get("mac_list", "ignore_lists/mac_list.json")
+    mac_path = base / ignore_cfg.get("mac", "ignore_lists/maclist.json")
 
     current = _read_ignore_list(mac_path)
     updated = [m for m in current if m.upper() != mac.upper()]
@@ -263,7 +263,7 @@ def baseline_clear():
     """Remove all MACs from the ignore/baseline list."""
     ignore_cfg = current_app.config.get("IGNORE_LISTS", {})
     base = Path(current_app.root_path).parent
-    mac_path = base / ignore_cfg.get("mac_list", "ignore_lists/mac_list.json")
+    mac_path = base / ignore_cfg.get("mac", "ignore_lists/maclist.json")
 
     old = _read_ignore_list(mac_path)
     _write_ignore_list(mac_path, [])
@@ -283,7 +283,7 @@ def baseline_remove_selected():
 
     ignore_cfg = current_app.config.get("IGNORE_LISTS", {})
     base = Path(current_app.root_path).parent
-    mac_path = base / ignore_cfg.get("mac_list", "ignore_lists/mac_list.json")
+    mac_path = base / ignore_cfg.get("mac", "ignore_lists/maclist.json")
 
     remove_set = set()
     for mac in selected:
@@ -312,7 +312,7 @@ def baseline_add_selected():
 
     ignore_cfg = current_app.config.get("IGNORE_LISTS", {})
     base = Path(current_app.root_path).parent
-    mac_path = base / ignore_cfg.get("mac_list", "ignore_lists/mac_list.json")
+    mac_path = base / ignore_cfg.get("mac", "ignore_lists/maclist.json")
 
     existing = set(m.upper() for m in _read_ignore_list(mac_path))
     added = 0

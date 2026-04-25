@@ -5,8 +5,8 @@
     "kismet_logs": "/data/kismet",
     "cyt_database": "cyt_data.db",
     "ignore_lists": {
-      "mac": "ignore_lists/mac_list.json",
-      "ssid": "ignore_lists/ssid_list.json"
+      "mac": "ignore_lists/maclist.json",
+      "ssid": "ignore_lists/ssidlist.json"
     },
     "reports_dir": "surveillance_reports",
     "kml_dir": "kml_files"
