@@ -1,10 +1,17 @@
 """Settings blueprint — application config, ignore lists, and credentials."""
+
 import json
 import os
 from pathlib import Path
 
 from flask import (
-    Blueprint, render_template, request, flash, redirect, url_for, current_app,
+    Blueprint,
+    render_template,
+    request,
+    flash,
+    redirect,
+    url_for,
+    current_app,
 )
 from flask_login import login_required
 
@@ -82,15 +89,18 @@ def index():
 
     # Collect scheduler job info
     from cyt.tasks import scheduler
+
     jobs = []
     if scheduler.running:
         for job in scheduler.get_jobs():
-            jobs.append({
-                "id": job.id,
-                "name": job.id.replace("_", " ").title(),
-                "next_run": job.next_run_time,
-                "trigger": str(job.trigger),
-            })
+            jobs.append(
+                {
+                    "id": job.id,
+                    "name": job.id.replace("_", " ").title(),
+                    "next_run": job.next_run_time,
+                    "trigger": str(job.trigger),
+                }
+            )
 
     return render_template(
         "settings.html",
@@ -125,26 +135,22 @@ def ignore_lists():
     mac_upper_set = {m.upper() for m in mac_list if isinstance(m, str)}
     mac_info = []
     if mac_upper_set:
-        devices_in_baseline = (
-            db.query(Device)
-            .filter(Device.mac.in_(mac_upper_set))
-            .all()
-        )
+        devices_in_baseline = db.query(Device).filter(Device.mac.in_(mac_upper_set)).all()
         device_map = {d.mac.upper(): d for d in devices_in_baseline}
         for mac in mac_list:
             d = device_map.get(mac.upper())
-            mac_info.append({
-                "mac": mac,
-                "manufacturer": d.manufacturer if d else "",
-                "device_type": d.device_type if d else "",
-                "last_seen": d.last_seen if d else None,
-            })
+            mac_info.append(
+                {
+                    "mac": mac,
+                    "manufacturer": d.manufacturer if d else "",
+                    "device_type": d.device_type if d else "",
+                    "last_seen": d.last_seen if d else None,
+                }
+            )
     else:
         mac_info = []
 
-    already_ignored = len(
-        set(d.mac.upper() for d in db.query(Device.mac).all()) & mac_upper_set
-    )
+    already_ignored = len(set(d.mac.upper() for d in db.query(Device.mac).all()) & mac_upper_set)
     not_yet_ignored = total_devices - already_ignored
 
     return render_template(
@@ -218,7 +224,9 @@ def baseline_devices():
     existing = set(_read_ignore_list(mac_path))
     new_macs = []
     for mac in all_macs:
-        if InputValidator.validate_mac_address(mac) and mac.upper() not in {m.upper() for m in existing}:
+        if InputValidator.validate_mac_address(mac) and mac.upper() not in {
+            m.upper() for m in existing
+        }:
             new_macs.append(mac.upper())
 
     merged = sorted(existing | set(new_macs))
@@ -361,7 +369,9 @@ def update_config():
     # --- Fingerprinting ---
     try:
         val = float(request.form.get("jaccard_threshold", 0.85))
-        cfg.setdefault("fingerprinting", {})["jaccard_threshold"] = round(max(0.0, min(1.0, val)), 2)
+        cfg.setdefault("fingerprinting", {})["jaccard_threshold"] = round(
+            max(0.0, min(1.0, val)), 2
+        )
     except (ValueError, TypeError):
         flash("Jaccard threshold must be a number 0–1.", "danger")
 
@@ -397,9 +407,15 @@ def update_config():
     # Reload into running app
     current_app.config["RAW_CONFIG"] = cfg
     current_app.config["KISMET_LOGS"] = cfg.get("paths", {}).get("kismet_logs", "")
-    current_app.config["REPORTS_DIR"] = cfg.get("paths", {}).get("reports_dir", "surveillance_reports")
-    current_app.config["JACCARD_THRESHOLD"] = cfg.get("fingerprinting", {}).get("jaccard_threshold", 0.85)
-    current_app.config["MIN_SSIDS_FOR_FINGERPRINT"] = cfg.get("fingerprinting", {}).get("min_ssids_for_fingerprint", 2)
+    current_app.config["REPORTS_DIR"] = cfg.get("paths", {}).get(
+        "reports_dir", "surveillance_reports"
+    )
+    current_app.config["JACCARD_THRESHOLD"] = cfg.get("fingerprinting", {}).get(
+        "jaccard_threshold", 0.85
+    )
+    current_app.config["MIN_SSIDS_FOR_FINGERPRINT"] = cfg.get("fingerprinting", {}).get(
+        "min_ssids_for_fingerprint", 2
+    )
     current_app.config["TIMING"] = cfg.get("timing", {})
 
     flash("Configuration saved.", "success")

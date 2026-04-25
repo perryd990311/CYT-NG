@@ -1,4 +1,5 @@
 """Flask application configuration loaded from config.json + environment."""
+
 import json
 import os
 from pathlib import Path

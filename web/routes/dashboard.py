@@ -1,4 +1,5 @@
 """Dashboard blueprint — landing page, status bar, live device feed."""
+
 from datetime import datetime, timedelta
 
 from flask import Blueprint, render_template, jsonify, request
@@ -17,8 +18,10 @@ def require_login():
     if request.endpoint == "dashboard.api_status":
         return
     from flask_login import current_user
+
     if not current_user.is_authenticated:
         from flask import redirect, url_for
+
         return redirect(url_for("auth.login", next=request.url))
 
 
@@ -35,20 +38,12 @@ def index():
     baseline_macs = get_baseline_macs()
 
     total_devices = db.query(Device).count()
-    active_devices = (
-        db.query(Device)
-        .filter(Device.last_seen >= five_min_ago)
-        .count()
-    )
+    active_devices = db.query(Device).filter(Device.last_seen >= five_min_ago).count()
     total_appearances = db.query(Appearance).count()
     sensors_online = db.query(Sensor).filter(Sensor.status == "online").count()
     sensors_total = db.query(Sensor).count()
 
-    last_run = (
-        db.query(AnalysisRun)
-        .order_by(AnalysisRun.started_at.desc())
-        .first()
-    )
+    last_run = db.query(AnalysisRun).order_by(AnalysisRun.started_at.desc()).first()
 
     day_ago = now - timedelta(hours=24)
     new_24h = db.query(Device).filter(Device.first_seen >= day_ago).count()
@@ -96,11 +91,7 @@ def status_bar():
     db = get_db()
     now = datetime.utcnow()
 
-    latest_appearance = (
-        db.query(Appearance)
-        .order_by(Appearance.timestamp.desc())
-        .first()
-    )
+    latest_appearance = db.query(Appearance).order_by(Appearance.timestamp.desc()).first()
     data_age = None
     if latest_appearance and latest_appearance.timestamp:
         delta = now - latest_appearance.timestamp
@@ -170,12 +161,7 @@ def api_devices():
             query = query.filter(Device.mac.notin_(baseline_macs))
 
     total = query.count()
-    devices = (
-        query.order_by(Device.last_seen.desc())
-        .offset(offset)
-        .limit(per_page)
-        .all()
-    )
+    devices = query.order_by(Device.last_seen.desc()).offset(offset).limit(per_page).all()
 
     if _is_htmx():
         device_ids = [d.id for d in devices]
@@ -215,7 +201,10 @@ def handle_connect():
 @socketio.on("request_status")
 def handle_request_status():
     db = get_db()
-    socketio.emit("status_update", {
-        "devices": db.query(Device).count(),
-        "sensors": db.query(Sensor).filter(Sensor.status == "online").count(),
-    })
+    socketio.emit(
+        "status_update",
+        {
+            "devices": db.query(Device).count(),
+            "sensors": db.query(Sensor).filter(Sensor.status == "online").count(),
+        },
+    )

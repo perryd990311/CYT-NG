@@ -1,4 +1,5 @@
 """Synology DSM OAuth2 SSO integration."""
+
 import os
 from datetime import datetime, timezone
 

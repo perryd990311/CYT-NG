@@ -4,6 +4,7 @@ Batch reader for Kismet .kismet SQLite database files.
 Reads synced .kismet files from RPi sensors and extracts device/probe data
 for ingestion into CYT's own SQLite database.
 """
+
 import glob
 import json
 import logging
@@ -13,7 +14,6 @@ import sqlite3
 import tempfile
 from dataclasses import dataclass, field
 from datetime import datetime
-from pathlib import Path
 from typing import List, Optional
 
 logger = logging.getLogger(__name__)
@@ -22,6 +22,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class DeviceRecord:
     """Parsed device data from a Kismet database."""
+
     mac: str
     device_type: str
     first_seen: datetime
@@ -122,17 +123,19 @@ def process_kismet_file(
             first_time = row["first_time"] if "first_time" in row.keys() else 0
             last_time = row["last_time"] if "last_time" in row.keys() else 0
 
-            records.append(DeviceRecord(
-                mac=mac,
-                device_type=device_json.get("kismet.device.base.type", "unknown"),
-                first_seen=datetime.utcfromtimestamp(first_time),
-                last_seen=datetime.utcfromtimestamp(last_time),
-                ssids=ssids,
-                lat=lat,
-                lon=lon,
-                signal_dbm=signal_dbm,
-                manufacturer=device_json.get("kismet.device.base.manuf", None),
-            ))
+            records.append(
+                DeviceRecord(
+                    mac=mac,
+                    device_type=device_json.get("kismet.device.base.type", "unknown"),
+                    first_seen=datetime.utcfromtimestamp(first_time),
+                    last_seen=datetime.utcfromtimestamp(last_time),
+                    ssids=ssids,
+                    lat=lat,
+                    lon=lon,
+                    signal_dbm=signal_dbm,
+                    manufacturer=device_json.get("kismet.device.base.manuf", None),
+                )
+            )
 
         conn.close()
         logger.info("Extracted %d device records from %s", len(records), file_path)

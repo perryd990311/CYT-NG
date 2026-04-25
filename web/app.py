@@ -1,4 +1,5 @@
 """CYT-NG Flask application factory."""
+
 import json
 
 from flask import Flask
@@ -38,13 +39,16 @@ def create_app(config_class=Config):
 
     # Authentication
     from web.auth import login_manager
+
     login_manager.init_app(app)
 
     from web.auth.synology_oauth import init_oauth
+
     init_oauth(app)
 
     # Rate limiting
     from web.routes.auth import limiter
+
     limiter.init_app(app)
 
     # Blueprints
@@ -67,12 +71,14 @@ def create_app(config_class=Config):
     # Background scheduler (ingestion + fingerprinting) — only when serving
     if not app.config.get("TESTING"):
         from cyt.tasks import init_scheduler
+
         init_scheduler(app)
 
     # Teardown — remove scoped session after each request
     @app.teardown_appcontext
     def shutdown_session(exception=None):
         from web.extensions import _Session
+
         if _Session is not None:
             _Session.remove()
 

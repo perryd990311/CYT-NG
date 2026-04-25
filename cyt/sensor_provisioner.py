@@ -8,6 +8,7 @@ Step design:
   - OPTIONAL steps (create_log_dir, etc.): log error but continue
   - Each step emits: running → ok | error | skipped
 """
+
 import logging
 import os
 import socket
@@ -20,36 +21,64 @@ logger = logging.getLogger(__name__)
 # (step_id, label, is_critical, shell_command_or_None)
 # None command = handled by a dedicated function
 PROVISION_STEPS = [
-    ("port_check",          "Check network reachability",       True,  None),
-    ("connectivity",        "SSH authentication",               True,  None),
-    ("sudo_check",          "Verify sudo access",               True,  "sudo -n true 2>/dev/null || sudo true"),
-    ("update_packages",     "Update package lists",             True,  "sudo apt-get update -qq 2>&1 | tail -3"),
-    ("install_kismet",      "Install Kismet & cifs-utils",      True,
-        "sudo DEBIAN_FRONTEND=noninteractive apt-get install -y kismet cifs-utils rsync 2>&1 | tail -5"),
-    ("configure_kismet",    "Configure kismet_site.conf",       False, None),
-    ("create_kismet_group", "Create kismet system group",       False,
-        'getent group kismet &>/dev/null && echo "Group already exists" || sudo groupadd -r kismet'),
-    ("create_kismet_user",  "Create kismet system user",        False,
-        'id kismet &>/dev/null && echo "User already exists" || sudo useradd -r -m -g kismet kismet'),
-    ("create_log_dir",      "Create Kismet log directory",      False,
-        "sudo mkdir -p /home/kismet/kismet_logs && sudo chown kismet:kismet /home/kismet/kismet_logs && echo ok"),
-    ("install_sync_script", "Install sync script & systemd",    False, None),
-    ("mount_nas",           "Mount NAS share",                  False, None),
-    ("enable_sync_timer",   "Enable sync timer",                False,
-        "sudo systemctl daemon-reload && sudo systemctl enable cyt-kismet-sync.timer && sudo systemctl start cyt-kismet-sync.timer && echo ok"),
-    ("enable_kismet",       "Enable and start Kismet service",   False,
-        "sudo systemctl enable --now kismet 2>/dev/null && echo started || echo 'kismet service not found'"),
-    ("detect_kismet_version", "Detect Kismet version",          False,
-        "kismet --version 2>&1 | head -1 || echo unknown"),
-    ("detect_local_hostname",  "Detect Pi local hostname",        False,
-        "hostname"),
+    ("port_check", "Check network reachability", True, None),
+    ("connectivity", "SSH authentication", True, None),
+    ("sudo_check", "Verify sudo access", True, "sudo -n true 2>/dev/null || sudo true"),
+    ("update_packages", "Update package lists", True, "sudo apt-get update -qq 2>&1 | tail -3"),
+    (
+        "install_kismet",
+        "Install Kismet & cifs-utils",
+        True,
+        "sudo DEBIAN_FRONTEND=noninteractive apt-get install -y kismet cifs-utils rsync 2>&1 | tail -5",
+    ),
+    ("configure_kismet", "Configure kismet_site.conf", False, None),
+    (
+        "create_kismet_group",
+        "Create kismet system group",
+        False,
+        'getent group kismet &>/dev/null && echo "Group already exists" || sudo groupadd -r kismet',
+    ),
+    (
+        "create_kismet_user",
+        "Create kismet system user",
+        False,
+        'id kismet &>/dev/null && echo "User already exists" || sudo useradd -r -m -g kismet kismet',
+    ),
+    (
+        "create_log_dir",
+        "Create Kismet log directory",
+        False,
+        "sudo mkdir -p /home/kismet/kismet_logs && sudo chown kismet:kismet /home/kismet/kismet_logs && echo ok",
+    ),
+    ("install_sync_script", "Install sync script & systemd", False, None),
+    ("mount_nas", "Mount NAS share", False, None),
+    (
+        "enable_sync_timer",
+        "Enable sync timer",
+        False,
+        "sudo systemctl daemon-reload && sudo systemctl enable cyt-kismet-sync.timer && sudo systemctl start cyt-kismet-sync.timer && echo ok",
+    ),
+    (
+        "enable_kismet",
+        "Enable and start Kismet service",
+        False,
+        "sudo systemctl enable --now kismet 2>/dev/null && echo started || echo 'kismet service not found'",
+    ),
+    (
+        "detect_kismet_version",
+        "Detect Kismet version",
+        False,
+        "kismet --version 2>&1 | head -1 || echo unknown",
+    ),
+    ("detect_local_hostname", "Detect Pi local hostname", False, "hostname"),
 ]
 
 STEP_IDS = [s[0] for s in PROVISION_STEPS]
 
 
-def provision_sensor(sensor, socketio, ssh_key_path=None, ssh_password=None,
-                     nas_user=None, nas_password=None):
+def provision_sensor(
+    sensor, socketio, ssh_key_path=None, ssh_password=None, nas_user=None, nas_password=None
+):
     """Run provisioning on a remote sensor.
 
     Returns dict with 'success' bool, 'steps' list, and 'kismet_version'.
@@ -63,7 +92,7 @@ def provision_sensor(sensor, socketio, ssh_key_path=None, ssh_password=None,
         payload = {
             "sensor_id": sensor_id,
             "step": step_id,
-            "status": status,       # pending|running|ok|error|skipped
+            "status": status,  # pending|running|ok|error|skipped
             "message": message[:300],
             "completed": completed,
             "total": len(PROVISION_STEPS),
@@ -79,9 +108,7 @@ def provision_sensor(sensor, socketio, ssh_key_path=None, ssh_password=None,
     # ── Step 1: TCP port reachability ──────────────────────────────────────
     emit("port_check", "running", f"Checking {sensor.hostname}:{sensor.ssh_port or 22}...")
     try:
-        sock = socket.create_connection(
-            (sensor.hostname, sensor.ssh_port or 22), timeout=8
-        )
+        sock = socket.create_connection((sensor.hostname, sensor.ssh_port or 22), timeout=8)
         sock.close()
         results["port_check"] = "ok"
         emit("port_check", "ok", f"Port {sensor.ssh_port or 22} reachable")
@@ -165,6 +192,7 @@ def provision_sensor(sensor, socketio, ssh_key_path=None, ssh_password=None,
 
 # ── Helpers ────────────────────────────────────────────────────────────────
 
+
 def _run_cmd(client, cmd, timeout=30):
     """Run a single command; return (success, output_or_error)."""
     try:
@@ -190,7 +218,12 @@ def _skip_remaining(results, emit):
 def _build_result(results, kismet_version=None, local_hostname=None):
     critical_ids = {s[0] for s in PROVISION_STEPS if s[2]}
     success = all(results.get(s, "skipped") in ("ok",) for s in critical_ids)
-    return {"success": success, "steps": results, "kismet_version": kismet_version, "local_hostname": local_hostname}
+    return {
+        "success": success,
+        "steps": results,
+        "kismet_version": kismet_version,
+        "local_hostname": local_hostname,
+    }
 
 
 def _configure_kismet_site(client, sensor):
@@ -274,7 +307,10 @@ def _configure_kismet_site(client, sensor):
             err = stderr.read().decode("utf-8", errors="replace").strip()
             return False, f"Failed: {cmd!r} — {err}"
 
-    return True, f"kismet_site.conf written (source={mon_iface}, log=/kismet/); rfkill unblock service enabled"
+    return (
+        True,
+        f"kismet_site.conf written (source={mon_iface}, log=/kismet/); rfkill unblock service enabled",
+    )
 
 
 def _install_sync_files(client, sensor):
@@ -356,7 +392,9 @@ def _mount_nas(client, sensor, nas_user=None, nas_password=None):
     creds_file = "/etc/cyt-nas.creds"
 
     # Check if already mounted
-    ok, msg = _run_cmd(client, f"mountpoint -q {nas_mount} && echo mounted || echo not_mounted", timeout=10)
+    ok, msg = _run_cmd(
+        client, f"mountpoint -q {nas_mount} && echo mounted || echo not_mounted", timeout=10
+    )
     if ok and "mounted" in msg:
         return True, f"{nas_mount} already mounted"
 
@@ -382,9 +420,14 @@ def _mount_nas(client, sensor, nas_user=None, nas_password=None):
             return False, f"SFTP creds upload failed: {exc}"
     else:
         # Check if creds file already exists from a previous run
-        ok_check, msg_check = _run_cmd(client, f"test -f {creds_file} && echo exists || echo missing", timeout=5)
+        ok_check, msg_check = _run_cmd(
+            client, f"test -f {creds_file} && echo exists || echo missing", timeout=5
+        )
         if "missing" in msg_check:
-            return False, f"No NAS credentials — provide NAS username/password or create {creds_file} on the sensor"
+            return (
+                False,
+                f"No NAS credentials — provide NAS username/password or create {creds_file} on the sensor",
+            )
 
     # Ensure mount point exists
     ok, msg = _run_cmd(client, f"sudo mkdir -p {nas_mount}", timeout=10)
@@ -403,7 +446,11 @@ def _mount_nas(client, sensor, nas_user=None, nas_password=None):
                     f.write(fstab_line)
             finally:
                 sftp.close()
-            ok, msg = _run_cmd(client, "sudo sh -c 'cat /tmp/cyt-fstab-entry >> /etc/fstab && rm /tmp/cyt-fstab-entry' && echo added", timeout=10)
+            ok, msg = _run_cmd(
+                client,
+                "sudo sh -c 'cat /tmp/cyt-fstab-entry >> /etc/fstab && rm /tmp/cyt-fstab-entry' && echo added",
+                timeout=10,
+            )
             if not ok:
                 return False, f"Could not update fstab: {msg}"
         except Exception as exc:
@@ -411,7 +458,12 @@ def _mount_nas(client, sensor, nas_user=None, nas_password=None):
 
     # Attempt mount
     ok, msg = _run_cmd(client, f"sudo mount {nas_mount} 2>&1 || true", timeout=20)
-    mounted_ok, _ = _run_cmd(client, f"mountpoint -q {nas_mount} && echo yes || echo no", timeout=10)
+    mounted_ok, _ = _run_cmd(
+        client, f"mountpoint -q {nas_mount} && echo yes || echo no", timeout=10
+    )
     if "yes" in _:
         return True, f"NAS mounted at {nas_mount}"
-    return False, f"Mount attempted but {nas_mount} not mounted — check credentials file {creds_file}"
+    return (
+        False,
+        f"Mount attempted but {nas_mount} not mounted — check credentials file {creds_file}",
+    )

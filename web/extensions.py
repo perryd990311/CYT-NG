@@ -1,6 +1,7 @@
 """Shared Flask extension instances — imported by app factory and blueprints."""
+
 from flask_socketio import SocketIO
-from sqlalchemy.orm import scoped_session, sessionmaker
+from sqlalchemy.orm import scoped_session
 
 socketio = SocketIO()
 
@@ -11,11 +12,9 @@ _Session = None
 def init_db(app):
     """Bind engine + create tables using cyt.models, expose scoped session."""
     global _Session
-    from cyt.models import Base, init_db as _init
+    from cyt.models import init_db as _init
 
-    engine, Session = _init(
-        app.config["SQLALCHEMY_DATABASE_URI"].replace("sqlite:///", "")
-    )
+    engine, Session = _init(app.config["SQLALCHEMY_DATABASE_URI"].replace("sqlite:///", ""))
     _Session = scoped_session(Session)
     return engine
 

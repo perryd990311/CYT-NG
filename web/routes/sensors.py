@@ -1,9 +1,10 @@
 """Sensors blueprint — manage Kismet sensor Raspberry Pis."""
+
 import re
 import socket
 from datetime import datetime
 
-from flask import Blueprint, render_template, request, flash, redirect, url_for, jsonify
+from flask import Blueprint, render_template, request, flash, redirect, url_for
 from flask_login import login_required
 from sqlalchemy import func
 
@@ -81,14 +82,16 @@ def index():
         else:
             uptime_str = "—"
 
-        sensor_stats.append({
-            "sensor": s,
-            "sightings": sightings,
-            "db_size_mb": db_size_mb,
-            "sync_pct": sync_pct,
-            "sync_level": sync_level,
-            "uptime": uptime_str,
-        })
+        sensor_stats.append(
+            {
+                "sensor": s,
+                "sightings": sightings,
+                "db_size_mb": db_size_mb,
+                "sync_pct": sync_pct,
+                "sync_level": sync_level,
+                "uptime": uptime_str,
+            }
+        )
 
     is_htmx = request.headers.get("HX-Request")
     if is_htmx:
@@ -100,7 +103,10 @@ def index():
 def add():
     if request.method == "GET":
         from flask import current_app
-        default_smb = current_app.config.get("RAW_CONFIG", {}).get("sensor", {}).get("smb_share", "")
+
+        default_smb = (
+            current_app.config.get("RAW_CONFIG", {}).get("sensor", {}).get("smb_share", "")
+        )
         return render_template("sensor_form.html", sensor=None, default_smb=default_smb)
 
     name = request.form.get("name", "").strip()
@@ -111,7 +117,7 @@ def add():
     ssh_key_path = request.form.get("ssh_key_path", "").strip() or None
     smb_share_path = request.form.get("smb_share_path", "").strip() or None
     ssh_password = request.form.get("ssh_password", "") or None  # not persisted
-    nas_user = request.form.get("nas_user", "") or None          # not persisted
+    nas_user = request.form.get("nas_user", "") or None  # not persisted
     nas_password = request.form.get("nas_password", "") or None  # not persisted
 
     if not name or not hostname:
@@ -155,8 +161,12 @@ def add():
         socketio = current_app.extensions.get("socketio")
         if socketio:
             socketio.start_background_task(
-                _run_provision, current_app._get_current_object(), sensor.id,
-                ssh_password=ssh_password, nas_user=nas_user, nas_password=nas_password
+                _run_provision,
+                current_app._get_current_object(),
+                sensor.id,
+                ssh_password=ssh_password,
+                nas_user=nas_user,
+                nas_password=nas_password,
             )
         flash(f"Sensor '{name}' added — provisioning started.", "info")
         return redirect(url_for("sensors.detail", sensor_id=sensor.id))
@@ -185,12 +195,12 @@ def set_nas_dir(sensor_id):
     value = request.form.get("local_hostname", "").strip() or None
     sensor.local_hostname = value
     db.commit()
-    display = value or '—'
-    return f'''<span id="nas-dir-display">{display}</span>
+    display = value or "—"
+    return f"""<span id="nas-dir-display">{display}</span>
  <button class="btn btn-link btn-sm p-0 ms-1 text-secondary"
          hx-get="{ url_for('sensors.nas_dir_form', sensor_id=sensor_id) }"
          hx-target="#nas-dir-cell" hx-swap="innerHTML"
-         title="Edit"><i class="bi bi-pencil"></i></button>'''
+         title="Edit"><i class="bi bi-pencil"></i></button>"""
 
 
 @bp.route("/<int:sensor_id>/nas_dir_form", methods=["GET"])
@@ -200,8 +210,8 @@ def nas_dir_form(sensor_id):
     sensor = db.query(Sensor).get(sensor_id)
     if not sensor:
         return '<span class="text-danger">Not found.</span>', 404
-    current = sensor.local_hostname or ''
-    return f'''<form hx-post="{ url_for('sensors.set_nas_dir', sensor_id=sensor_id) }"
+    current = sensor.local_hostname or ""
+    return f"""<form hx-post="{ url_for('sensors.set_nas_dir', sensor_id=sensor_id) }"
           hx-target="#nas-dir-cell" hx-swap="innerHTML" class="d-flex gap-1">
   <input type="text" name="local_hostname" value="{current}"
          class="form-control form-control-sm" placeholder="e.g. raspberrypi" style="max-width:180px">
@@ -209,7 +219,7 @@ def nas_dir_form(sensor_id):
   <button type="button" class="btn btn-sm btn-outline-secondary"
           hx-get="{ url_for('sensors.detail', sensor_id=sensor_id) }"
           hx-target="body" hx-swap="outerHTML">Cancel</button>
-</form>'''
+</form>"""
 
 
 @bp.route("/<int:sensor_id>/delete", methods=["POST"])
@@ -234,9 +244,9 @@ def provision(sensor_id):
         flash("Sensor not found.", "warning")
         return redirect(url_for("sensors.index"))
 
-    ssh_password = request.form.get("ssh_password", "") or None   # not persisted
-    nas_user = request.form.get("nas_user", "") or None           # not persisted
-    nas_password = request.form.get("nas_password", "") or None   # not persisted
+    ssh_password = request.form.get("ssh_password", "") or None  # not persisted
+    nas_user = request.form.get("nas_user", "") or None  # not persisted
+    nas_password = request.form.get("nas_password", "") or None  # not persisted
 
     # Mark as provisioning
     sensor.status = "provisioning"
@@ -245,8 +255,12 @@ def provision(sensor_id):
     socketio = current_app.extensions.get("socketio")
     if socketio:
         socketio.start_background_task(
-            _run_provision, current_app._get_current_object(), sensor_id,
-            ssh_password=ssh_password, nas_user=nas_user, nas_password=nas_password
+            _run_provision,
+            current_app._get_current_object(),
+            sensor_id,
+            ssh_password=ssh_password,
+            nas_user=nas_user,
+            nas_password=nas_password,
         )
 
     flash(f"Provisioning '{sensor.name}' started — watch progress below.", "info")
@@ -282,9 +296,12 @@ def test_connectivity(sensor_id):
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     try:
         connect_kwargs = dict(
-            hostname=host, port=port,
+            hostname=host,
+            port=port,
             username=sensor.ssh_user or "pi",
-            timeout=10, allow_agent=True, look_for_keys=True,
+            timeout=10,
+            allow_agent=True,
+            look_for_keys=True,
             banner_timeout=10,
         )
         if sensor.ssh_key_path:
@@ -306,7 +323,13 @@ def test_connectivity(sensor_id):
         _, stdout, _ = client.exec_command("sudo -n true 2>&1 && echo ok || echo fail", timeout=8)
         out = stdout.read().decode("utf-8", errors="replace").strip()
         ok = "ok" in out
-        results.append(("Sudo access", ok, "sudo available" if ok else "sudo requires password or not permitted"))
+        results.append(
+            (
+                "Sudo access",
+                ok,
+                "sudo available" if ok else "sudo requires password or not permitted",
+            )
+        )
     except Exception as exc:
         results.append(("Sudo access", False, str(exc)))
     finally:
@@ -323,11 +346,14 @@ def test_connectivity(sensor_id):
         sensor_dir = os.path.join(kismet_path, nas_dir)
         sync_file = os.path.join(sensor_dir, ".last_sync")
         if not os.path.isdir(sensor_dir):
-            results.append(("NAS share directory", False,
-                            f"{sensor_dir} not found — check NAS directory name"))
+            results.append(
+                ("NAS share directory", False, f"{sensor_dir} not found — check NAS directory name")
+            )
         elif not os.path.isfile(sync_file):
             results.append(("NAS share directory", True, f"{sensor_dir} exists"))
-            results.append(("Last sync file", False, ".last_sync missing — sync script may not be running"))
+            results.append(
+                ("Last sync file", False, ".last_sync missing — sync script may not be running")
+            )
         else:
             results.append(("NAS share directory", True, f"{sensor_dir} exists"))
             try:
@@ -339,14 +365,24 @@ def test_connectivity(sensor_id):
                 mins = int(age.total_seconds() // 60)
                 age_str = f"{mins}m ago" if mins < 120 else f"{mins // 60}h ago"
                 fresh = age.total_seconds() < 300  # warn if >5 min
-                results.append(("Last sync", fresh,
-                                f"{age_str} ({ts.strftime('%Y-%m-%d %H:%M:%S %Z')})",
-                                "ok" if fresh else "warn"))
+                results.append(
+                    (
+                        "Last sync",
+                        fresh,
+                        f"{age_str} ({ts.strftime('%Y-%m-%d %H:%M:%S %Z')})",
+                        "ok" if fresh else "warn",
+                    )
+                )
             except (ValueError, OSError) as exc:
                 results.append(("Last sync", False, f"Could not parse .last_sync: {exc}"))
     else:
-        results.append(("NAS share check", False,
-                        "Skipped — KISMET_LOGS not configured or NAS directory not set"))
+        results.append(
+            (
+                "NAS share check",
+                False,
+                "Skipped — KISMET_LOGS not configured or NAS directory not set",
+            )
+        )
 
     return _conn_html(results)
 
@@ -378,7 +414,8 @@ def _run_provision(app, sensor_id, ssh_password=None, nas_user=None, nas_passwor
 
         socketio = app.extensions.get("socketio")
         result = provision_sensor(
-            sensor, socketio,
+            sensor,
+            socketio,
             ssh_key_path=sensor.ssh_key_path or None,
             ssh_password=ssh_password,
             nas_user=nas_user,
@@ -395,8 +432,11 @@ def _run_provision(app, sensor_id, ssh_password=None, nas_user=None, nas_passwor
 
         # Final status event
         if socketio:
-            socketio.emit("provision_complete", {
-                "sensor_id": sensor_id,
-                "success": result["success"],
-                "status": sensor.status,
-            })
+            socketio.emit(
+                "provision_complete",
+                {
+                    "sensor_id": sensor_id,
+                    "success": result["success"],
+                    "status": sensor.status,
+                },
+            )

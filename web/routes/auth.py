@@ -1,4 +1,5 @@
 """Authentication blueprint — login, logout, setup, Synology SSO."""
+
 from datetime import datetime
 
 from flask import Blueprint, render_template, request, redirect, url_for, flash
@@ -7,7 +8,10 @@ from flask_limiter.util import get_remote_address
 from flask_login import login_user, logout_user, login_required, current_user
 
 from web.auth import (
-    AuthUser, check_password, create_user, get_user_count,
+    AuthUser,
+    check_password,
+    create_user,
+    get_user_count,
 )
 from web.auth.synology_oauth import oauth, synology_sso_enabled, get_or_create_sso_user
 from web.extensions import get_db
@@ -95,6 +99,7 @@ def setup():
 
 # --- Synology DSM OAuth2 SSO ---
 
+
 @bp.route("/sso/login")
 def sso_login():
     if not synology_sso_enabled():
@@ -111,7 +116,7 @@ def sso_callback():
         return redirect(url_for("auth.login"))
 
     try:
-        token = oauth.synology.authorize_access_token()
+        oauth.synology.authorize_access_token()
         userinfo = oauth.synology.userinfo()
     except Exception:
         flash("Synology SSO authentication failed.", "danger")

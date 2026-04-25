@@ -1,12 +1,22 @@
 """Analysis blueprint — run surveillance analysis, view results, trends."""
+
 import json
 import threading
 from collections import Counter
 from datetime import datetime, timedelta
 
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app
+from flask import (
+    Blueprint,
+    render_template,
+    request,
+    redirect,
+    url_for,
+    flash,
+    jsonify,
+    current_app,
+)
 from flask_login import login_required
-from sqlalchemy import func, case
+from sqlalchemy import func
 
 from web.extensions import get_db, socketio
 from cyt.models import AnalysisRun, Device, Fingerprint, Appearance, Sensor
@@ -23,12 +33,7 @@ def require_login():
 @bp.route("/")
 def index():
     db = get_db()
-    runs = (
-        db.query(AnalysisRun)
-        .order_by(AnalysisRun.started_at.desc())
-        .limit(20)
-        .all()
-    )
+    runs = db.query(AnalysisRun).order_by(AnalysisRun.started_at.desc()).limit(20).all()
     fingerprint_count = db.query(Fingerprint).count()
     return render_template("analysis.html", runs=runs, fingerprint_count=fingerprint_count)
 
@@ -51,7 +56,9 @@ def _execute_analysis(app, run_id):
             # Expire cached objects so count() hits the DB fresh
             session.expire_all()
             devices_count = session.query(Device).count()
-            persistent_count = session.query(Device).filter(Device.fingerprint_id.isnot(None)).count()
+            persistent_count = (
+                session.query(Device).filter(Device.fingerprint_id.isnot(None)).count()
+            )
 
             run.devices_analyzed = devices_count
             run.persistent_devices = persistent_count
@@ -59,12 +66,15 @@ def _execute_analysis(app, run_id):
             run.finished_at = datetime.utcnow()
             session.commit()
 
-            socketio.emit("analysis_complete", {
-                "run_id": run_id,
-                "devices": devices_count,
-                "clusters": clusters,
-                "fingerprints": fps,
-            })
+            socketio.emit(
+                "analysis_complete",
+                {
+                    "run_id": run_id,
+                    "devices": devices_count,
+                    "clusters": clusters,
+                    "fingerprints": fps,
+                },
+            )
         except Exception as exc:
             run.status = "failed"
             run.finished_at = datetime.utcnow()
@@ -169,16 +179,10 @@ def trends():
     ) or 0
 
     total_sightings = (
-        db.query(func.count(Appearance.id))
-        .filter(Appearance.timestamp >= since)
-        .scalar()
+        db.query(func.count(Appearance.id)).filter(Appearance.timestamp >= since).scalar()
     ) or 0
 
-    new_devices = (
-        db.query(func.count(Device.id))
-        .filter(Device.first_seen >= since)
-        .scalar()
-    ) or 0
+    new_devices = (db.query(func.count(Device.id)).filter(Device.first_seen >= since).scalar()) or 0
 
     return render_template(
         "analysis_trends.html",
@@ -245,14 +249,12 @@ def stats():
     ) or 0
 
     persistent_devices = (
-        db.query(func.count(Device.id))
-        .filter(Device.fingerprint_id.isnot(None))
-        .scalar()
+        db.query(func.count(Device.id)).filter(Device.fingerprint_id.isnot(None)).scalar()
     ) or 0
 
     randomized_count = (
         db.query(func.count(Device.id))
-        .filter(Device.is_randomized == True)
+        .filter(Device.is_randomized.is_(True))
         .join(Appearance, Device.id == Appearance.device_id)
         .filter(Appearance.timestamp >= since)
         .scalar()
@@ -280,9 +282,7 @@ def stats():
     unique_ssids = len(ssid_counter)
 
     total_appearances = (
-        db.query(func.count(Appearance.id))
-        .filter(Appearance.timestamp >= since)
-        .scalar()
+        db.query(func.count(Appearance.id)).filter(Appearance.timestamp >= since).scalar()
     ) or 0
     avg_appearances = round(total_appearances / total_devices, 1) if total_devices else 0
 
@@ -318,8 +318,6 @@ def stats():
     # ── Top probed SSIDs ──
     # Count devices per SSID (from the counter, need device-level counts)
     ssid_device_counter = Counter()
-    ssid_first_seen = {}
-    ssid_last_seen = {}
     for (raw,) in ssid_rows:
         try:
             ssids = json.loads(raw) if isinstance(raw, str) else raw
@@ -359,27 +357,26 @@ def stats():
         signal_data.append({"label": label, "count": cnt, "min": lo, "max": hi})
 
     # ── Fingerprint clusters ──
-    clusters = (
-        db.query(Fingerprint)
-        .order_by(Fingerprint.appearance_count.desc())
-        .limit(10)
-        .all()
-    )
+    clusters = db.query(Fingerprint).order_by(Fingerprint.appearance_count.desc()).limit(10).all()
     cluster_info = []
     for fp in clusters:
-        mac_count = db.query(func.count(Device.id)).filter(Device.fingerprint_id == fp.id).scalar() or 0
+        mac_count = (
+            db.query(func.count(Device.id)).filter(Device.fingerprint_id == fp.id).scalar() or 0
+        )
         try:
             pool = json.loads(fp.ssids_json) if fp.ssids_json else []
         except (json.JSONDecodeError, TypeError):
             pool = []
-        cluster_info.append({
-            "canonical_mac": fp.canonical_mac,
-            "mac_count": mac_count,
-            "ssids": pool,
-            "first_seen": fp.first_seen,
-            "last_seen": fp.last_seen,
-            "appearances": fp.appearance_count,
-        })
+        cluster_info.append(
+            {
+                "canonical_mac": fp.canonical_mac,
+                "mac_count": mac_count,
+                "ssids": pool,
+                "first_seen": fp.first_seen,
+                "last_seen": fp.last_seen,
+                "appearances": fp.appearance_count,
+            }
+        )
 
     # ── Dwell time distribution ──
     # Per-device per-day dwell = max(timestamp) - min(timestamp)
@@ -392,7 +389,14 @@ def stats():
         .group_by(Appearance.device_id, func.date(Appearance.timestamp))
         .all()
     )
-    dwell_buckets = {"<1 min": 0, "1-5 min": 0, "5-15 min": 0, "15-60 min": 0, "1-4 hr": 0, ">4 hr": 0}
+    dwell_buckets = {
+        "<1 min": 0,
+        "1-5 min": 0,
+        "5-15 min": 0,
+        "15-60 min": 0,
+        "1-4 hr": 0,
+        ">4 hr": 0,
+    }
     for (delta_days,) in dwell_rows:
         if delta_days is None:
             continue

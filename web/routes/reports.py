@@ -1,9 +1,13 @@
 """Reports blueprint — list, view, and download analysis reports and KML files."""
-import os
+
 from pathlib import Path
 
 from flask import (
-    Blueprint, render_template, send_file, abort, current_app,
+    Blueprint,
+    render_template,
+    send_file,
+    abort,
+    current_app,
 )
 from flask_login import login_required
 

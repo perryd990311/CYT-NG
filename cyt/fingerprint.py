@@ -4,10 +4,11 @@ SSID-pool fingerprinting engine for defeating MAC randomization.
 Uses Jaccard similarity to group devices probing for overlapping SSID sets,
 identifying the same physical device across multiple randomized MAC addresses.
 """
+
 import json
 import logging
 from datetime import datetime, timezone
-from typing import Dict, List, Optional, Set, Tuple
+from typing import Dict, List, Set, Tuple
 
 from cyt.models import Device, Appearance, Fingerprint
 
@@ -84,7 +85,7 @@ def find_fingerprint_clusters(
         cluster = [did_a]
         visited.add(did_a)
 
-        for did_b in device_ids[i + 1:]:
+        for did_b in device_ids[i + 1 :]:
             if did_b in visited:
                 continue
             sim = jaccard_similarity(pools[did_a], pools[did_b])
@@ -97,7 +98,9 @@ def find_fingerprint_clusters(
 
     logger.info(
         "Found %d fingerprint clusters from %d devices (threshold=%.2f)",
-        len(clusters), len(device_ids), threshold,
+        len(clusters),
+        len(device_ids),
+        threshold,
     )
     return clusters
 
@@ -129,7 +132,12 @@ def assign_fingerprints(
         fp = session.query(Fingerprint).filter_by(ssid_pool_hash=pool_hash).first()
         if fp is None:
             # Pick the earliest-seen device MAC as canonical
-            devices = session.query(Device).filter(Device.id.in_(cluster)).order_by(Device.first_seen).all()
+            devices = (
+                session.query(Device)
+                .filter(Device.id.in_(cluster))
+                .order_by(Device.first_seen)
+                .all()
+            )
             canonical_mac = devices[0].mac if devices else "unknown"
 
             fp = Fingerprint(

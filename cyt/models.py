@@ -4,13 +4,22 @@ SQLAlchemy models for CYT-NG's own database.
 These models represent CYT's analysis data — not the Kismet database schema.
 Kismet .kismet files are read-only via cyt.kismet_reader.
 """
+
 import hashlib
 import json
 from datetime import datetime, timezone
 
 from sqlalchemy import (
-    Column, Integer, String, Float, Text, Boolean, DateTime, ForeignKey,
-    Index, UniqueConstraint, create_engine
+    Column,
+    Integer,
+    String,
+    Float,
+    Text,
+    Boolean,
+    DateTime,
+    ForeignKey,
+    Index,
+    create_engine,
 )
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, sessionmaker
@@ -20,12 +29,17 @@ Base = declarative_base()
 
 class Device(Base):
     """A unique wireless device identified by MAC address."""
+
     __tablename__ = "devices"
 
     id = Column(Integer, primary_key=True)
     mac = Column(String(17), nullable=False, unique=True, index=True)
     first_seen = Column(DateTime, default=lambda: datetime.now(timezone.utc))
-    last_seen = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    last_seen = Column(
+        DateTime,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
     device_type = Column(String(50))
     manufacturer = Column(String(100))
     is_randomized = Column(Boolean, default=False)
@@ -35,13 +49,12 @@ class Device(Base):
     fingerprint_id = Column(Integer, ForeignKey("fingerprints.id"), nullable=True)
     fingerprint = relationship("Fingerprint", back_populates="devices")
 
-    __table_args__ = (
-        Index("ix_devices_last_seen", "last_seen"),
-    )
+    __table_args__ = (Index("ix_devices_last_seen", "last_seen"),)
 
 
 class Appearance(Base):
     """A single sighting of a device at a point in time and space."""
+
     __tablename__ = "appearances"
 
     id = Column(Integer, primary_key=True)
@@ -56,9 +69,7 @@ class Appearance(Base):
     device = relationship("Device", back_populates="appearances")
     sensor = relationship("Sensor", back_populates="appearances")
 
-    __table_args__ = (
-        Index("ix_appearances_device_time", "device_id", "timestamp"),
-    )
+    __table_args__ = (Index("ix_appearances_device_time", "device_id", "timestamp"),)
 
 
 class Fingerprint(Base):
@@ -66,6 +77,7 @@ class Fingerprint(Base):
     SSID-pool fingerprint for defeating MAC randomization.
     Groups devices that probe for the same set of SSIDs.
     """
+
     __tablename__ = "fingerprints"
 
     id = Column(Integer, primary_key=True)
@@ -87,6 +99,7 @@ class Fingerprint(Base):
 
 class AnalysisRun(Base):
     """Record of each surveillance analysis execution."""
+
     __tablename__ = "analysis_runs"
 
     id = Column(Integer, primary_key=True)
@@ -103,6 +116,7 @@ class AnalysisRun(Base):
 
 class User(Base):
     """Web UI user account."""
+
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True)
@@ -116,6 +130,7 @@ class User(Base):
 
 class Sensor(Base):
     """Remote Kismet sensor (typically a Raspberry Pi)."""
+
     __tablename__ = "sensors"
 
     id = Column(Integer, primary_key=True)
@@ -127,7 +142,9 @@ class Sensor(Base):
     smb_share_path = Column(String(500), nullable=True)
     status = Column(String(20), default="unknown")  # online, offline, error, provisioning
     last_seen = Column(DateTime, nullable=True)
-    local_hostname = Column(String(255), nullable=True)  # Pi's $(hostname) — used for NAS dir matching
+    local_hostname = Column(
+        String(255), nullable=True
+    )  # Pi's $(hostname) — used for NAS dir matching
     kismet_version = Column(String(20), nullable=True)
     wifi_interface = Column(String(20), nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
@@ -137,6 +154,7 @@ class Sensor(Base):
 
 class KismetFileTracker(Base):
     """Track which .kismet files have been ingested and to what point."""
+
     __tablename__ = "kismet_file_tracker"
 
     id = Column(Integer, primary_key=True)
@@ -145,7 +163,11 @@ class KismetFileTracker(Base):
     last_processed_ts = Column(DateTime, nullable=True)
     records_imported = Column(Integer, default=0)
     sensor_id = Column(Integer, ForeignKey("sensors.id"), nullable=True)
-    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    updated_at = Column(
+        DateTime,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
 
 
 def init_db(db_path: str = "cyt_data.db"):

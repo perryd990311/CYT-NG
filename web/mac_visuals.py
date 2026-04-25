@@ -3,21 +3,73 @@
 Provides color-dot HSL values and friendly two-word names generated
 from a MAC address hash.  Same MAC always produces the same visual.
 """
+
 import hashlib
 
 ADJECTIVES = [
-    "Swift", "Bold", "Calm", "Dark", "Echo", "Faint", "Gold", "Hazy",
-    "Iron", "Jade", "Keen", "Loud", "Mint", "Neon", "Opal", "Pine",
-    "Rust", "Silk", "Teal", "Void", "Warm", "Zinc", "Blue", "Ashen",
-    "Coral", "Dusky", "Foggy", "Grim", "Ivory", "Lunar",
+    "Swift",
+    "Bold",
+    "Calm",
+    "Dark",
+    "Echo",
+    "Faint",
+    "Gold",
+    "Hazy",
+    "Iron",
+    "Jade",
+    "Keen",
+    "Loud",
+    "Mint",
+    "Neon",
+    "Opal",
+    "Pine",
+    "Rust",
+    "Silk",
+    "Teal",
+    "Void",
+    "Warm",
+    "Zinc",
+    "Blue",
+    "Ashen",
+    "Coral",
+    "Dusky",
+    "Foggy",
+    "Grim",
+    "Ivory",
+    "Lunar",
 ]
 
 ANIMALS = [
-    "Falcon", "Otter", "Lynx", "Cobra", "Raven", "Shark", "Tiger",
-    "Viper", "Eagle", "Heron", "Mantis", "Puma", "Gecko", "Crane",
-    "Bison", "Manta", "Newt", "Osprey", "Drake", "Finch", "Hornet",
-    "Jackal", "Kodiak", "Lemur", "Moose", "Narwhal", "Parrot", "Quail",
-    "Stork", "Toucan",
+    "Falcon",
+    "Otter",
+    "Lynx",
+    "Cobra",
+    "Raven",
+    "Shark",
+    "Tiger",
+    "Viper",
+    "Eagle",
+    "Heron",
+    "Mantis",
+    "Puma",
+    "Gecko",
+    "Crane",
+    "Bison",
+    "Manta",
+    "Newt",
+    "Osprey",
+    "Drake",
+    "Finch",
+    "Hornet",
+    "Jackal",
+    "Kodiak",
+    "Lemur",
+    "Moose",
+    "Narwhal",
+    "Parrot",
+    "Quail",
+    "Stork",
+    "Toucan",
 ]
 
 
@@ -31,8 +83,8 @@ def color_dot_hsl(mac: str) -> str:
     """Return an HSL color string deterministically derived from a MAC."""
     h = _mac_hash(mac)
     hue = h % 360
-    sat = 60 + (h >> 12) % 25        # 60-84 %
-    lum = 48 + (h >> 24) % 15        # 48-62 %
+    sat = 60 + (h >> 12) % 25  # 60-84 %
+    lum = 48 + (h >> 24) % 15  # 48-62 %
     return f"hsl({hue}, {sat}%, {lum}%)"
 
 

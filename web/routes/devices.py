@@ -1,4 +1,5 @@
 """Devices blueprint — browse and inspect detected wireless devices."""
+
 import json
 from collections import defaultdict
 from datetime import datetime, timedelta
@@ -8,7 +9,7 @@ from flask_login import login_required
 from sqlalchemy import func
 
 from web.extensions import get_db
-from cyt.models import Device, Appearance, Sensor, Fingerprint
+from cyt.models import Device, Appearance, Sensor
 from cyt.input_validation import InputValidator
 
 bp = Blueprint("devices", __name__, url_prefix="/devices")
@@ -80,10 +81,9 @@ def _device_enrichment(db, devices):
         db.query(
             Appearance.device_id,
             Appearance.signal_dbm,
-            func.row_number().over(
-                partition_by=Appearance.device_id,
-                order_by=Appearance.timestamp.desc()
-            ).label("rn")
+            func.row_number()
+            .over(partition_by=Appearance.device_id, order_by=Appearance.timestamp.desc())
+            .label("rn"),
         )
         .filter(
             Appearance.device_id.in_(device_ids),
@@ -91,7 +91,9 @@ def _device_enrichment(db, devices):
         )
         .subquery()
     )
-    signal_rows = db.query(signal_sub.c.device_id, signal_sub.c.signal_dbm).filter(signal_sub.c.rn == 1).all()
+    signal_rows = (
+        db.query(signal_sub.c.device_id, signal_sub.c.signal_dbm).filter(signal_sub.c.rn == 1).all()
+    )
     signals = {r.device_id: r.signal_dbm for r in signal_rows}
 
     # Sensors per device
@@ -108,6 +110,7 @@ def _device_enrichment(db, devices):
 
     # Baseline MAC list
     import os
+
     baseline_macs = set()
     mac_list_path = os.environ.get("IGNORE_LISTS", "ignore_lists") + "/maclist.json"
     try:
@@ -203,17 +206,11 @@ def index():
     if search:
         # Sanitize search input
         safe = search.replace("%", "").replace("_", "")
-        query = query.filter(
-            Device.mac.ilike(f"%{safe}%")
-            | Device.manufacturer.ilike(f"%{safe}%")
-        )
+        query = query.filter(Device.mac.ilike(f"%{safe}%") | Device.manufacturer.ilike(f"%{safe}%"))
 
     # Signal strength filter — find devices with appearances in the dBm range
     if signal_min is not None or signal_max is not None:
-        signal_sub = (
-            db.query(Appearance.device_id)
-            .filter(Appearance.signal_dbm.isnot(None))
-        )
+        signal_sub = db.query(Appearance.device_id).filter(Appearance.signal_dbm.isnot(None))
         if signal_min is not None:
             signal_sub = signal_sub.filter(Appearance.signal_dbm >= signal_min)
         if signal_max is not None:
@@ -244,6 +241,7 @@ def index():
         order = order_expr.asc() if sort_dir == "asc" else order_expr.desc()
         # nulls (no SSIDs) sort last
         from sqlalchemy import case
+
         devices = (
             query.order_by(
                 case((order_expr.is_(None), 1), else_=0),
@@ -256,12 +254,7 @@ def index():
     else:
         col = _SORT_COLUMNS.get(sort_col, Device.last_seen)
         order = col.asc() if sort_dir == "asc" else col.desc()
-        devices = (
-            query.order_by(order)
-            .offset(offset)
-            .limit(per_page)
-            .all()
-        )
+        devices = query.order_by(order).offset(offset).limit(per_page).all()
 
     ssid_counts = _device_ssid_counts(db, [d.id for d in devices])
     device_ssids = _device_ssid_sets(db, [d.id for d in devices])

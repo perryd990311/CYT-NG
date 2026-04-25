@@ -1,4 +1,5 @@
 """Local authentication — Flask-Login integration, bcrypt password hashing."""
+
 import bcrypt
 from flask_login import LoginManager, UserMixin
 
@@ -43,8 +44,9 @@ def check_password(password: str, password_hash: str) -> bool:
     return bcrypt.checkpw(password.encode("utf-8"), password_hash.encode("utf-8"))
 
 
-def create_user(username: str, password: str, is_admin: bool = False,
-                auth_provider: str = "local") -> User:
+def create_user(
+    username: str, password: str, is_admin: bool = False, auth_provider: str = "local"
+) -> User:
     """Create a new user with hashed password."""
     db = get_db()
     user = User(
