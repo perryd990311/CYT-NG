@@ -1,28 +1,77 @@
 {% from "macros/localtime.html" import localtime %}
-{% if sensors %}
+{% if sensor_stats %}
 <div class="row g-3">
-    {% for s in sensors %}
-    <div class="col-md-6 col-lg-4">
-        <div class="card h-100">
-            <div class="card-body">
-                <h5 class="card-title">
-                    <span class="sensor-dot sensor-{{ s.status }}"></span>
-                    {{ s.name }}
-                </h5>
-                <p class="card-text small mb-1" style="color:var(--cyt-text-muted);">
-                    <i class="bi bi-hdd-network"></i> {{ s.hostname }}:{{ s.ssh_port }}
-                </p>
-                <p class="card-text small mb-1" style="color:var(--cyt-text-muted);">
-                    <i class="bi bi-wifi"></i> {{ s.wifi_interface or '—' }}
-                    {% if s.kismet_version %}· Kismet {{ s.kismet_version }}{% endif %}
-                </p>
-                <p class="card-text small" style="color:var(--cyt-text-muted);">
-                    Last seen: {{ localtime(s.last_seen, fallback='never') }}
-                </p>
+    {% for ss in sensor_stats %}
+    {% set s = ss.sensor %}
+    {# Determine display status: warning if online but sync stale #}
+    {% if s.status == 'online' and ss.sync_level == 'warn' %}
+        {% set display_status = 'warning' %}
+    {% elif s.status == 'online' and ss.sync_level == 'danger' %}
+        {% set display_status = 'warning' %}
+    {% elif s.status == 'offline' or s.status == 'error' %}
+        {% set display_status = 'offline' %}
+    {% else %}
+        {% set display_status = s.status %}
+    {% endif %}
+    <div class="col-md-6">
+        <div class="sensor-card{{ ' sensor-card-offline' if display_status == 'offline' else '' }}">
+            {# ── Header ── #}
+            <div class="sensor-card-header d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="bi bi-broadcast" style="color:var({{ '--cyt-green' if display_status == 'online' else '--cyt-amber' if display_status == 'warning' else '--cyt-red' }}){{ ';opacity:0.6' if display_status == 'offline' else '' }}"></i>
+                    <span class="fw-semibold" style="font-size:0.92rem">{{ s.name }}</span>
+                </div>
+                {% if display_status == 'online' %}
+                <span class="badge badge-online"><i class="bi bi-circle-fill" style="font-size:0.4rem"></i> Online</span>
+                {% elif display_status == 'warning' %}
+                <span class="badge badge-warning"><i class="bi bi-circle-fill" style="font-size:0.4rem"></i> Warning</span>
+                {% elif s.status == 'provisioning' %}
+                <span class="badge badge-warning"><i class="bi bi-arrow-repeat spin" style="font-size:0.6rem"></i> Provisioning</span>
+                {% else %}
+                <span class="badge badge-offline"><i class="bi bi-circle-fill" style="font-size:0.4rem"></i> Offline</span>
+                {% endif %}
             </div>
-            <div class="card-footer text-end">
-                <a href="{{ url_for('sensors.detail', sensor_id=s.id) }}"
-                   class="btn btn-sm btn-outline-info">Details</a>
+            {# ── Body ── #}
+            <div class="sensor-card-body">
+                <dl class="row sensor-meta mb-2">
+                    <dt class="col-4">Host</dt>
+                    <dd class="col-8"><span class="mono">{{ s.hostname }}</span> <span class="text-muted">:{{ s.ssh_port }}</span></dd>
+
+                    <dt class="col-4">Interface</dt>
+                    <dd class="col-8">
+                        <span class="mono">{{ s.wifi_interface or '—' }}</span>
+                    </dd>
+
+                    <dt class="col-4">Kismet</dt>
+                    <dd class="col-8">{{ s.kismet_version or '—' }}</dd>
+
+                    <dt class="col-4">Last Sync</dt>
+                    <dd class="col-8" style="color:var({{ '--cyt-green' if ss.sync_level == 'ok' else '--cyt-amber' if ss.sync_level == 'warn' else '--cyt-red' }})">
+                        {{ localtime(s.last_seen, fallback='never') }}
+                    </dd>
+
+                    <dt class="col-4">Sightings</dt>
+                    <dd class="col-8">{{ "{:,}".format(ss.sightings) }}</dd>
+
+                    <dt class="col-4">DB Size</dt>
+                    <dd class="col-8">{{ ss.db_size_mb }} MB</dd>
+
+                    <dt class="col-4">Uptime</dt>
+                    <dd class="col-8">{{ ss.uptime if display_status != 'offline' else '—' }}</dd>
+                </dl>
+                {# ── Sync Health Bar ── #}
+                <div class="d-flex align-items-center gap-2 mt-2">
+                    <span style="font-size:0.75rem;color:var(--cyt-text-muted);min-width:70px">Sync Health</span>
+                    <div class="sync-bar flex-grow-1">
+                        <div class="sync-bar-fill sync-bar-{{ ss.sync_level }}" style="width:{{ ss.sync_pct }}%"></div>
+                    </div>
+                    <span style="font-size:0.75rem;color:var({{ '--cyt-green' if ss.sync_level == 'ok' else '--cyt-amber' if ss.sync_level == 'warn' else '--cyt-red' }});min-width:32px;text-align:right">{{ ss.sync_pct }}%</span>
+                </div>
+            </div>
+            {# ── Footer ── #}
+            <div class="sensor-card-footer">
+                <a href="{{ url_for('sensors.detail', sensor_id=s.id) }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-journal-text"></i> Details</a>
+                <a href="{{ url_for('sensors.detail', sensor_id=s.id) }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-sliders"></i> Configure</a>
             </div>
         </div>
     </div>

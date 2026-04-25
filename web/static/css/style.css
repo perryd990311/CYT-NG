@@ -264,6 +264,42 @@ a:hover { color: var(--cyt-brand); }
 .sensor-offline { color: #4b5563; }
 .sensor-error   { color: var(--cyt-red); }
 
+/* ── Sensor cards (rich view) ──────────────────────────────── */
+.sensor-card {
+  border: 1px solid var(--cyt-border);
+  border-radius: 0.5rem;
+  background: var(--cyt-surface);
+  transition: border-color 0.2s;
+}
+.sensor-card:hover { border-color: var(--cyt-border-light); }
+.sensor-card-offline {
+  border-color: rgba(248,113,113,0.35);
+  box-shadow: 0 0 12px rgba(248,113,113,0.08);
+}
+.sensor-card-header {
+  background: var(--cyt-surface-alt);
+  border-bottom: 1px solid var(--cyt-border);
+  border-radius: 0.5rem 0.5rem 0 0;
+  padding: 0.75rem 1rem;
+}
+.sensor-card-body { padding: 1rem; }
+.sensor-card-footer {
+  border-top: 1px solid var(--cyt-border);
+  padding: 0.6rem 1rem;
+  display: flex; gap: 0.4rem; flex-wrap: wrap;
+}
+.sensor-meta { font-size: 0.82rem; color: var(--cyt-text-muted); }
+.sensor-meta dt { font-weight: 500; color: var(--cyt-text); min-width: 90px; }
+.sensor-meta dd { margin-bottom: 0.35rem; }
+.badge-online  { background: rgba(52,211,153,0.12); color: var(--cyt-green); }
+.badge-warning { background: rgba(251,191,36,0.12); color: var(--cyt-amber); }
+.badge-offline { background: rgba(248,113,113,0.12); color: var(--cyt-red); }
+.sync-bar { height: 6px; border-radius: 3px; background: var(--cyt-raised); overflow: hidden; }
+.sync-bar-fill { height: 100%; border-radius: 3px; transition: width 0.4s; }
+.sync-bar-ok     { background: var(--cyt-green); }
+.sync-bar-warn   { background: var(--cyt-amber); }
+.sync-bar-danger { background: var(--cyt-red); }
+
 /* Provisioning animation */
 @keyframes pulse-dot { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
 .spin { animation: spin-icon 1s linear infinite; display: inline-block; }

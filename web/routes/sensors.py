@@ -1,12 +1,14 @@
 """Sensors blueprint — manage Kismet sensor Raspberry Pis."""
 import re
 import socket
+from datetime import datetime, timezone
 
 from flask import Blueprint, render_template, request, flash, redirect, url_for, jsonify
 from flask_login import login_required
+from sqlalchemy import func
 
 from web.extensions import get_db
-from cyt.models import Sensor
+from cyt.models import Sensor, Appearance, KismetFileTracker
 
 bp = Blueprint("sensors", __name__, url_prefix="/sensors")
 
@@ -25,10 +27,73 @@ def index():
     db = get_db()
     sensors = db.query(Sensor).order_by(Sensor.name).all()
 
+    # Sightings per sensor
+    sightings_q = (
+        db.query(Appearance.sensor_id, func.count(Appearance.id))
+        .group_by(Appearance.sensor_id)
+        .all()
+    )
+    sightings_map = dict(sightings_q)
+
+    # DB size per sensor (sum of tracked Kismet file sizes)
+    dbsize_q = (
+        db.query(KismetFileTracker.sensor_id, func.sum(KismetFileTracker.file_size))
+        .group_by(KismetFileTracker.sensor_id)
+        .all()
+    )
+    dbsize_map = dict(dbsize_q)
+
+    now = datetime.now(timezone.utc)
+    sensor_stats = []
+    for s in sensors:
+        sightings = sightings_map.get(s.id, 0)
+        db_bytes = dbsize_map.get(s.id, 0) or 0
+        db_size_mb = round(db_bytes / (1024 * 1024), 1) if db_bytes else 0
+
+        # Sync health: based on minutes since last_seen
+        if s.last_seen:
+            delta_min = (now - s.last_seen).total_seconds() / 60
+            if delta_min <= 10:
+                sync_pct, sync_level = 100, "ok"
+            elif delta_min <= 30:
+                sync_pct, sync_level = 85, "ok"
+            elif delta_min <= 60:
+                sync_pct, sync_level = 60, "warn"
+            elif delta_min <= 360:
+                sync_pct, sync_level = 30, "danger"
+            else:
+                sync_pct, sync_level = 0, "danger"
+        else:
+            sync_pct, sync_level = 0, "danger"
+
+        # Uptime: time since created_at
+        if s.created_at:
+            uptime_delta = now - s.created_at
+            days = uptime_delta.days
+            hours = uptime_delta.seconds // 3600
+            mins = (uptime_delta.seconds % 3600) // 60
+            if days > 0:
+                uptime_str = f"{days}d {hours}h {mins}m"
+            elif hours > 0:
+                uptime_str = f"{hours}h {mins}m"
+            else:
+                uptime_str = f"{mins}m"
+        else:
+            uptime_str = "—"
+
+        sensor_stats.append({
+            "sensor": s,
+            "sightings": sightings,
+            "db_size_mb": db_size_mb,
+            "sync_pct": sync_pct,
+            "sync_level": sync_level,
+            "uptime": uptime_str,
+        })
+
     is_htmx = request.headers.get("HX-Request")
     if is_htmx:
-        return render_template("partials/sensor_list.html", sensors=sensors)
-    return render_template("sensors.html", sensors=sensors)
+        return render_template("partials/sensor_list.html", sensor_stats=sensor_stats)
+    return render_template("sensors.html", sensor_stats=sensor_stats)
 
 
 @bp.route("/add", methods=["GET", "POST"])
