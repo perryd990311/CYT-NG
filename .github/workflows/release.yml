@@ -45,9 +45,9 @@ jobs:
             fi
             NOTES="### Release commits
 
-${NOTES}
+            ${NOTES}
 
-See full details at [Commits](https://github.com/${{ github.repository }}/compare/$PREV_TAG...$TAG)"
+            See full details at [Commits](https://github.com/${{ github.repository }}/compare/$PREV_TAG...$TAG)"
           fi
 
           # Final fallback
