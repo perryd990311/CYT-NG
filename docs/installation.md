@@ -155,15 +155,29 @@ cat cert.pem chain.pem > fullchain.pem
 
 ## 5. Build and Launch
 
+CYT-NG uses a **two-stage Docker build** to keep deploys fast:
+
+| Image | Purpose | Rebuild when… |
+|-------|---------|---------------|
+| `cyt-base:latest` | Python runtime + all pip dependencies | `requirements.txt` changes or Python version bumps |
+| `cyt-web` (compose) | Application code only — built `FROM cyt-base:latest` | Any code, template, or config change |
+
+Because the base image bakes in all pip packages, a normal `docker compose build` only copies application files and takes a few seconds.
+
+### Build the base image (first time, or after dependency changes)
+
 ```bash
 cd /volume1/docker/cyt-ng
-docker compose -f repo/docker-compose.yaml up -d --build
+docker build -f repo/docker/Dockerfile.base -t cyt-base:latest .
 ```
 
-Or if your `docker-compose.yaml` is at the project root:
+> **Note:** The build context is the project root (`/volume1/docker/cyt-ng`), not the repo subdirectory. The Dockerfile references paths like `repo/requirements.txt` relative to this context.
+
+### Build and start the app
 
 ```bash
-docker compose up -d --build
+docker compose build cyt-web
+docker compose up -d
 ```
 
 Verify both containers are healthy:
@@ -179,6 +193,8 @@ You should see:
 | cyt-web | Up (healthy) |
 | cyt-nginx | Up |
 
+> If `cyt-web` fails with `FROM cyt-base:latest — image not found`, you need to build the base image first (see above).
+
 ## 6. First Login
 
 1. Open `https://your-nas-ip` in a browser
@@ -191,9 +207,16 @@ You should see:
 ```bash
 cd /volume1/docker/cyt-ng
 git -C repo pull   # or push from dev machine
+
+# If requirements.txt changed, rebuild the base image first:
+docker build -f repo/docker/Dockerfile.base -t cyt-base:latest .
+
+# Then rebuild and restart the app:
 docker compose build cyt-web
 docker compose up -d
 ```
+
+> If only application code changed (no new pip packages), skip the base image build — `docker compose build cyt-web` is all you need.
 
 ## Troubleshooting
 
