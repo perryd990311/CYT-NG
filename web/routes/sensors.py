@@ -198,7 +198,7 @@ def set_nas_dir(sensor_id):
     display = value or "—"
     return f"""<span id="nas-dir-display">{display}</span>
  <button class="btn btn-link btn-sm p-0 ms-1 text-secondary"
-         hx-get="{ url_for('sensors.nas_dir_form', sensor_id=sensor_id) }"
+         hx-get="{url_for('sensors.nas_dir_form', sensor_id=sensor_id)}"
          hx-target="#nas-dir-cell" hx-swap="innerHTML"
          title="Edit"><i class="bi bi-pencil"></i></button>"""
 
@@ -211,13 +211,13 @@ def nas_dir_form(sensor_id):
     if not sensor:
         return '<span class="text-danger">Not found.</span>', 404
     current = sensor.local_hostname or ""
-    return f"""<form hx-post="{ url_for('sensors.set_nas_dir', sensor_id=sensor_id) }"
+    return f"""<form hx-post="{url_for('sensors.set_nas_dir', sensor_id=sensor_id)}"
           hx-target="#nas-dir-cell" hx-swap="innerHTML" class="d-flex gap-1">
   <input type="text" name="local_hostname" value="{current}"
          class="form-control form-control-sm" placeholder="e.g. raspberrypi" style="max-width:180px">
   <button type="submit" class="btn btn-sm btn-primary">Save</button>
   <button type="button" class="btn btn-sm btn-outline-secondary"
-          hx-get="{ url_for('sensors.detail', sensor_id=sensor_id) }"
+          hx-get="{url_for('sensors.detail', sensor_id=sensor_id)}"
           hx-target="body" hx-swap="outerHTML">Cancel</button>
 </form>"""
 
