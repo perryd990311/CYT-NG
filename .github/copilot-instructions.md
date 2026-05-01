@@ -34,7 +34,26 @@ legacy/     # Archived Tkinter GUI (do not import from here)
 - Docker containers run as non-root
 - Nginx enforces HSTS, X-Content-Type-Options, X-Frame-Options, CSP
 
+## Agent Work Tracking (BMAD)
+All agent work is tracked in `.github/agent-work/` using a BMAD-inspired workflow:
+
+1. **Business** — GitHub Issue defines the goal
+2. **Mission** — Feature `.md` file in `agent-work/` defines the deliverable
+3. **Architecture** — Design decisions recorded in the feature file
+4. **Development** — Task checklist tracked to completion
+
+### Workflow
+- `agent-work/backlog/` — Planned features (linked to GitHub Issues)
+- `agent-work/active/` — In-progress work (check here at session start)
+- `agent-work/completed/` — Finished work (knowledge base)
+- `agent-work/templates/` — Feature and task templates
+
+### Agent Rules
+- **Session start**: Read `agent-work/active/` to restore context
+- **New work**: Create feature file from template, link to GitHub Issue
+- **During work**: Update checkboxes and decisions in real-time
+- **Work done**: Move file to `completed/`, close GitHub Issue
+
 ## Agent Routing
 - **Runtime issues** (app errors, broken pages, container failures): use `/debugger` agent
 - **Code implementation** (new features, deploying changes, infrastructure updates): use `/code-implementer` agent
-- Nginx enforces HSTS, X-Content-Type-Options, X-Frame-Options, CSP
