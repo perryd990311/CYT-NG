@@ -24,40 +24,51 @@
 </div>
 
 <div class="card">
-  <div class="card-header">Recent Runs</div>
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <span>Recent Runs</span>
+    <span class="text-muted" style="font-size:0.72rem">Last 20 runs</span>
+  </div>
   <div class="card-body p-0">
     {% if runs %}
     <table class="table table-striped table-hover mb-0">
       <thead>
         <tr>
-          <th>#</th>
+          <th style="width:3rem">#</th>
           <th>Started</th>
           <th>Trigger</th>
-          <th>Devices</th>
-          <th>Persistent</th>
-          <th>Status</th>
-          <th></th>
+          <th class="text-end">Devices</th>
+          <th class="text-center">Persistent</th>
+          <th class="text-center">Status</th>
+          <th style="width:4rem"></th>
         </tr>
       </thead>
       <tbody>
         {% for r in runs %}
-        <tr>
-          <td>{{ r.id }}</td>
+        <tr {% if loop.first %}style="border-left:3px solid var(--cyt-cyan)"{% endif %}>
+          <td {% if loop.first %}class="fw-semibold" style="color:var(--cyt-cyan)"{% endif %}>{{ r.id }}</td>
           <td>{{ localtime(r.started_at) }}</td>
-          <td><span class="badge bg-secondary">{{ r.trigger }}</span></td>
-          <td>{{ r.devices_analyzed }}</td>
           <td>
-            {% if r.persistent_devices %}
-            <span class="badge bg-{{ 'danger' if r.persistent_devices > 0 else 'success' }}">{{ r.persistent_devices }}</span>
-            {% else %}0{% endif %}
+            {% if r.trigger == 'manual' %}
+            <span class="badge" style="background:rgba(96,165,250,0.15);color:var(--cyt-blue);font-size:0.7rem">manual</span>
+            {% else %}
+            <span class="badge" style="background:var(--cyt-raised);color:var(--cyt-text-muted);font-size:0.7rem">{{ r.trigger }}</span>
+            {% endif %}
           </td>
-          <td>
-            <span class="badge bg-{% if r.status == 'completed' %}success{% elif r.status == 'running' %}warning{% else %}danger{% endif %}">
-              {{ r.status }}
+          <td class="text-end fw-semibold">{{ r.devices_analyzed }}</td>
+          <td class="text-center">
+            {% if r.persistent_devices %}
+            <span class="badge bg-danger bg-opacity-25 text-danger">{{ r.persistent_devices }}</span>
+            {% else %}
+            <span class="badge bg-success bg-opacity-25 text-success">0</span>
+            {% endif %}
+          </td>
+          <td class="text-center">
+            <span class="badge bg-{% if r.status == 'completed' %}success{% elif r.status == 'running' %}warning{% else %}danger{% endif %} bg-opacity-25 text-{% if r.status == 'completed' %}success{% elif r.status == 'running' %}warning{% else %}danger{% endif %}">
+              {% if r.status == 'completed' %}<i class="bi bi-check-circle-fill"></i> {% endif %}{{ r.status }}
             </span>
           </td>
           <td>
-            <a href="{{ url_for('analysis.results', run_id=r.id) }}" class="btn btn-sm btn-outline-info">View</a>
+            <a href="{{ url_for('analysis.results', run_id=r.id) }}" class="btn btn-sm btn-outline-secondary py-0 px-2" style="font-size:0.72rem">View</a>
           </td>
         </tr>
         {% endfor %}

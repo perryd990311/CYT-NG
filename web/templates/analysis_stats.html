@@ -101,45 +101,57 @@
     <!-- Summary Stat Cards -->
     <div class="row g-2 mb-3">
       <div class="col-6">
-        <div class="card stat-card">
-          <div class="stat-icon"><i class="bi bi-phone"></i></div>
-          <span class="stat-value" style="color:var(--cyt-cyan);">{{ total_devices }}</span>
-          <span class="stat-label">Total Devices</span>
+        <div class="stat-card-sm">
+          <div class="d-flex align-items-center gap-2 mb-1">
+            <i class="bi bi-phone stat-icon" style="color:var(--cyt-cyan)"></i>
+            <span class="stat-label">Total Devices</span>
+          </div>
+          <div class="stat-value" style="color:var(--cyt-cyan)">{{ total_devices }}</div>
         </div>
       </div>
       <div class="col-6">
-        <div class="card stat-card">
-          <div class="stat-icon"><i class="bi bi-exclamation-triangle"></i></div>
-          <span class="stat-value" style="color:var(--cyt-red);">{{ persistent_devices }}</span>
-          <span class="stat-label">Persistent</span>
+        <div class="stat-card-sm">
+          <div class="d-flex align-items-center gap-2 mb-1">
+            <i class="bi bi-exclamation-triangle stat-icon" style="color:var(--cyt-red)"></i>
+            <span class="stat-label">Persistent</span>
+          </div>
+          <div class="stat-value" style="color:var(--cyt-red)">{{ persistent_devices }}</div>
         </div>
       </div>
       <div class="col-6">
-        <div class="card stat-card">
-          <div class="stat-icon"><i class="bi bi-shuffle"></i></div>
-          <span class="stat-value" style="color:var(--cyt-amber);">{{ randomization_pct }}%</span>
-          <span class="stat-label">Randomization</span>
+        <div class="stat-card-sm">
+          <div class="d-flex align-items-center gap-2 mb-1">
+            <i class="bi bi-shuffle stat-icon" style="color:var(--cyt-amber)"></i>
+            <span class="stat-label">Randomization</span>
+          </div>
+          <div class="stat-value" style="color:var(--cyt-amber)">{{ randomization_pct }}%</div>
         </div>
       </div>
       <div class="col-6">
-        <div class="card stat-card">
-          <div class="stat-icon"><i class="bi bi-fingerprint"></i></div>
-          <span class="stat-value" style="color:var(--cyt-purple);">{{ fingerprint_clusters }}</span>
-          <span class="stat-label">FP Clusters</span>
+        <div class="stat-card-sm">
+          <div class="d-flex align-items-center gap-2 mb-1">
+            <i class="bi bi-fingerprint stat-icon" style="color:var(--cyt-purple)"></i>
+            <span class="stat-label">FP Clusters</span>
+          </div>
+          <div class="stat-value" style="color:var(--cyt-purple)">{{ fingerprint_clusters }}</div>
         </div>
       </div>
       <div class="col-6">
-        <div class="card stat-card">
-          <div class="stat-icon"><i class="bi bi-wifi"></i></div>
-          <span class="stat-value" style="color:var(--cyt-blue);">{{ unique_ssids }}</span>
-          <span class="stat-label">Unique SSIDs</span>
+        <div class="stat-card-sm">
+          <div class="d-flex align-items-center gap-2 mb-1">
+            <i class="bi bi-wifi stat-icon" style="color:var(--cyt-blue)"></i>
+            <span class="stat-label">Unique SSIDs</span>
+          </div>
+          <div class="stat-value" style="color:var(--cyt-blue)">{{ unique_ssids }}</div>
         </div>
       </div>
       <div class="col-6">
-        <div class="card stat-card">
-          <div class="stat-icon"><i class="bi bi-arrow-repeat"></i></div>
-          <span class="stat-value" style="color:var(--cyt-green);">{{ avg_appearances }}</span>
-          <span class="stat-label">Avg Appearances</span>
+        <div class="stat-card-sm">
+          <div class="d-flex align-items-center gap-2 mb-1">
+            <i class="bi bi-arrow-repeat stat-icon" style="color:var(--cyt-green)"></i>
+            <span class="stat-label">Avg Appearances</span>
+          </div>
+          <div class="stat-value" style="color:var(--cyt-green)">{{ avg_appearances }}</div>
         </div>
       </div>
     </div>
@@ -165,20 +177,20 @@
       <div class="card-body" style="max-height:400px;overflow-y:auto">
         {% if cluster_info %}
         {% for c in cluster_info %}
-        <div style="background:var(--cyt-raised);border:1px solid var(--cyt-border);border-radius:0.5rem;padding:0.75rem;margin-bottom:0.5rem;">
+        <div class="cluster-item">
           <div class="d-flex justify-content-between align-items-start mb-1">
-            <span style="font-family:monospace;font-size:0.78rem;color:var(--cyt-cyan);">{{ c.canonical_mac }}</span>
+            <span class="cluster-id">{{ c.canonical_mac }}</span>
             <span class="badge" style="background:{% if c.mac_count >= 4 %}rgba(248,113,113,0.15);color:var(--cyt-red){% else %}rgba(251,191,36,0.15);color:var(--cyt-amber){% endif %};font-size:0.68rem">
               {{ 'High' if c.mac_count >= 4 else 'Medium' }}
             </span>
           </div>
-          <div style="font-size:0.72rem;color:var(--cyt-text-muted);" class="mb-2">
+          <div class="cluster-count mb-2">
             <i class="bi bi-diagram-3"></i> {{ c.mac_count }} MACs → 1 device &nbsp;·&nbsp;
             <span style="font-size:0.68rem;color:var(--cyt-text-dim);">{{ localtime(c.first_seen) }} – {{ localtime(c.last_seen) }}</span>
           </div>
           <div>
             {% for ssid in c.ssids %}
-            <span style="font-size:0.68rem;font-weight:500;padding:0.15em 0.5em;border-radius:0.3rem;display:inline-block;margin:1px 2px;background:rgba(34,211,238,0.1);color:var(--cyt-cyan);border:1px solid rgba(34,211,238,0.2);">{{ ssid }}</span>
+            <span class="ssid-tag" style="background:rgba(34,211,238,0.1);color:var(--cyt-cyan);border:1px solid rgba(34,211,238,0.2);">{{ ssid }}</span>
             {% endfor %}
           </div>
         </div>

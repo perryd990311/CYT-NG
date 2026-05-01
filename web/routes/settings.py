@@ -38,10 +38,13 @@ def require_login():
 
 def _read_ignore_list(path: Path) -> list:
     if path.is_file():
-        with open(path) as f:
-            data = json.load(f)
-            if isinstance(data, list):
-                return [m for m in data if isinstance(m, str)]
+        try:
+            with open(path) as f:
+                data = json.load(f)
+                if isinstance(data, list):
+                    return [m for m in data if isinstance(m, str)]
+        except (json.JSONDecodeError, OSError):
+            return []
     return []
 
 

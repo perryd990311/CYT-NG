@@ -16,7 +16,7 @@
     <div class="card stat-card">
       <div class="stat-icon"><i class="bi bi-activity"></i></div>
       <span class="stat-value" style="color:var(--cyt-green);">{{ active_devices }}</span>
-      <span class="stat-label">Active (5 min)</span>
+      <span class="stat-label">Active ({{ active_window_minutes }}min)</span>
     </div>
   </div>
   <div class="col-6 col-md-3">
@@ -68,8 +68,11 @@
     <div class="card mb-3">
       <div class="card-header"><i class="bi bi-activity"></i> Device Activity — Last 24 Hours</div>
       <div class="card-body">
-        <div style="height:140px;">
+        <div style="height:140px; position:relative;">
           <canvas id="sparklineChart"></canvas>
+          <div id="sparklineNoData" style="display:none; position:absolute; inset:0; align-items:center; justify-content:center; color:var(--cyt-text-muted); font-size:0.875rem;">
+            No activity data in the last 24 hours
+          </div>
         </div>
       </div>
     </div>
@@ -86,6 +89,7 @@
             </label>
           </div>
           {% endif %}
+          <a href="{{ url_for('devices.index') }}" style="font-size:0.78rem;text-decoration:none;color:var(--cyt-text-muted);">View all <i class="bi bi-arrow-right"></i></a>
           <span class="htmx-indicator spinner-border spinner-border-sm text-info"></span>
         </div>
       </div>
@@ -122,7 +126,10 @@
     </div>
 
     <div class="card mb-3">
-      <div class="card-header"><i class="bi bi-shield-exclamation"></i> Top Persistent Devices</div>
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-shield-exclamation"></i> Top Persistent Devices</span>
+        <a href="{{ url_for('analysis.index') }}" style="font-size:0.72rem;text-decoration:none;color:var(--cyt-text-muted)">Run Analysis</a>
+      </div>
       <div class="card-body p-0">
         {% if top_persistent %}
         <form method="post" action="{{ url_for('settings.baseline_add_selected') }}">
@@ -132,10 +139,17 @@
             <div class="list-group-item d-flex align-items-center py-2"
                  style="background:transparent; border-color:var(--cyt-border);">
               <input type="checkbox" class="form-check-input me-2 persistent-cb" name="selected_macs" value="{{ device.mac }}">
-              <a href="{{ url_for('devices.detail', mac=device.mac) }}" class="flex-grow-1 text-decoration-none"
-                 style="font-size:0.8rem; font-family:monospace; color:var(--cyt-cyan);">{{ device.mac }}</a>
-              <span class="badge {% if cnt >= 50 %}persistence-high{% elif cnt >= 20 %}persistence-medium{% else %}persistence-low{% endif %}"
-                    style="background:var(--cyt-raised); min-width:2.5rem; text-align:center;">{{ cnt }}</span>
+              <div class="flex-grow-1" style="min-width:0;">
+                <a href="{{ url_for('devices.detail', mac=device.mac) }}" class="text-decoration-none mac-addr"
+                   style="color:var(--cyt-cyan); font-size:0.78rem;">{{ device.mac }}</a>
+                <div style="font-size:0.7rem; color:var(--cyt-text-muted);">{{ cnt }} appearances</div>
+              </div>
+              <span class="badge ms-2" style="font-size:0.68rem;
+                {% if cnt >= 100 %}background:rgba(248,113,113,0.15);color:var(--cyt-red)
+                {% elif cnt >= 30 %}background:rgba(251,191,36,0.15);color:var(--cyt-amber)
+                {% else %}background:rgba(52,211,153,0.15);color:var(--cyt-green){% endif %}">
+                {% if cnt >= 100 %}High{% elif cnt >= 30 %}Medium{% else %}Low{% endif %}
+              </span>
             </div>
             {% endfor %}
           </div>
@@ -192,6 +206,17 @@
         const ctx = document.getElementById('sparklineChart');
         if (!ctx) return;
         if (sparkChart) sparkChart.destroy();
+
+        // Show empty-state message when no data in last 24h
+        const noDataEl = document.getElementById('sparklineNoData');
+        if (!data.data || data.data.length === 0) {
+          ctx.style.display = 'none';
+          if (noDataEl) noDataEl.style.display = 'flex';
+          return;
+        }
+        ctx.style.display = '';
+        if (noDataEl) noDataEl.style.display = 'none';
+
         // Convert UTC ISO labels to browser-local HH:MM
         const pad = n => n < 10 ? '0' + n : n;
         const localLabels = data.labels.map(iso => {
@@ -200,19 +225,16 @@
           return pad(dt.getHours()) + ':' + pad(dt.getMinutes());
         });
         sparkChart = new Chart(ctx, {
-          type: 'line',
+          type: 'bar',
           data: {
             labels: localLabels,
             datasets: [{
               label: 'Unique Devices',
               data: data.data,
+              backgroundColor: cyan + '40',
               borderColor: cyan,
-              backgroundColor: cyan + '22',
-              borderWidth: 2,
-              pointRadius: 3,
-              pointHoverRadius: 5,
-              tension: 0.3,
-              fill: true,
+              borderWidth: 1,
+              borderRadius: 3,
             }]
           },
           options: {

@@ -170,6 +170,7 @@ def _device_enrichment(db, devices):
             "span": span,
             "sensors": ", ".join(sorted(sensors.get(d.id, []))),
             "signal": sig_str,
+            "signal_raw": signals.get(d.id),
             "fingerprint": fp_info,
             "baseline": d.mac.upper() in baseline_macs,
             "notes": d.notes or "",

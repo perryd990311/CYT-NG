@@ -2,7 +2,7 @@
 
 from datetime import datetime, timedelta
 
-from flask import Blueprint, render_template, jsonify, request
+from flask import Blueprint, render_template, jsonify, request, current_app
 from sqlalchemy import func
 
 from web.extensions import get_db, socketio
@@ -33,12 +33,16 @@ def _is_htmx():
 def index():
     db = get_db()
     now = datetime.utcnow()
-    five_min_ago = now - timedelta(minutes=5)
+    # Active window: use check_interval from config (seconds) * 3 as the lookback,
+    # with a minimum of 5 minutes to account for ingestion lag and sync delays.
+    check_secs = current_app.config.get("TIMING", {}).get("check_interval", 60)
+    active_window_minutes = max(5, (check_secs * 3) // 60)
+    active_since = now - timedelta(minutes=active_window_minutes)
     show_ignored = request.args.get("show_ignored", "0") == "1"
     baseline_macs = get_baseline_macs()
 
     total_devices = db.query(Device).count()
-    active_devices = db.query(Device).filter(Device.last_seen >= five_min_ago).count()
+    active_devices = db.query(Device).filter(Device.last_seen >= active_since).count()
     total_appearances = db.query(Appearance).count()
     sensors_online = db.query(Sensor).filter(Sensor.status == "online").count()
     sensors_total = db.query(Sensor).count()
@@ -64,7 +68,7 @@ def index():
         .order_by(func.count(Appearance.id).desc())
     )
     if not show_ignored and baseline_macs:
-        top_q = top_q.filter(Device.mac.notin_(baseline_macs))
+        top_q = top_q.filter(func.upper(Device.mac).notin_(baseline_macs))
     top_persistent = top_q.limit(10).all()
 
     ignored_count = len(baseline_macs)
@@ -73,6 +77,7 @@ def index():
         "dashboard.html",
         total_devices=total_devices,
         active_devices=active_devices,
+        active_window_minutes=active_window_minutes,
         total_appearances=total_appearances,
         sensors_online=sensors_online,
         sensors_total=sensors_total,
@@ -158,7 +163,7 @@ def api_devices():
     if not show_ignored:
         baseline_macs = get_baseline_macs()
         if baseline_macs:
-            query = query.filter(Device.mac.notin_(baseline_macs))
+            query = query.filter(func.upper(Device.mac).notin_(baseline_macs))
 
     total = query.count()
     devices = query.order_by(Device.last_seen.desc()).offset(offset).limit(per_page).all()

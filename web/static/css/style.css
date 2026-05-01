@@ -399,6 +399,68 @@ a:hover { color: var(--cyt-brand); }
   background: var(--cyt-border-light);
 }
 
+/* ── Signal strength badges ────────────────────────────────── */
+.signal-badge {
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.15em 0.45em;
+  border-radius: 0.25rem;
+  display: inline-block;
+  white-space: nowrap;
+}
+.signal-excellent { background: rgba(52,211,153,0.12);  color: var(--cyt-green); }
+.signal-good      { background: rgba(96,165,250,0.12);  color: var(--cyt-blue); }
+.signal-fair      { background: rgba(34,211,238,0.12);  color: var(--cyt-cyan); }
+.signal-weak      { background: rgba(251,191,36,0.12);  color: var(--cyt-amber); }
+.signal-poor      { background: rgba(248,113,113,0.12); color: var(--cyt-red); }
+
+/* ── Baseline / ignored device rows ───────────────────────── */
+.row-ignored td { opacity: 0.45; }
+.row-suspicious { border-left: 3px solid var(--cyt-red) !important; }
+
+.baseline-badge {
+  font-size: 0.6rem;
+  font-weight: 600;
+  padding: 0.1em 0.4em;
+  border-radius: 3px;
+  background: rgba(107,135,168,0.15);
+  color: var(--cyt-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  vertical-align: middle;
+  margin-left: 0.25rem;
+}
+
+/* ── Compact stat card (sidebar use) ──────────────────────── */
+.stat-card-sm {
+  background: var(--cyt-surface);
+  border: 1px solid var(--cyt-border);
+  border-radius: 0.5rem;
+  padding: 0.75rem 0.9rem;
+  transition: border-color 0.15s;
+}
+.stat-card-sm:hover { border-color: var(--cyt-border-light); }
+.stat-card-sm .stat-icon { font-size: 1.1rem; opacity: 0.85; }
+.stat-card-sm .stat-value { font-size: 1.35rem; font-weight: 700; line-height: 1.2; }
+.stat-card-sm .stat-label { font-size: 0.7rem; color: var(--cyt-text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+
+/* ── Fingerprint cluster items ─────────────────────────────── */
+.cluster-item {
+  background: var(--cyt-raised);
+  border: 1px solid var(--cyt-border);
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+  margin-bottom: 0.5rem;
+  transition: border-color 0.15s;
+}
+.cluster-item:hover { border-color: var(--cyt-border-light); }
+.cluster-id {
+  font-family: 'JetBrains Mono', 'Consolas', monospace;
+  font-size: 0.78rem;
+  color: var(--cyt-cyan);
+}
+.cluster-count { font-size: 0.72rem; color: var(--cyt-text-muted); }
+
 /* ── HTMX loading indicator ───────────────────────────────── */
 .htmx-indicator {
   display: none;
