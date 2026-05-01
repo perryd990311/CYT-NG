@@ -119,7 +119,9 @@ def process_kismet_file(
             if signal_data:
                 signal_dbm = signal_data.get("kismet.common.signal.last_signal", None)
 
-            mac = row["devmac"] if "devmac" in row.keys() else "unknown"
+            # Strip Kismet PHY type suffix (e.g. "AA:BB:CC:DD:EE:FF/1" → "AA:BB:CC:DD:EE:FF")
+            raw_mac = row["devmac"] if "devmac" in row.keys() else "unknown"
+            mac = raw_mac.split("/")[0].strip().upper() if raw_mac != "unknown" else "unknown"
             first_time = row["first_time"] if "first_time" in row.keys() else 0
             last_time = row["last_time"] if "last_time" in row.keys() else 0
 

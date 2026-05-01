@@ -325,11 +325,15 @@ def baseline_add_selected():
     base = Path(current_app.root_path).parent
     mac_path = base / ignore_cfg.get("mac", "ignore_lists/maclist.json")
 
-    existing = set(m.upper() for m in _read_ignore_list(mac_path))
+    current_list = _read_ignore_list(mac_path)
+    existing = set(m.upper() for m in current_list)
+    new_list = list(current_list)
     added = 0
-    new_list = list(_read_ignore_list(mac_path))
     for mac in selected:
-        if InputValidator.validate_mac_address(mac) and mac.upper() not in existing:
+        if not InputValidator.validate_mac_address(mac):
+            flash(f"Invalid MAC skipped: {mac}", "warning")
+            continue
+        if mac.upper() not in existing:
             new_list.append(mac.upper())
             existing.add(mac.upper())
             added += 1
