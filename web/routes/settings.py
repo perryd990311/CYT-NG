@@ -126,22 +126,87 @@ def ignore_lists():
     db = get_db()
     total_devices = db.query(Device).count()
 
-    # Build enrichment: manufacturer + friendly name for each ignored MAC
+    # Build enrichment: manufacturer, appearances, probed SSIDs, foreign likelihood score
     mac_upper_set = {m.upper() for m in mac_list if isinstance(m, str)}
     mac_info = []
     if mac_upper_set:
         devices_in_baseline = db.query(Device).filter(Device.mac.in_(mac_upper_set)).all()
         device_map = {d.mac.upper(): d for d in devices_in_baseline}
+
+        # Fetch appearance counts and all probed SSIDs per device in one query
+        from cyt.models import Appearance
+        from sqlalchemy import func
+        appearance_rows = (
+            db.query(Appearance.device_id, func.count(Appearance.id), Appearance.ssids_json)
+            .filter(Appearance.device_id.in_([d.id for d in devices_in_baseline]))
+            .all()
+        )
+        # Aggregate per device_id
+        device_id_to_count = {}
+        device_id_to_ssids = {}
+        for row in appearance_rows:
+            did, _cnt, ssids_json = row
+            device_id_to_count[did] = device_id_to_count.get(did, 0) + 1
+            if ssids_json:
+                try:
+                    import json as _json
+                    for s in _json.loads(ssids_json):
+                        if s and s.strip():
+                            device_id_to_ssids.setdefault(did, set()).add(s.strip())
+                except Exception:
+                    pass
+
         for mac in mac_list:
             d = device_map.get(mac.upper())
-            mac_info.append(
-                {
-                    "mac": mac,
-                    "manufacturer": d.manufacturer if d else "",
-                    "device_type": d.device_type if d else "",
-                    "last_seen": d.last_seen if d else None,
-                }
-            )
+            if d:
+                app_count = device_id_to_count.get(d.id, 0)
+                probed = sorted(device_id_to_ssids.get(d.id, set()))
+                mfr = d.manufacturer or ""
+                is_rand = bool(d.is_randomized)
+
+                # Foreign likelihood score (0-100)
+                score = 0
+                if app_count >= 50:
+                    score += 40
+                elif app_count >= 10:
+                    score += 20
+                elif app_count >= 3:
+                    score += 10
+                if probed:
+                    score += 25
+                if is_rand:
+                    score += 20
+                if not mfr:
+                    score += 15
+
+                if score >= 70:
+                    likelihood = "High"
+                    likelihood_cls = "danger"
+                elif score >= 35:
+                    likelihood = "Medium"
+                    likelihood_cls = "warning"
+                else:
+                    likelihood = "Low"
+                    likelihood_cls = "success"
+            else:
+                app_count = 0
+                probed = []
+                is_rand = False
+                mfr = ""
+                likelihood = "Unknown"
+                likelihood_cls = "secondary"
+
+            mac_info.append({
+                "mac": mac,
+                "manufacturer": mfr,
+                "device_type": d.device_type if d else "",
+                "last_seen": d.last_seen if d else None,
+                "appearances": app_count,
+                "probed_ssids": probed,
+                "is_randomized": is_rand,
+                "likelihood": likelihood,
+                "likelihood_cls": likelihood_cls,
+            })
     else:
         mac_info = []
 

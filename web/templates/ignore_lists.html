@@ -79,7 +79,9 @@
                   </th>
                   <th>MAC Address</th>
                   <th>Manufacturer</th>
-                  <th>Type</th>
+                  <th class="text-center">Appearances</th>
+                  <th>Probed SSIDs</th>
+                  <th class="text-center">Suspicious</th>
                   <th>Last Seen</th>
                   <th style="width: 60px;"></th>
                 </tr>
@@ -91,9 +93,26 @@
                     <input type="checkbox" class="form-check-input mac-select-cb"
                            name="selected_macs" value="{{ info.mac }}">
                   </td>
-                  <td class="font-monospace small">{{ info.mac }}</td>
+                  <td class="font-monospace small">{{ info.mac }}
+                    {% if info.is_randomized %}<span class="badge bg-warning bg-opacity-25 text-warning ms-1" style="font-size:0.6rem;">R</span>{% endif %}
+                  </td>
                   <td class="small">{{ info.manufacturer or '—' }}</td>
-                  <td class="small">{{ info.device_type or '—' }}</td>
+                  <td class="text-center small">{{ info.appearances }}</td>
+                  <td class="small">
+                    {% if info.probed_ssids %}
+                    <span title="{{ info.probed_ssids | join(', ') }}" style="cursor:help;">
+                      <i class="bi bi-wifi" style="color:var(--cyt-cyan);"></i>
+                      {{ info.probed_ssids | length }} SSID{{ 's' if info.probed_ssids | length != 1 else '' }}
+                    </span>
+                    {% else %}
+                    <span style="color:var(--cyt-text-dim);">—</span>
+                    {% endif %}
+                  </td>
+                  <td class="text-center">
+                    <span class="badge bg-{{ info.likelihood_cls }} bg-opacity-25 text-{{ info.likelihood_cls }}" style="font-size:0.68rem;">
+                      {{ info.likelihood }}
+                    </span>
+                  </td>
                   <td class="small">{{ localtime(info.last_seen) }}</td>
                   <td class="text-end">
                     <button type="button" class="btn btn-sm btn-outline-danger py-0 px-1 btn-mac-remove"

@@ -71,6 +71,49 @@ def index():
         top_q = top_q.filter(func.upper(Device.mac).notin_(baseline_macs))
     top_persistent = top_q.limit(10).all()
 
+    # Enrich top persistent with probed SSIDs and suspicious likelihood
+    top_enriched = []
+    for device, cnt in top_persistent:
+        app_rows = db.query(Appearance.ssids_json).filter(Appearance.device_id == device.id).all()
+        probed = set()
+        for (ssids_json,) in app_rows:
+            if ssids_json:
+                try:
+                    import json as _json
+                    for s in _json.loads(ssids_json):
+                        if s and s.strip():
+                            probed.add(s.strip())
+                except Exception:
+                    pass
+        mfr = device.manufacturer or ""
+        is_rand = bool(device.is_randomized)
+        score = 0
+        if cnt >= 50:
+            score += 40
+        elif cnt >= 10:
+            score += 20
+        elif cnt >= 3:
+            score += 10
+        if probed:
+            score += 25
+        if is_rand:
+            score += 20
+        if not mfr:
+            score += 15
+        if score >= 70:
+            likelihood, likelihood_cls = "High", "danger"
+        elif score >= 35:
+            likelihood, likelihood_cls = "Medium", "warning"
+        else:
+            likelihood, likelihood_cls = "Low", "success"
+        top_enriched.append({
+            "device": device,
+            "cnt": cnt,
+            "probed_ssids": sorted(probed),
+            "likelihood": likelihood,
+            "likelihood_cls": likelihood_cls,
+        })
+
     ignored_count = len(baseline_macs)
 
     return render_template(
@@ -85,7 +128,7 @@ def index():
         new_24h=new_24h,
         probes_24h=probes_24h,
         recurring_24h=recurring_24h,
-        top_persistent=top_persistent,
+        top_persistent=top_enriched,
         show_ignored=show_ignored,
         ignored_count=ignored_count,
     )

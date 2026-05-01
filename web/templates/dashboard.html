@@ -135,20 +135,22 @@
         <form method="post" action="{{ url_for('settings.baseline_add_selected') }}">
           <input type="hidden" name="redirect" value="{{ url_for('dashboard.index') }}">
           <div class="list-group list-group-flush">
-            {% for device, cnt in top_persistent %}
+            {% for item in top_persistent %}
             <div class="list-group-item d-flex align-items-center py-2"
                  style="background:transparent; border-color:var(--cyt-border);">
-              <input type="checkbox" class="form-check-input me-2 persistent-cb" name="selected_macs" value="{{ device.mac }}">
+              <input type="checkbox" class="form-check-input me-2 persistent-cb" name="selected_macs" value="{{ item.device.mac }}">
               <div class="flex-grow-1" style="min-width:0;">
-                <a href="{{ url_for('devices.detail', mac=device.mac) }}" class="text-decoration-none mac-addr"
-                   style="color:var(--cyt-cyan); font-size:0.78rem;">{{ device.mac }}</a>
-                <div style="font-size:0.7rem; color:var(--cyt-text-muted);">{{ cnt }} appearances</div>
+                <a href="{{ url_for('devices.detail', mac=item.device.mac) }}" class="text-decoration-none mac-addr"
+                   style="color:var(--cyt-cyan); font-size:0.78rem;">{{ item.device.mac }}</a>
+                <div style="font-size:0.7rem; color:var(--cyt-text-muted);">
+                  {{ item.cnt }} appearances
+                  {% if item.probed_ssids %}
+                  &middot; <i class="bi bi-wifi"></i> {{ item.probed_ssids | length }} SSID{{ 's' if item.probed_ssids | length != 1 else '' }}
+                  {% endif %}
+                </div>
               </div>
-              <span class="badge ms-2" style="font-size:0.68rem;
-                {% if cnt >= 100 %}background:rgba(248,113,113,0.15);color:var(--cyt-red)
-                {% elif cnt >= 30 %}background:rgba(251,191,36,0.15);color:var(--cyt-amber)
-                {% else %}background:rgba(52,211,153,0.15);color:var(--cyt-green){% endif %}">
-                {% if cnt >= 100 %}High{% elif cnt >= 30 %}Medium{% else %}Low{% endif %}
+              <span class="badge bg-{{ item.likelihood_cls }} bg-opacity-25 text-{{ item.likelihood_cls }} ms-2" style="font-size:0.68rem;">
+                {{ item.likelihood }}
               </span>
             </div>
             {% endfor %}
