@@ -57,19 +57,11 @@ def _write_ignore_list(path: Path, data: list) -> None:
 
 def get_baseline_macs():
     """Return a set of upper-cased MACs from the ignore list. Importable by other routes."""
-    mac_list_path = os.environ.get("IGNORE_LISTS", "ignore_lists") + "/maclist.json"
-    try:
-        with open(mac_list_path) as f:
-            data = json.load(f)
-            if isinstance(data, dict):
-                items = data.get("macs", [])
-            elif isinstance(data, list):
-                items = data
-            else:
-                items = []
-            return {m.upper() for m in items if isinstance(m, str)}
-    except (FileNotFoundError, json.JSONDecodeError, TypeError):
-        return set()
+    from flask import current_app
+    ignore_cfg = current_app.config.get("IGNORE_LISTS", {})
+    base = Path(current_app.root_path).parent
+    mac_path = base / ignore_cfg.get("mac", "ignore_lists/mac_list.json")
+    return {m.upper() for m in _read_ignore_list(mac_path)}
 
 
 @bp.route("/")
