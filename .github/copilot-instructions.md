@@ -34,6 +34,19 @@ legacy/     # Archived Tkinter GUI (do not import from here)
 - Docker containers run as non-root
 - Nginx enforces HSTS, X-Content-Type-Options, X-Frame-Options, CSP
 
+## UI/UX Conventions
+- All data tables must have **sortable columns** (click header to sort asc/desc)
+- Tables with more than ~20 rows must support **pagination** or **virtual scroll**
+- Tables must support **search/filter** where practical
+- Use consistent column alignment: numbers right-aligned, text left-aligned, badges/status centered
+- Empty states must show a helpful message with an action (e.g. "No devices yet. Run Analysis →")
+- Flash messages must distinguish success/warning/error with appropriate styling
+- All timestamps displayed in the browser's **local timezone** (use `localtime` macro)
+- Interactive elements must have **loading indicators** (HTMX `hx-indicator` or spinner)
+- MAC addresses use `font-monospace` styling throughout
+- Badge colors follow the theme: danger=red, warning=amber, success=green, info=cyan
+- Mockups in `web/mockup/` are the design reference — production templates should match them
+
 ## Agent Work Tracking (BMAD)
 All agent work is tracked in `.github/agent-work/` using a BMAD-inspired workflow:
 

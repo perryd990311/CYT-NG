@@ -15,6 +15,8 @@ from flask import (
 )
 from flask_login import login_required
 
+from cyt.scoring import compute_likelihood
+
 bp = Blueprint("settings", __name__, url_prefix="/settings")
 
 # Baked-in default config (may be read-only in Docker)
@@ -164,30 +166,12 @@ def ignore_lists():
                 mfr = d.manufacturer or ""
                 is_rand = bool(d.is_randomized)
 
-                # Foreign likelihood score (0-100)
-                score = 0
-                if app_count >= 50:
-                    score += 40
-                elif app_count >= 10:
-                    score += 20
-                elif app_count >= 3:
-                    score += 10
-                if probed:
-                    score += 25
-                if is_rand:
-                    score += 20
-                if not mfr:
-                    score += 15
-
-                if score >= 70:
-                    likelihood = "High"
-                    likelihood_cls = "danger"
-                elif score >= 35:
-                    likelihood = "Medium"
-                    likelihood_cls = "warning"
-                else:
-                    likelihood = "Low"
-                    likelihood_cls = "success"
+                _score, likelihood, likelihood_cls = compute_likelihood(
+                    appearances=app_count,
+                    probed_ssids=probed,
+                    is_randomized=is_rand,
+                    manufacturer=mfr,
+                )
             else:
                 app_count = 0
                 probed = []

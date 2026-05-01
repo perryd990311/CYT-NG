@@ -11,6 +11,7 @@ from sqlalchemy import func
 from web.extensions import get_db
 from cyt.models import Device, Appearance, Sensor
 from cyt.input_validation import InputValidator
+from cyt.scoring import compute_likelihood
 
 bp = Blueprint("devices", __name__, url_prefix="/devices")
 
@@ -109,22 +110,12 @@ def _device_enrichment(db, devices):
         sensors[did].append(sname)
 
     # Baseline MAC list
-    import os
+    from web.routes.settings import get_baseline_macs
 
-    baseline_macs = set()
-    mac_list_path = os.environ.get("IGNORE_LISTS", "ignore_lists") + "/maclist.json"
-    try:
-        with open(mac_list_path) as f:
-            data = json.load(f)
-            if isinstance(data, dict):
-                items = data.get("macs", [])
-            elif isinstance(data, list):
-                items = data
-            else:
-                items = []
-            baseline_macs = {m.upper() for m in items if isinstance(m, str)}
-    except (FileNotFoundError, json.JSONDecodeError, TypeError):
-        pass
+    baseline_macs = get_baseline_macs()
+
+    # Probed SSIDs per device (for scoring)
+    ssid_sets = _device_ssid_sets(db, device_ids)
 
     result = {}
     for d in devices:
@@ -175,6 +166,16 @@ def _device_enrichment(db, devices):
             "baseline": d.mac.upper() in baseline_macs,
             "notes": d.notes or "",
         }
+
+        # Likelihood scoring
+        _score, likelihood, likelihood_cls = compute_likelihood(
+            appearances=counts.get(d.id, 0),
+            probed_ssids=ssid_sets.get(d.id, []),
+            is_randomized=bool(d.is_randomized),
+            manufacturer=d.manufacturer or "",
+        )
+        result[d.id]["likelihood"] = likelihood
+        result[d.id]["likelihood_cls"] = likelihood_cls
     return result
 
 

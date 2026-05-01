@@ -7,6 +7,7 @@ from sqlalchemy import func
 
 from web.extensions import get_db, socketio
 from cyt.models import Device, Appearance, Sensor, AnalysisRun, KismetFileTracker
+from cyt.scoring import compute_likelihood
 from web.routes.settings import get_baseline_macs
 
 bp = Blueprint("dashboard", __name__)
@@ -85,27 +86,12 @@ def index():
                             probed.add(s.strip())
                 except Exception:
                     pass
-        mfr = device.manufacturer or ""
-        is_rand = bool(device.is_randomized)
-        score = 0
-        if cnt >= 50:
-            score += 40
-        elif cnt >= 10:
-            score += 20
-        elif cnt >= 3:
-            score += 10
-        if probed:
-            score += 25
-        if is_rand:
-            score += 20
-        if not mfr:
-            score += 15
-        if score >= 70:
-            likelihood, likelihood_cls = "High", "danger"
-        elif score >= 35:
-            likelihood, likelihood_cls = "Medium", "warning"
-        else:
-            likelihood, likelihood_cls = "Low", "success"
+        _score, likelihood, likelihood_cls = compute_likelihood(
+            appearances=cnt,
+            probed_ssids=probed,
+            is_randomized=bool(device.is_randomized),
+            manufacturer=device.manufacturer or "",
+        )
         top_enriched.append({
             "device": device,
             "cnt": cnt,
