@@ -22,7 +22,7 @@ jobs:
 
       - uses: actions/setup-python@v6
         with:
-          python-version: "3.12"
+          python-version: "3.13"
 
       - name: Install dependencies
         run: pip install --no-cache-dir -r requirements.txt black flake8
@@ -66,7 +66,7 @@ jobs:
           load: true
 
       - name: Run Trivy scan on cyt-base
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: cyt-base:ci
           format: sarif
@@ -95,7 +95,7 @@ jobs:
         run: docker build -f docker/Dockerfile --build-arg REPO_PREFIX= -t cyt-web:ci .
 
       - name: Run Trivy scan on cyt-web
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: cyt-web:ci
           format: sarif
@@ -131,7 +131,7 @@ jobs:
           load: true
 
       - name: Run Trivy scan on cyt-nginx
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: cyt-nginx:ci
           format: sarif

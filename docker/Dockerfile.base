@@ -8,7 +8,7 @@
 # After rebuilding the base, rebuild the app:
 #   /usr/local/bin/docker compose build --no-cache cyt-web
 
-FROM python:3.12-slim
+FROM python:3.13-slim
 
 # Path prefix: "repo/" on NAS (context is parent dir), empty in CI (context is repo root)
 ARG REPO_PREFIX=repo/
