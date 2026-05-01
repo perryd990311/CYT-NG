@@ -23,5 +23,6 @@ web/mockup/
 
 # Agent instructions — contain deployment-specific details
 .github/agents/
+.github/agent-work/
 
 cyt_data.db
