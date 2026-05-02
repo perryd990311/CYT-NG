@@ -57,12 +57,12 @@
       </div>
       <div class="card-body p-0">
         {% if top_ssids %}
-        <table class="table table-striped table-hover mb-0" style="font-size:0.84rem">
+        <table class="table table-striped table-hover mb-0" style="font-size:0.84rem" data-sortable>
           <thead>
             <tr>
               <th style="width:50px">#</th>
-              <th>SSID</th>
-              <th class="text-end">Devices</th>
+              <th data-sort="text">SSID</th>
+              <th class="text-end" data-sort="number">Devices</th>
             </tr>
           </thead>
           <tbody>

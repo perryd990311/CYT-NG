@@ -30,15 +30,15 @@
   </div>
   <div class="card-body p-0">
     {% if runs %}
-    <table class="table table-striped table-hover mb-0">
+    <table class="table table-striped table-hover mb-0" data-sortable>
       <thead>
         <tr>
-          <th style="width:3rem">#</th>
-          <th>Started</th>
-          <th>Trigger</th>
-          <th class="text-end">Devices</th>
-          <th class="text-center">Persistent</th>
-          <th class="text-center">Status</th>
+          <th style="width:3rem" data-sort="number">#</th>
+          <th data-sort="date">Started</th>
+          <th data-sort="text">Trigger</th>
+          <th class="text-end" data-sort="number">Devices</th>
+          <th class="text-center" data-sort="number">Persistent</th>
+          <th class="text-center" data-sort="text">Status</th>
           <th style="width:4rem"></th>
         </tr>
       </thead>
@@ -46,7 +46,7 @@
         {% for r in runs %}
         <tr {% if loop.first %}style="border-left:3px solid var(--cyt-cyan)"{% endif %}>
           <td {% if loop.first %}class="fw-semibold" style="color:var(--cyt-cyan)"{% endif %}>{{ r.id }}</td>
-          <td>{{ localtime(r.started_at) }}</td>
+          <td data-sort-value="{{ r.started_at.isoformat() if r.started_at else '' }}">{{ localtime(r.started_at) }}</td>
           <td>
             {% if r.trigger == 'manual' %}
             <span class="badge" style="background:rgba(96,165,250,0.15);color:var(--cyt-blue);font-size:0.7rem">manual</span>
@@ -55,7 +55,7 @@
             {% endif %}
           </td>
           <td class="text-end fw-semibold">{{ r.devices_analyzed }}</td>
-          <td class="text-center">
+          <td class="text-center" data-sort-value="{{ r.persistent_devices or 0 }}">
             {% if r.persistent_devices %}
             <span class="badge bg-danger bg-opacity-25 text-danger">{{ r.persistent_devices }}</span>
             {% else %}

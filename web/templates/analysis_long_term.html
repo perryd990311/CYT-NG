@@ -34,19 +34,19 @@
       </div>
     </div>
     <div class="card-body p-0">
-      <table class="table table-striped table-hover mb-0">
+      <table class="table table-striped table-hover mb-0" data-sortable>
         <thead>
           <tr>
             <th style="width:2.5rem;">
               <input type="checkbox" id="check-all" onchange="toggleAll(this)">
             </th>
-            <th>Device</th>
-            <th>Manufacturer</th>
-            <th>Type</th>
-            <th>Days Seen</th>
-            <th>Appearances</th>
-            <th>First Seen</th>
-            <th>Last Seen</th>
+            <th data-sort="text">Device</th>
+            <th data-sort="text">Manufacturer</th>
+            <th data-sort="text">Type</th>
+            <th data-sort="number">Days Seen</th>
+            <th data-sort="number">Appearances</th>
+            <th data-sort="date">First Seen</th>
+            <th data-sort="date">Last Seen</th>
           </tr>
         </thead>
         <tbody>
@@ -66,15 +66,15 @@
             </td>
             <td>{{ d.manufacturer or '—' }}</td>
             <td>{{ d.device_type or '—' }}</td>
-            <td>
+            <td data-sort-value="{{ entry.days_seen }}">
               <span class="badge {% if entry.days_seen >= 7 %}persistence-high{% elif entry.days_seen >= 3 %}persistence-medium{% else %}persistence-low{% endif %}"
                     style="background:var(--cyt-raised); min-width:3rem; text-align:center;">
                 {{ entry.days_seen }}d
               </span>
             </td>
             <td>{{ entry.appearances }}</td>
-            <td>{{ localtime(d.first_seen) }}</td>
-            <td>{{ localtime(d.last_seen) }}</td>
+            <td data-sort-value="{{ d.first_seen.isoformat() if d.first_seen else '' }}">{{ localtime(d.first_seen) }}</td>
+            <td data-sort-value="{{ d.last_seen.isoformat() if d.last_seen else '' }}">{{ localtime(d.last_seen) }}</td>
           </tr>
           {% endfor %}
         </tbody>

@@ -20,13 +20,13 @@
 <div class="card">
   <div class="card-body p-0">
     {% if ssids %}
-    <table class="table table-striped table-hover mb-0">
+    <table class="table table-striped table-hover mb-0" data-sortable>
       <thead>
         <tr>
-          <th>SSID</th>
-          <th>Devices</th>
-          <th>Probes</th>
-          <th>Last Seen</th>
+          <th data-sort="text">SSID</th>
+          <th data-sort="number">Devices</th>
+          <th data-sort="number">Probes</th>
+          <th data-sort="date">Last Seen</th>
         </tr>
       </thead>
       <tbody>
@@ -40,7 +40,7 @@
             <span class="badge" style="background:var(--cyt-raised); color:var(--cyt-text);">{{ s.device_count }}</span>
           </td>
           <td>{{ s.probe_count }}</td>
-          <td>{{ localtime(s.last_seen) }}</td>
+          <td data-sort-value="{{ s.last_seen.isoformat() if s.last_seen else '' }}">{{ localtime(s.last_seen) }}</td>
         </tr>
         {% endfor %}
       </tbody>

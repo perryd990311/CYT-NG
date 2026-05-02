@@ -70,19 +70,19 @@
         {% if mac_info %}
         <form id="mac-select-form" method="post" action="{{ url_for('settings.baseline_remove_selected') }}">
           <div style="max-height: 420px; overflow-y: auto;">
-            <table class="table table-sm table-hover mb-0">
+            <table class="table table-sm table-hover mb-0" data-sortable>
               <thead style="position: sticky; top: 0; background: var(--cyt-raised); z-index: 1;">
                 <tr>
                   <th style="width: 40px;">
                     <input type="checkbox" id="select-all-mac" class="form-check-input"
                            title="Select all">
                   </th>
-                  <th>MAC Address</th>
-                  <th>Manufacturer</th>
-                  <th class="text-center">Appearances</th>
-                  <th>Probed SSIDs</th>
+                  <th data-sort="text">MAC Address</th>
+                  <th data-sort="text">Manufacturer</th>
+                  <th class="text-center" data-sort="number">Appearances</th>
+                  <th data-sort="number">Probed SSIDs</th>
                   <th class="text-center">Suspicious</th>
-                  <th>Last Seen</th>
+                  <th data-sort="date">Last Seen</th>
                   <th style="width: 60px;"></th>
                 </tr>
               </thead>
@@ -113,7 +113,7 @@
                       {{ info.likelihood }}
                     </span>
                   </td>
-                  <td class="small">{{ localtime(info.last_seen) }}</td>
+                  <td class="small" data-sort-value="{{ info.last_seen.isoformat() if info.last_seen else '' }}">{{ localtime(info.last_seen) }}</td>
                   <td class="text-end">
                     <button type="button" class="btn btn-sm btn-outline-danger py-0 px-1 btn-mac-remove"
                             data-mac="{{ info.mac }}" title="Remove">

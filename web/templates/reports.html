@@ -13,14 +13,14 @@
 
 {% if runs %}
 <div class="table-responsive">
-    <table class="table table-striped table-hover align-middle">
+    <table class="table table-striped table-hover align-middle" data-sortable>
         <thead>
             <tr>
-                <th>Run&nbsp;ID</th>
-                <th>Date</th>
-                <th>Devices</th>
-                <th>Persistent</th>
-                <th>Duration</th>
+                <th data-sort="number">Run&nbsp;ID</th>
+                <th data-sort="date">Date</th>
+                <th data-sort="number">Devices</th>
+                <th data-sort="number">Persistent</th>
+                <th data-sort="number">Duration</th>
                 <th class="text-end">Downloads</th>
             </tr>
         </thead>
@@ -28,9 +28,9 @@
             {% for run in runs %}
             <tr>
                 <td>#{{ run.id }}</td>
-                <td>{{ localtime(run.started_at) }}</td>
-                <td>{{ run.devices_analyzed or '—' }}</td>
-                <td>
+                <td data-sort-value="{{ run.started_at.isoformat() if run.started_at else '' }}">{{ localtime(run.started_at) }}</td>
+                <td data-sort-value="{{ run.devices_analyzed if run.devices_analyzed is not none else -1 }}">{{ run.devices_analyzed or '—' }}</td>
+                <td data-sort-value="{{ run.persistent_devices if run.persistent_devices is not none else -1 }}">
                     {% if run.persistent_devices is not none %}
                     <span class="badge bg-{{ 'danger' if run.persistent_devices > 0 else 'success' }}">
                         {{ run.persistent_devices }}
@@ -39,7 +39,7 @@
                     —
                     {% endif %}
                 </td>
-                <td>
+                <td data-sort-value="{{ (run.finished_at - run.started_at).total_seconds() | int if run.started_at and run.finished_at else -1 }}">
                     {% if run.started_at and run.finished_at %}
                         {{ (run.finished_at - run.started_at).total_seconds() | int }}s
                     {% else %}

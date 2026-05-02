@@ -66,14 +66,14 @@
       </div>
       <div class="card-body p-0">
         {% if top_devices %}
-        <table class="table table-striped table-hover mb-0">
+        <table class="table table-striped table-hover mb-0" data-sortable>
           <thead>
             <tr>
-              <th>MAC</th>
-              <th>Manufacturer</th>
-              <th>Appearances</th>
-              <th>First Seen</th>
-              <th>Last Seen</th>
+              <th data-sort="text">MAC</th>
+              <th data-sort="text">Manufacturer</th>
+              <th data-sort="number">Appearances</th>
+              <th data-sort="date">First Seen</th>
+              <th data-sort="date">Last Seen</th>
             </tr>
           </thead>
           <tbody>
@@ -89,8 +89,8 @@
               <td>
                 <strong{% if d.count >= 50 %} class="persistence-high"{% elif d.count >= 20 %} class="persistence-medium"{% else %} class="persistence-low"{% endif %}>{{ d.count }}</strong>
               </td>
-              <td>{{ localtime(d.first) }}</td>
-              <td>{{ localtime(d.last) }}</td>
+              <td data-sort-value="{{ d.first.isoformat() if d.first else '' }}">{{ localtime(d.first) }}</td>
+              <td data-sort-value="{{ d.last.isoformat() if d.last else '' }}">{{ localtime(d.last) }}</td>
             </tr>
             {% endfor %}
           </tbody>
