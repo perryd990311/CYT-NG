@@ -380,6 +380,14 @@ def stats():
             pool = json.loads(fp.ssids_json) if fp.ssids_json else []
         except (json.JSONDecodeError, TypeError):
             pool = []
+        # Confidence: same formula as clusters page
+        ssid_count = len(pool)
+        if mac_count >= 4 and ssid_count >= 5:
+            confidence, conf_cls = "High", "danger"
+        elif mac_count >= 3 and ssid_count >= 3:
+            confidence, conf_cls = "Medium", "warning"
+        else:
+            confidence, conf_cls = "Low", "success"
         cluster_info.append(
             {
                 "canonical_mac": fp.canonical_mac,
@@ -388,6 +396,8 @@ def stats():
                 "first_seen": fp.first_seen,
                 "last_seen": fp.last_seen,
                 "appearances": fp.appearance_count,
+                "confidence": confidence,
+                "conf_cls": conf_cls,
             }
         )
 

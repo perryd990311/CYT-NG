@@ -183,8 +183,8 @@
         <div class="cluster-item">
           <div class="d-flex justify-content-between align-items-start mb-1">
             <span class="cluster-id">{{ c.canonical_mac }}</span>
-            <span class="badge" style="background:{% if c.mac_count >= 4 %}rgba(248,113,113,0.15);color:var(--cyt-red){% else %}rgba(251,191,36,0.15);color:var(--cyt-amber){% endif %};font-size:0.68rem">
-              {{ 'High' if c.mac_count >= 4 else 'Medium' }}
+            <span class="badge bg-{{ c.conf_cls }} bg-opacity-25 text-{{ c.conf_cls }}" style="font-size:0.68rem">
+              {{ c.confidence }}
             </span>
           </div>
           <div class="cluster-count mb-2">
