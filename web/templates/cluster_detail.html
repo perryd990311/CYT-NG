@@ -73,8 +73,8 @@
           <thead>
             <tr>
               <th data-sort="text">MAC Address</th>
+              <th data-sort="text">Manufacturer</th>
               <th data-sort="number">Appearances</th>
-              <th data-sort="date">First Seen</th>
               <th data-sort="date">Last Seen</th>
               <th data-sort="number">SSIDs</th>
               <th></th>
@@ -89,8 +89,8 @@
                 <span class="badge bg-warning bg-opacity-25 text-warning ms-1" style="font-size:0.6rem;">R</span>
                 {% endif %}
               </td>
+              <td>{{ d.manufacturer }}</td>
               <td><strong>{{ d.appearances }}</strong></td>
-              <td data-sort-value="{{ d.first_seen.isoformat() if d.first_seen else '' }}">{{ localtime(d.first_seen) }}</td>
               <td data-sort-value="{{ d.last_seen.isoformat() if d.last_seen else '' }}">{{ localtime(d.last_seen) }}</td>
               <td>{{ d.ssid_count }}</td>
               <td class="text-end">

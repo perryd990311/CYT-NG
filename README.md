@@ -88,6 +88,17 @@ One-click analysis runs SSID fingerprinting with configurable Jaccard thresholds
 
 ![Analysis](docs/images/analysis.png)
 
+### Fingerprint Clusters
+
+Modern devices rotate their MAC address every session, making them appear as dozens of different devices. CYT-NG defeats this by analyzing probe request patterns — devices that probe for the same saved networks are grouped into clusters, each representing one physical device.
+
+- Browse all clusters with MAC count, shared SSIDs, confidence level, and manufacturer
+- Drill into any cluster to see every MAC address, appearance timeline, and sensor coverage
+- Cluster badges appear inline on the Dashboard and Devices pages so you always know which MACs are related
+- Common SSIDs (probed by too many devices) are automatically excluded to prevent false groupings
+
+![Fingerprint Clusters](docs/images/clusters.png)
+
 ### Statistics Dashboard
 
 Eight interactive panels covering hourly activity patterns, new device trends, top probed SSIDs, signal strength distribution, fingerprint clusters, dwell time analysis, and multi-sensor coverage overlap.

@@ -41,7 +41,7 @@
           <th data-sort="number">MACs</th>
           <th data-sort="number">Shared SSIDs</th>
           <th data-sort="number">Confidence</th>
-          <th data-sort="date">First Seen</th>
+          <th data-sort="text">Manufacturer</th>
           <th data-sort="date">Last Seen</th>
           <th>Sample SSIDs</th>
           <th></th>
@@ -58,7 +58,7 @@
           <td data-sort-value="{{ c.conf_sort }}">
             <span class="badge bg-{{ c.conf_cls }} bg-opacity-25 text-{{ c.conf_cls }}">{{ c.confidence }}</span>
           </td>
-          <td data-sort-value="{{ c.first_seen.isoformat() if c.first_seen else '' }}">{{ localtime(c.first_seen) }}</td>
+          <td>{{ c.manufacturer }}</td>
           <td data-sort-value="{{ c.last_seen.isoformat() if c.last_seen else '' }}">{{ localtime(c.last_seen) }}</td>
           <td>
             {% for ssid in c.sample_ssids %}

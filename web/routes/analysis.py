@@ -502,9 +502,17 @@ def clusters():
         .all()
     )
 
+    # Get canonical device manufacturer for each fingerprint
+    canonical_macs = [fp.canonical_mac for fp in all_fps]
+    canonical_devices = {}
+    if canonical_macs:
+        for dev in db.query(Device).filter(Device.mac.in_(canonical_macs)).all():
+            canonical_devices[dev.mac] = dev.manufacturer or "Unknown"
+
     cluster_list = []
     for fp in all_fps:
         mac_count = mac_count_map.get(fp.id, 0)
+        manufacturer = canonical_devices.get(fp.canonical_mac, "Unknown")
         try:
             pool = json.loads(fp.ssids_json) if fp.ssids_json else []
         except (json.JSONDecodeError, TypeError):
@@ -531,6 +539,7 @@ def clusters():
             "first_seen": fp.first_seen,
             "last_seen": fp.last_seen,
             "appearances": fp.appearance_count or 0,
+            "manufacturer": manufacturer,
         })
 
     total_macs = sum(c["mac_count"] for c in cluster_list)
@@ -590,6 +599,7 @@ def cluster_detail(cluster_id):
         device_info.append({
             "mac": d.mac,
             "is_randomized": d.is_randomized,
+            "manufacturer": d.manufacturer or "Unknown",
             "appearances": app_counts.get(d.id, 0),
             "first_seen": d.first_seen,
             "last_seen": d.last_seen,
