@@ -197,6 +197,9 @@ def api_devices():
     offset = (page - 1) * per_page
 
     query = db.query(Device)
+    hide_unknown = current_app.config.get("HIDE_UNKNOWN_MANUFACTURER", False)
+    if hide_unknown:
+        query = query.filter(Device.manufacturer != "Unknown", Device.manufacturer != "", Device.manufacturer.isnot(None))
     if not show_ignored:
         baseline_macs = get_baseline_macs()
         if baseline_macs:
