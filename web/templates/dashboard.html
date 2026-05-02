@@ -268,11 +268,8 @@
   const toggle = document.getElementById('toggle-dash-ignored');
   if (!toggle) return;
   toggle.addEventListener('change', function () {
-    const list = document.getElementById('device-list');
-    const base = '{{ url_for("dashboard.api_devices") }}';
-    const url = this.checked ? base + '?show_ignored=1' : base;
-    list.setAttribute('hx-get', url);
-    htmx.trigger(list, 'refresh');
+    const base = '{{ url_for("dashboard.index") }}';
+    window.location.href = this.checked ? base + '?show_ignored=1' : base;
   });
 })();
 </script>
