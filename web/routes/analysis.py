@@ -261,7 +261,11 @@ def stats():
     ) or 0
     randomization_pct = round(randomized_count / total_devices * 100) if total_devices else 0
 
-    fingerprint_clusters = db.query(func.count(Fingerprint.id)).scalar() or 0
+    fingerprint_clusters = (
+        db.query(func.count(func.distinct(Device.fingerprint_id)))
+        .filter(Device.fingerprint_id.isnot(None))
+        .scalar()
+    ) or 0
 
     # Unique SSIDs — parse ssids_json from appearances
     ssid_rows = (
@@ -460,6 +464,192 @@ def stats():
         dwell_buckets=dwell_buckets,
         sensor_stats=sensor_stats,
         overlap=overlap,
+    )
+
+
+@bp.route("/clusters")
+def clusters():
+    """List all fingerprint clusters with MAC count, SSID count, confidence."""
+    db = get_db()
+
+    # Single grouped query: only fingerprints with at least one linked device
+    mac_counts = (
+        db.query(Device.fingerprint_id, func.count(Device.id).label("mac_count"))
+        .filter(Device.fingerprint_id.isnot(None))
+        .group_by(Device.fingerprint_id)
+        .all()
+    )
+    mac_count_map = {fp_id: cnt for fp_id, cnt in mac_counts}
+
+    # Only load fingerprints that still have linked devices (no orphans)
+    active_fp_ids = list(mac_count_map.keys())
+    if not active_fp_ids:
+        return render_template("clusters.html", clusters=[], total_macs=0)
+
+    all_fps = (
+        db.query(Fingerprint)
+        .filter(Fingerprint.id.in_(active_fp_ids))
+        .order_by(Fingerprint.last_seen.desc())
+        .all()
+    )
+
+    cluster_list = []
+    for fp in all_fps:
+        mac_count = mac_count_map.get(fp.id, 0)
+        try:
+            pool = json.loads(fp.ssids_json) if fp.ssids_json else []
+        except (json.JSONDecodeError, TypeError):
+            pool = []
+        ssid_count = len(pool)
+
+        # Confidence: High ≥ 4 MACs & ≥ 5 SSIDs, Medium ≥ 3 MACs & ≥ 3 SSIDs, else Low
+        if mac_count >= 4 and ssid_count >= 5:
+            confidence, conf_cls, conf_sort = "High", "danger", 3
+        elif mac_count >= 3 and ssid_count >= 3:
+            confidence, conf_cls, conf_sort = "Medium", "warning", 2
+        else:
+            confidence, conf_cls, conf_sort = "Low", "success", 1
+
+        cluster_list.append({
+            "id": fp.id,
+            "mac_count": mac_count,
+            "ssid_count": ssid_count,
+            "sample_ssids": pool[:3],
+            "extra_ssids": max(0, ssid_count - 3),
+            "confidence": confidence,
+            "conf_cls": conf_cls,
+            "conf_sort": conf_sort,
+            "first_seen": fp.first_seen,
+            "last_seen": fp.last_seen,
+            "appearances": fp.appearance_count or 0,
+        })
+
+    total_macs = sum(c["mac_count"] for c in cluster_list)
+    return render_template("clusters.html", clusters=cluster_list, total_macs=total_macs)
+
+
+@bp.route("/clusters/<int:cluster_id>")
+def cluster_detail(cluster_id):
+    """Detail view for a single fingerprint cluster."""
+    from flask import abort
+
+    db = get_db()
+    fp = db.query(Fingerprint).get(cluster_id)
+    if not fp:
+        abort(404)
+
+    # Devices in this cluster
+    devices = (
+        db.query(Device)
+        .filter(Device.fingerprint_id == fp.id)
+        .order_by(Device.last_seen.desc())
+        .all()
+    )
+    device_ids = [d.id for d in devices]
+
+    # Appearance counts per device
+    app_counts = {}
+    ssid_sets = {}
+    if device_ids:
+        count_rows = (
+            db.query(Appearance.device_id, func.count(Appearance.id).label("cnt"))
+            .filter(Appearance.device_id.in_(device_ids))
+            .group_by(Appearance.device_id)
+            .all()
+        )
+        app_counts = {r.device_id: r.cnt for r in count_rows}
+
+        # SSIDs per device
+        ssid_rows = (
+            db.query(Appearance.device_id, Appearance.ssids_json)
+            .filter(Appearance.device_id.in_(device_ids), Appearance.ssids_json.isnot(None))
+            .all()
+        )
+        from collections import defaultdict
+        ssid_per_device = defaultdict(set)
+        for did, raw in ssid_rows:
+            try:
+                for s in json.loads(raw):
+                    if s:
+                        ssid_per_device[did].add(s)
+            except (json.JSONDecodeError, TypeError):
+                pass
+        ssid_sets = {did: len(ss) for did, ss in ssid_per_device.items()}
+
+    device_info = []
+    for d in devices:
+        device_info.append({
+            "mac": d.mac,
+            "is_randomized": d.is_randomized,
+            "appearances": app_counts.get(d.id, 0),
+            "first_seen": d.first_seen,
+            "last_seen": d.last_seen,
+            "ssid_count": ssid_sets.get(d.id, 0),
+        })
+
+    total_appearances = sum(di["appearances"] for di in device_info)
+
+    # Parse shared SSID pool
+    try:
+        ssid_pool = json.loads(fp.ssids_json) if fp.ssids_json else []
+    except (json.JSONDecodeError, TypeError):
+        ssid_pool = []
+
+    # Days active
+    days_active = 0
+    if fp.first_seen and fp.last_seen:
+        days_active = max(1, round((fp.last_seen - fp.first_seen).total_seconds() / 86400))
+
+    # Confidence score
+    mac_count = len(devices)
+    ssid_count = len(ssid_pool)
+    if mac_count >= 4 and ssid_count >= 5:
+        confidence, conf_cls = "High", "danger"
+    elif mac_count >= 3 and ssid_count >= 3:
+        confidence, conf_cls = "Medium", "warning"
+    else:
+        confidence, conf_cls = "Low", "success"
+
+    # Sensor breakdown
+    sensor_stats = []
+    if device_ids:
+        sensor_rows = (
+            db.query(Sensor.name, Sensor.status, func.count(Appearance.id).label("cnt"))
+            .join(Appearance, Sensor.id == Appearance.sensor_id)
+            .filter(Appearance.device_id.in_(device_ids))
+            .group_by(Sensor.id)
+            .order_by(func.count(Appearance.id).desc())
+            .all()
+        )
+        sensor_stats = [{"name": r.name, "status": r.status, "count": r.cnt} for r in sensor_rows]
+
+    # Daily activity (last 7 days)
+    since_7d = datetime.utcnow() - timedelta(days=7)
+    daily_rows = (
+        db.query(
+            func.date(Appearance.timestamp).label("day"),
+            func.count(Appearance.id).label("cnt"),
+        )
+        .filter(Appearance.device_id.in_(device_ids), Appearance.timestamp >= since_7d)
+        .group_by("day")
+        .order_by("day")
+        .all()
+    )
+    daily_labels = [str(r.day) for r in daily_rows]
+    daily_data = [r.cnt for r in daily_rows]
+
+    return render_template(
+        "cluster_detail.html",
+        fp=fp,
+        devices=device_info,
+        ssid_pool=ssid_pool,
+        total_appearances=total_appearances,
+        days_active=days_active,
+        confidence=confidence,
+        conf_cls=conf_cls,
+        sensor_stats=sensor_stats,
+        daily_labels=daily_labels,
+        daily_data=daily_data,
     )
 
 

@@ -6,7 +6,7 @@ from flask import Blueprint, render_template, jsonify, request, current_app
 from sqlalchemy import func
 
 from web.extensions import get_db, socketio
-from cyt.models import Device, Appearance, Sensor, AnalysisRun, KismetFileTracker
+from cyt.models import Device, Appearance, Sensor, AnalysisRun, KismetFileTracker, Fingerprint
 from cyt.scoring import compute_likelihood
 from web.routes.settings import get_baseline_macs
 
@@ -109,6 +109,11 @@ def index():
         })
 
     ignored_count = len(baseline_macs)
+    fingerprint_clusters = (
+        db.query(func.count(func.distinct(Device.fingerprint_id)))
+        .filter(Device.fingerprint_id.isnot(None))
+        .scalar()
+    ) or 0
 
     return render_template(
         "dashboard.html",
@@ -125,6 +130,7 @@ def index():
         top_persistent=top_enriched,
         show_ignored=show_ignored,
         ignored_count=ignored_count,
+        fingerprint_clusters=fingerprint_clusters,
     )
 
 

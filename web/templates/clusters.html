@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% from "macros/localtime.html" import localtime %}
+{% block title %}Fingerprint Clusters — CYT-NG{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{{ url_for('analysis.index') }}">Analysis</a></li>
+    <li class="breadcrumb-item active">Fingerprint Clusters</li>
+  </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-start mb-4 flex-wrap gap-3">
+  <div>
+    <h4 class="mb-1"><i class="bi bi-diagram-3" style="color:var(--cyt-purple);"></i> Fingerprint Clusters</h4>
+    <p class="text-muted mb-0" style="font-size:0.83rem;">
+      Devices grouped by shared probe patterns — each cluster likely represents one physical device using rotating MACs.
+    </p>
+  </div>
+  <div class="d-flex gap-2 align-items-center">
+    <span class="badge rounded-pill px-3 py-2" style="background:rgba(167,139,250,0.12);color:var(--cyt-purple);border:1px solid rgba(167,139,250,0.25);font-size:0.8rem;">
+      <i class="bi bi-diagram-3"></i> {{ clusters|length }} cluster{{ 's' if clusters|length != 1 else '' }}
+    </span>
+    <span class="badge rounded-pill px-3 py-2" style="background:rgba(34,211,238,0.08);color:var(--cyt-cyan);border:1px solid rgba(34,211,238,0.18);font-size:0.8rem;">
+      <i class="bi bi-phone"></i> {{ total_macs }} MACs grouped
+    </span>
+  </div>
+</div>
+
+{% if clusters %}
+<div class="card">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <span><i class="bi bi-diagram-3"></i> All Clusters</span>
+    <span class="text-muted" style="font-size:0.72rem;">{{ clusters|length }} clusters • {{ total_macs }} total MACs</span>
+  </div>
+  <div class="card-body p-0">
+    <table class="table table-striped table-hover mb-0" data-sortable>
+      <thead>
+        <tr>
+          <th data-sort="number">Cluster</th>
+          <th data-sort="number">MACs</th>
+          <th data-sort="number">Shared SSIDs</th>
+          <th data-sort="number">Confidence</th>
+          <th data-sort="date">First Seen</th>
+          <th data-sort="date">Last Seen</th>
+          <th>Sample SSIDs</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in clusters %}
+        <tr>
+          <td><span style="font-family:monospace;font-weight:700;color:var(--cyt-purple);">#{{ c.id }}</span></td>
+          <td>
+            <strong class="{% if c.mac_count >= 5 %}persistence-high{% elif c.mac_count >= 3 %}persistence-medium{% else %}persistence-low{% endif %}">{{ c.mac_count }}</strong>
+          </td>
+          <td>{{ c.ssid_count }}</td>
+          <td data-sort-value="{{ c.conf_sort }}">
+            <span class="badge bg-{{ c.conf_cls }} bg-opacity-25 text-{{ c.conf_cls }}">{{ c.confidence }}</span>
+          </td>
+          <td data-sort-value="{{ c.first_seen.isoformat() if c.first_seen else '' }}">{{ localtime(c.first_seen) }}</td>
+          <td data-sort-value="{{ c.last_seen.isoformat() if c.last_seen else '' }}">{{ localtime(c.last_seen) }}</td>
+          <td>
+            {% for ssid in c.sample_ssids %}
+            <span class="badge me-1" style="background:rgba(34,211,238,0.08);color:var(--cyt-cyan);border:1px solid rgba(34,211,238,0.18);font-size:0.68rem;">{{ ssid }}</span>
+            {% endfor %}
+            {% if c.extra_ssids > 0 %}
+            <span class="badge" style="background:var(--cyt-raised);color:var(--cyt-text-muted);font-size:0.68rem;">+{{ c.extra_ssids }} more</span>
+            {% endif %}
+          </td>
+          <td class="text-end">
+            <a href="{{ url_for('analysis.cluster_detail', cluster_id=c.id) }}" class="btn btn-sm btn-outline-secondary py-0 px-2">
+              <i class="bi bi-arrow-right"></i>
+            </a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="mt-3 p-3 rounded" style="background:rgba(167,139,250,0.06);border:1px solid rgba(167,139,250,0.18);font-size:0.8rem;color:var(--cyt-text-muted);">
+  <i class="bi bi-info-circle me-1" style="color:var(--cyt-purple);"></i>
+  <strong style="color:var(--cyt-text);">How clusters work:</strong>
+  Devices with randomized MACs cycle through addresses but probe for the same saved networks.
+  When two or more MACs share a distinctive set of SSIDs, they are grouped into a cluster — likely the same physical device.
+</div>
+{% else %}
+<div class="card">
+  <div class="card-body text-center p-4" style="color:var(--cyt-text-muted);">
+    <i class="bi bi-diagram-3 fs-1 d-block mb-2" style="opacity:0.4;"></i>
+    No fingerprint clusters detected yet.
+    <br><span class="small">Run <a href="{{ url_for('analysis.index') }}">Analysis</a> to detect devices with randomized MACs sharing SSID probe patterns.</span>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

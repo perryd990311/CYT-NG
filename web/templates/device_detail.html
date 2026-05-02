@@ -98,6 +98,29 @@
 </div>
 {% endif %}
 
+<!-- Cluster membership -->
+{% if cluster_info %}
+<div class="card mb-3" style="border-color:rgba(167,139,250,0.35);">
+  <div class="card-header d-flex justify-content-between align-items-center" style="background:rgba(167,139,250,0.08);border-color:rgba(167,139,250,0.25);">
+    <span><i class="bi bi-diagram-3" style="color:var(--cyt-purple);"></i> Fingerprint Cluster <span style="font-family:monospace;font-weight:700;color:var(--cyt-purple);">#{{ cluster_info.id }}</span></span>
+    <a href="{{ url_for('analysis.cluster_detail', cluster_id=cluster_info.id) }}" class="btn btn-sm btn-outline-secondary py-0 px-2">View Cluster →</a>
+  </div>
+  <div class="card-body">
+    <div class="d-flex gap-3 mb-2" style="font-size:0.82rem;">
+      <span><strong style="color:var(--cyt-purple);">{{ cluster_info.mac_count }}</strong> MACs share this SSID fingerprint</span>
+      <span class="text-muted">•</span>
+      <span><strong style="color:var(--cyt-cyan);">{{ cluster_info.ssid_count }}</strong> shared SSIDs</span>
+    </div>
+    {% for ssid in cluster_info.sample_ssids %}
+    <span class="badge me-1" style="background:rgba(167,139,250,0.12);color:var(--cyt-purple);border:1px solid rgba(167,139,250,0.28);font-size:0.68rem;">{{ ssid }}</span>
+    {% endfor %}
+    {% if cluster_info.ssid_count > 5 %}
+    <span class="badge" style="background:var(--cyt-raised);color:var(--cyt-text-muted);font-size:0.68rem;">+{{ cluster_info.ssid_count - 5 }} more</span>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
 <!-- Appearances table -->
 <div class="card">
   <div class="card-header"><i class="bi bi-clock-history"></i> Recent Appearances ({{ appearances|length }}{% if total_appearances > appearances|length %} of {{ total_appearances }}{% endif %})</div>

@@ -329,12 +329,31 @@ def detail(mac):
             except (json.JSONDecodeError, TypeError):
                 pass
 
+    # Cluster membership
+    cluster_info = None
+    if device.fingerprint_id and device.fingerprint:
+        fp = device.fingerprint
+        cluster_mac_count = (
+            db.query(func.count(Device.id)).filter(Device.fingerprint_id == fp.id).scalar() or 0
+        )
+        try:
+            cluster_ssids = json.loads(fp.ssids_json) if fp.ssids_json else []
+        except (json.JSONDecodeError, TypeError):
+            cluster_ssids = []
+        cluster_info = {
+            "id": fp.id,
+            "mac_count": cluster_mac_count,
+            "ssid_count": len(cluster_ssids),
+            "sample_ssids": cluster_ssids[:5],
+        }
+
     return render_template(
         "device_detail.html",
         device=device,
         appearances=appearances,
         ssids=sorted(ssid_set),
         total_appearances=db.query(Appearance).filter_by(device_id=device.id).count(),
+        cluster_info=cluster_info,
     )
 
 

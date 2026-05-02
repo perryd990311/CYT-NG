@@ -39,26 +39,35 @@
 
 <!-- 24h summary cards -->
 <div class="row g-3 mb-4">
-  <div class="col-4">
+  <div class="col-6 col-md-3">
     <div class="card stat-card">
       <div class="stat-icon"><i class="bi bi-plus-circle"></i></div>
       <span class="stat-value" style="color:var(--cyt-green);">{{ new_24h }}</span>
       <span class="stat-label">New (24h)</span>
     </div>
   </div>
-  <div class="col-4">
+  <div class="col-6 col-md-3">
     <div class="card stat-card">
       <div class="stat-icon"><i class="bi bi-arrow-repeat"></i></div>
       <span class="stat-value" style="color:var(--cyt-amber);">{{ recurring_24h }}</span>
       <span class="stat-label">Recurring (24h)</span>
     </div>
   </div>
-  <div class="col-4">
+  <div class="col-6 col-md-3">
     <div class="card stat-card">
       <div class="stat-icon"><i class="bi bi-broadcast"></i></div>
       <span class="stat-value" style="color:var(--cyt-purple);">{{ probes_24h }}</span>
       <span class="stat-label">Probes (24h)</span>
     </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <a href="{{ url_for('analysis.clusters') }}" style="text-decoration:none;color:inherit;">
+    <div class="card stat-card">
+      <div class="stat-icon"><i class="bi bi-diagram-3"></i></div>
+      <span class="stat-value" style="color:var(--cyt-purple);">{{ fingerprint_clusters }}</span>
+      <span class="stat-label">FP Clusters</span>
+    </div>
+    </a>
   </div>
 </div>
 
