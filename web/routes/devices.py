@@ -374,9 +374,18 @@ def history(mac):
 @bp.route("/ssids")
 def ssids():
     """Global view of all probed SSIDs with device counts and last-seen times."""
+    from web.routes.settings import _read_ignore_list
+    from flask import current_app
+    from pathlib import Path
+
     db = get_db()
     days = min(request.args.get("days", 7, type=int), 90)
     since = datetime.utcnow() - timedelta(days=days)
+
+    # Build SSID ignore set
+    ignore_cfg = current_app.config.get("IGNORE_LISTS", {})
+    base = Path(current_app.root_path).parent
+    ssid_ignore = set(_read_ignore_list(base / ignore_cfg.get("ssid", "ignore_lists/ssidlist.json")))
 
     rows = (
         db.query(Appearance.ssids_json, Appearance.device_id, Appearance.timestamp)
@@ -391,7 +400,7 @@ def ssids():
         except (json.JSONDecodeError, TypeError):
             continue
         for ssid in parsed:
-            if not ssid:
+            if not ssid or ssid in ssid_ignore:
                 continue
             entry = ssid_data[ssid]
             entry["devices"].add(device_id)
