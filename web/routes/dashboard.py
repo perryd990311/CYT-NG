@@ -108,6 +108,31 @@ def index():
             "likelihood_cls": likelihood_cls,
         })
 
+    # Collapse cluster MACs into single rows
+    seen_fps = {}  # fingerprint_id → index in top_grouped
+    top_grouped = []
+    for item in top_enriched:
+        fp_id = item["device"].fingerprint_id
+        if fp_id and fp_id in seen_fps:
+            # Merge into existing cluster row
+            existing = top_grouped[seen_fps[fp_id]]
+            existing["cnt"] += item["cnt"]
+            existing["cluster_extra"] += 1
+            existing["probed_ssids"] = sorted(
+                set(existing["probed_ssids"]) | set(item["probed_ssids"])
+            )
+        elif fp_id:
+            # First MAC in this cluster
+            seen_fps[fp_id] = len(top_grouped)
+            item["cluster_extra"] = 0
+            item["cluster_id"] = fp_id
+            top_grouped.append(item)
+        else:
+            # Non-clustered device
+            item["cluster_extra"] = 0
+            item["cluster_id"] = None
+            top_grouped.append(item)
+
     ignored_count = len(baseline_macs)
     fingerprint_clusters = (
         db.query(func.count(func.distinct(Device.fingerprint_id)))
@@ -127,7 +152,7 @@ def index():
         new_24h=new_24h,
         probes_24h=probes_24h,
         recurring_24h=recurring_24h,
-        top_persistent=top_enriched,
+        top_persistent=top_grouped,
         show_ignored=show_ignored,
         ignored_count=ignored_count,
         fingerprint_clusters=fingerprint_clusters,
@@ -194,7 +219,7 @@ def api_status():
 @bp.route("/api/devices")
 def api_devices():
     """Return recent devices as HTMX partial or JSON."""
-    from web.routes.devices import _device_ssid_sets, _device_enrichment
+    from web.routes.devices import _device_ssid_sets, _device_enrichment, _build_cluster_info
 
     db = get_db()
     page = request.args.get("page", 1, type=int)
@@ -218,6 +243,7 @@ def api_devices():
         device_ids = [d.id for d in devices]
         device_ssids = _device_ssid_sets(db, device_ids)
         enrichment = _device_enrichment(db, devices)
+        cluster_info = _build_cluster_info(db, devices)
         return render_template(
             "partials/device_list.html",
             devices=devices,
@@ -226,6 +252,7 @@ def api_devices():
             per_page=per_page,
             device_ssids=device_ssids,
             enrichment=enrichment,
+            cluster_info=cluster_info,
         )
 
     return jsonify(

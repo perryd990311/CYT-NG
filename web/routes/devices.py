@@ -62,6 +62,89 @@ def _device_ssid_sets(db, device_ids):
     return {did: sorted(ssids) for did, ssids in sets.items()}
 
 
+def group_by_cluster(devices, baseline_macs):
+    """Collapse clustered devices into representative rows.
+
+    Devices sharing a ``fingerprint_id`` are merged into a single
+    representative (the most-recently-seen MAC).  If *any* MAC in the
+    cluster appears in ``baseline_macs``, the whole cluster is
+    suppressed.  Devices with no cluster pass through unchanged.
+
+    Returns a list of dicts.  Non-cluster items have ``"is_cluster": False``
+    and ``"device": <Device>``.  Cluster items have ``"is_cluster": True``
+    plus summary fields.
+    """
+    clustered = defaultdict(list)  # fingerprint_id → [Device, …]
+    singles = []
+
+    for d in devices:
+        if d.fingerprint_id:
+            clustered[d.fingerprint_id].append(d)
+        else:
+            singles.append(d)
+
+    rows = []
+
+    # Add cluster rows
+    for fp_id, members in clustered.items():
+        # Suppress entire cluster if any MAC is baselined
+        if any(m.mac.upper() in baseline_macs for m in members):
+            continue
+        # Representative = most recently seen
+        members.sort(key=lambda m: m.last_seen or datetime.min, reverse=True)
+        rep = members[0]
+        rows.append({
+            "is_cluster": True,
+            "device": rep,
+            "fingerprint_id": fp_id,
+            "mac_count": len(members),
+            "other_macs": [m.mac for m in members[1:]],
+            "all_device_ids": [m.id for m in members],
+        })
+
+    # Add non-cluster rows
+    for d in singles:
+        if d.mac.upper() in baseline_macs:
+            continue
+        rows.append({
+            "is_cluster": False,
+            "device": d,
+        })
+
+    # Sort combined list by representative last_seen desc
+    rows.sort(key=lambda r: r["device"].last_seen or datetime.min, reverse=True)
+    return rows
+
+
+def _build_cluster_info(db, devices):
+    """Return {device_id: cluster_dict} for devices that belong to a cluster.
+
+    For each device with a fingerprint_id, looks up the total number of
+    devices in that cluster.  Returns an empty dict entry for non-clustered
+    devices (caller can use ``cluster_info.get(d.id)``).
+    """
+    fp_ids = {d.fingerprint_id for d in devices if d.fingerprint_id}
+    if not fp_ids:
+        return {}
+
+    # Count MACs per fingerprint in one query
+    counts = dict(
+        db.query(Device.fingerprint_id, func.count(Device.id))
+        .filter(Device.fingerprint_id.in_(fp_ids))
+        .group_by(Device.fingerprint_id)
+        .all()
+    )
+
+    info = {}
+    for d in devices:
+        if d.fingerprint_id and d.fingerprint_id in counts:
+            info[d.id] = {
+                "fingerprint_id": d.fingerprint_id,
+                "mac_count": counts[d.fingerprint_id],
+            }
+    return info
+
+
 def _device_enrichment(db, devices):
     """Return {device_id: dict} with popup enrichment data."""
     if not devices:
@@ -265,6 +348,7 @@ def index():
     ssid_counts = _device_ssid_counts(db, [d.id for d in devices])
     device_ssids = _device_ssid_sets(db, [d.id for d in devices])
     enrichment = _device_enrichment(db, devices)
+    cluster_info = _build_cluster_info(db, devices)
     new_threshold = datetime.utcnow() - timedelta(hours=24)
 
     sort_ctx = {"sort": sort_col, "dir": sort_dir}
@@ -279,6 +363,7 @@ def index():
             ssid_counts=ssid_counts,
             device_ssids=device_ssids,
             enrichment=enrichment,
+            cluster_info=cluster_info,
             new_threshold=new_threshold,
             **sort_ctx,
         )
@@ -293,6 +378,7 @@ def index():
         ssid_counts=ssid_counts,
         device_ssids=device_ssids,
         enrichment=enrichment,
+        cluster_info=cluster_info,
         new_threshold=new_threshold,
         show_ignored=show_ignored,
         ignored_count=len(baseline_macs),

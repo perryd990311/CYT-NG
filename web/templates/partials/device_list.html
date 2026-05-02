@@ -26,6 +26,7 @@
   <tbody>
     {% for d in devices %}
     {% set enr = enrichment[d.id] if enrichment is defined and enrichment.get(d.id) else {} %}
+    {% set cl = cluster_info[d.id] if cluster_info is defined and cluster_info.get(d.id) else none %}
     <tr class="device-row {% if enr.get('baseline') %}row-ignored{% elif enr.get('likelihood') == 'High' %}row-suspicious{% endif %}" role="button"
         data-mac="{{ d.mac }}"
         data-fname="{{ d.mac|friendly_name }}"
@@ -53,6 +54,11 @@
             </a>
             {% if d.is_randomized %}
             <span class="badge bg-warning text-dark ms-1" style="font-size:0.6rem;padding:0.15em 0.4em" title="Randomized MAC">R</span>
+            {% endif %}
+            {% if cl %}
+            <a href="{{ url_for('analysis.cluster_detail', cluster_id=cl.fingerprint_id) }}" class="badge ms-1 text-decoration-none" style="background:rgba(167,139,250,0.15);color:var(--cyt-purple);font-size:0.6rem;padding:0.15em 0.4em" title="Cluster: {{ cl.mac_count }} MACs">
+              <i class="bi bi-diagram-3"></i> {{ cl.mac_count }}
+            </a>
             {% endif %}
             {% if enr.get('baseline') %}
             <span class="baseline-badge">baseline</span>

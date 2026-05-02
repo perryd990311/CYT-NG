@@ -149,8 +149,19 @@
                  style="background:transparent; border-color:var(--cyt-border);">
               <input type="checkbox" class="form-check-input me-2 persistent-cb" name="selected_macs" value="{{ item.device.mac }}">
               <div class="flex-grow-1" style="min-width:0;">
+                {% if item.cluster_id %}
+                <a href="{{ url_for('analysis.cluster_detail', cluster_id=item.cluster_id) }}" class="text-decoration-none mac-addr"
+                   style="color:var(--cyt-purple); font-size:0.78rem;">
+                  {{ item.device.mac }}
+                  <span class="badge ms-1" style="background:rgba(167,139,250,0.15);color:var(--cyt-purple);font-size:0.6rem;padding:0.15em 0.4em;">C#{{ item.cluster_id }}</span>
+                  {% if item.cluster_extra > 0 %}
+                  <span class="badge ms-1" style="background:var(--cyt-raised);color:var(--cyt-text-muted);font-size:0.6rem;padding:0.15em 0.4em;">+{{ item.cluster_extra }} more</span>
+                  {% endif %}
+                </a>
+                {% else %}
                 <a href="{{ url_for('devices.detail', mac=item.device.mac) }}" class="text-decoration-none mac-addr"
                    style="color:var(--cyt-cyan); font-size:0.78rem;">{{ item.device.mac }}</a>
+                {% endif %}
                 <div style="font-size:0.7rem; color:var(--cyt-text-muted);">
                   {{ item.cnt }} appearances
                   {% if item.probed_ssids %}
