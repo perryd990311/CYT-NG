@@ -27,7 +27,7 @@ gevent-websocket>=0.10.1
 paramiko>=4.0.0
 
 # OUI / MAC vendor lookup (IEEE database)
-mac-vendor-lookup>=0.16
+mac-vendor-lookup>=0.1.15
 
 # For advanced data analysis
 # pandas>=1.5.0
