@@ -251,6 +251,44 @@ def update_ssid_ignore():
     return redirect(url_for("settings.ignore_lists"))
 
 
+@bp.route("/ignore/ssid/add", methods=["POST"])
+def add_ssid_ignore():
+    """Append one or more SSIDs to the ignore list (without replacing the whole list)."""
+    from cyt.input_validation import InputValidator
+
+    selected = request.form.getlist("ssids")
+    if not selected:
+        flash("No SSIDs selected.", "warning")
+        return redirect(url_for("devices.ssids"))
+
+    ignore_cfg = current_app.config.get("IGNORE_LISTS", {})
+    base = Path(current_app.root_path).parent
+    ssid_path = base / ignore_cfg.get("ssid", "ignore_lists/ssidlist.json")
+
+    existing = _read_ignore_list(ssid_path)
+    existing_set = set(existing)
+
+    added = []
+    for ssid in selected:
+        ssid = ssid.strip()
+        if not ssid or ssid in existing_set:
+            continue
+        if InputValidator.validate_ssid(ssid):
+            existing.append(ssid)
+            existing_set.add(ssid)
+            added.append(ssid)
+        else:
+            flash(f"Invalid SSID skipped: {ssid}", "warning")
+
+    if added:
+        _write_ignore_list(ssid_path, existing)
+        flash(f"Added {len(added)} SSID{'s' if len(added) != 1 else ''} to ignore list.", "success")
+    else:
+        flash("No new SSIDs were added (already ignored or invalid).", "info")
+
+    return redirect(url_for("devices.ssids"))
+
+
 @bp.route("/baseline", methods=["POST"])
 def baseline_devices():
     """Capture all current DB devices as known — merge into MAC ignore list."""

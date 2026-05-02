@@ -18,11 +18,22 @@
 </div>
 
 <div class="card">
+  {% if ssids %}
+  <div class="card-header d-flex align-items-center gap-2">
+    <input type="checkbox" id="select-all-ssid" class="form-check-input mt-0" title="Select all">
+    <button type="submit" form="ssid-ignore-form" id="btn-ignore-selected"
+            class="btn btn-sm btn-outline-danger" disabled
+            onclick="return confirm('Add selected SSIDs to the ignore list?');">
+      <i class="bi bi-slash-circle"></i> Ignore Selected
+    </button>
+    <span class="text-muted small ms-auto" id="selected-count" style="display:none;"></span>
+  </div>
+  <form id="ssid-ignore-form" method="post" action="{{ url_for('settings.add_ssid_ignore') }}">
   <div class="card-body p-0">
-    {% if ssids %}
     <table class="table table-striped table-hover mb-0" data-sortable>
       <thead>
         <tr>
+          <th style="width:2.5rem;"></th>
           <th data-sort="text">SSID</th>
           <th data-sort="number">Devices</th>
           <th data-sort="number">Probes</th>
@@ -32,6 +43,9 @@
       <tbody>
         {% for s in ssids %}
         <tr>
+          <td>
+            <input type="checkbox" class="form-check-input ssid-cb" name="ssids" value="{{ s.ssid }}">
+          </td>
           <td>
             <i class="bi bi-wifi me-1" style="color:var(--cyt-cyan);"></i>
             <strong>{{ s.ssid }}</strong>
@@ -45,12 +59,53 @@
         {% endfor %}
       </tbody>
     </table>
-    {% else %}
-    <div class="p-4 text-center text-muted">
-      <i class="bi bi-wifi-off fs-1 d-block mb-2"></i>
-      No SSID probes recorded in the last {{ days }} day{{ 's' if days != 1 else '' }}.
-    </div>
-    {% endif %}
   </div>
+  </form>
+  {% else %}
+  <div class="card-body">
+  <div class="p-4 text-center text-muted">
+    <i class="bi bi-wifi-off fs-1 d-block mb-2"></i>
+    No SSID probes recorded in the last {{ days }} day{{ 's' if days != 1 else '' }}.
+  </div>
+  </div>
+  {% endif %}
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  const selectAll = document.getElementById('select-all-ssid');
+  const ignoreBtn = document.getElementById('btn-ignore-selected');
+  const countEl = document.getElementById('selected-count');
+
+  function updateState() {
+    const checked = document.querySelectorAll('.ssid-cb:checked');
+    const n = checked.length;
+    if (ignoreBtn) ignoreBtn.disabled = n === 0;
+    if (countEl) {
+      if (n > 0) {
+        countEl.textContent = n + ' selected';
+        countEl.style.display = '';
+      } else {
+        countEl.style.display = 'none';
+      }
+    }
+  }
+
+  if (selectAll) {
+    selectAll.addEventListener('change', function () {
+      document.querySelectorAll('.ssid-cb').forEach(cb => cb.checked = selectAll.checked);
+      updateState();
+    });
+  }
+
+  document.querySelectorAll('.ssid-cb').forEach(cb => {
+    cb.addEventListener('change', function () {
+      if (!this.checked && selectAll) selectAll.checked = false;
+      updateState();
+    });
+  });
+})();
+</script>
 {% endblock %}
