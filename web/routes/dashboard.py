@@ -41,9 +41,15 @@ def index():
     active_since = now - timedelta(minutes=active_window_minutes)
     show_ignored = request.args.get("show_ignored", "0") == "1"
     baseline_macs = get_baseline_macs()
+    hide_unknown = current_app.config.get("HIDE_UNKNOWN_MANUFACTURER", False)
 
-    total_devices = db.query(Device).count()
-    active_devices = db.query(Device).filter(Device.last_seen >= active_since).count()
+    # Base device query with optional filters
+    base_q = db.query(Device)
+    if hide_unknown:
+        base_q = base_q.filter(Device.manufacturer != "Unknown", Device.manufacturer != "", Device.manufacturer.isnot(None))
+
+    total_devices = base_q.count()
+    active_devices = base_q.filter(Device.last_seen >= active_since).count()
     total_appearances = db.query(Appearance).count()
     sensors_online = db.query(Sensor).filter(Sensor.status == "online").count()
     sensors_total = db.query(Sensor).count()
@@ -51,7 +57,7 @@ def index():
     last_run = db.query(AnalysisRun).order_by(AnalysisRun.started_at.desc()).first()
 
     day_ago = now - timedelta(hours=24)
-    new_24h = db.query(Device).filter(Device.first_seen >= day_ago).count()
+    new_24h = base_q.filter(Device.first_seen >= day_ago).count()
     probes_24h = db.query(Appearance).filter(Appearance.timestamp >= day_ago).count()
     recurring_subq = (
         db.query(Appearance.device_id)
@@ -68,6 +74,8 @@ def index():
         .group_by(Device.id)
         .order_by(func.count(Appearance.id).desc())
     )
+    if hide_unknown:
+        top_q = top_q.filter(Device.manufacturer != "Unknown", Device.manufacturer != "", Device.manufacturer.isnot(None))
     if not show_ignored and baseline_macs:
         top_q = top_q.filter(func.upper(Device.mac).notin_(baseline_macs))
     top_persistent = top_q.limit(10).all()

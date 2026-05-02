@@ -26,6 +26,9 @@ gevent-websocket>=0.10.1
 # Sensor provisioning (SSH)
 paramiko>=4.0.0
 
+# OUI / MAC vendor lookup (IEEE database)
+mac-vendor-lookup>=0.16
+
 # For advanced data analysis
 # pandas>=1.5.0
 # numpy>=1.24.0

@@ -71,6 +71,9 @@ class Config:
     JACCARD_THRESHOLD = _cfg.get("fingerprinting", {}).get("jaccard_threshold", 0.85)
     MIN_SSIDS_FOR_FINGERPRINT = _cfg.get("fingerprinting", {}).get("min_ssids_for_fingerprint", 2)
 
+    # Display preferences
+    HIDE_UNKNOWN_MANUFACTURER = _cfg.get("display", {}).get("hide_unknown_manufacturer", False)
+
     # Flask-SocketIO
     SOCKETIO_ASYNC_MODE = "gevent"
 

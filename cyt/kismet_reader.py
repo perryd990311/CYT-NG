@@ -19,6 +19,20 @@ from typing import List, Optional
 logger = logging.getLogger(__name__)
 
 
+def is_locally_administered(mac: str) -> bool:
+    """Check if a MAC address is locally administered (randomized).
+
+    The second-least-significant bit of the first octet is 1 for
+    locally administered addresses (used by iOS/Android/Windows MAC
+    randomization).
+    """
+    try:
+        first_octet = int(mac.split(":")[0], 16)
+        return bool(first_octet & 0x02)
+    except (ValueError, IndexError):
+        return False
+
+
 @dataclass
 class DeviceRecord:
     """Parsed device data from a Kismet database."""
@@ -183,6 +197,12 @@ def ingest_all(directory_pattern: str, session_factory, sensor_id: Optional[int]
         records = process_kismet_file(file_path, last_ts)
 
         for rec in records:
+            # Resolve manufacturer — prefer Kismet's value, fall back to OUI DB
+            mfr = rec.manufacturer
+            if not mfr or mfr == "Unknown":
+                from cyt.oui_lookup import lookup_manufacturer
+                mfr = lookup_manufacturer(rec.mac) or mfr or "Unknown"
+
             # Upsert device
             device = session.query(Device).filter_by(mac=rec.mac).first()
             if not device:
@@ -191,7 +211,8 @@ def ingest_all(directory_pattern: str, session_factory, sensor_id: Optional[int]
                     device_type=rec.device_type,
                     first_seen=rec.first_seen,
                     last_seen=rec.last_seen,
-                    manufacturer=rec.manufacturer,
+                    manufacturer=mfr,
+                    is_randomized=is_locally_administered(rec.mac),
                 )
                 session.add(device)
                 session.flush()

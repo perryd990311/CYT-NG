@@ -132,6 +132,18 @@
                         </div>
                     </div>
 
+                    <h6 class="text-secondary mt-3 mb-2">Display</h6>
+                    <div class="form-check form-switch mb-2">
+                        <input class="form-check-input" type="checkbox" id="hide_unknown_mfr" name="hide_unknown_manufacturer"
+                               {% if config.get('display', {}).get('hide_unknown_manufacturer', false) %}checked{% endif %}>
+                        <label class="form-check-label" for="hide_unknown_mfr">
+                            Hide devices with unknown manufacturer
+                        </label>
+                        <div class="form-text" style="color:var(--cyt-text-muted);font-size:0.7rem;">
+                            Excludes unresolved-manufacturer devices from dashboard, device list, and metrics.
+                        </div>
+                    </div>
+
                     <button type="submit" class="btn btn-sm btn-outline-light mt-2">
                         <i class="bi bi-save"></i> Save Configuration
                     </button>
@@ -139,5 +151,22 @@
             </div>
         </div>
     </div>
+</div>
+
+    <!-- Data Maintenance -->
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header"><i class="bi bi-wrench"></i> Data Maintenance</div>
+            <div class="card-body">
+                <p class="small mb-2" style="color:var(--cyt-text-muted);">Re-scan all devices to fix randomized MAC detection and resolve unknown manufacturers via the IEEE OUI database.</p>
+                <form method="post" action="{{ url_for('settings.backfill_devices') }}" class="d-inline">
+                    <button type="submit" class="btn btn-sm btn-outline-warning">
+                        <i class="bi bi-arrow-repeat"></i> Backfill Devices
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
 </div>
 {% endblock %}

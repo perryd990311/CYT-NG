@@ -192,6 +192,7 @@ _SORT_COLUMNS = {
 @bp.route("/")
 def index():
     from web.routes.settings import get_baseline_macs
+    from flask import current_app
 
     db = get_db()
     page = request.args.get("page", 1, type=int)
@@ -201,10 +202,13 @@ def index():
     sort_dir = request.args.get("dir", "desc")
     signal_min = request.args.get("signal_min", type=int)
     signal_max = request.args.get("signal_max", type=int)
+    hide_unknown = current_app.config.get("HIDE_UNKNOWN_MANUFACTURER", False)
     per_page = 50
     offset = (page - 1) * per_page
 
     query = db.query(Device)
+    if hide_unknown:
+        query = query.filter(Device.manufacturer != "Unknown", Device.manufacturer != "", Device.manufacturer.isnot(None))
     if search:
         # Sanitize search input
         safe = search.replace("%", "").replace("_", "")

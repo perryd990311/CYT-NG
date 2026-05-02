@@ -449,6 +449,11 @@ def update_config():
     if smb_share:
         cfg.setdefault("sensor", {})["smb_share"] = smb_share
 
+    # --- Display ---
+    cfg.setdefault("display", {})["hide_unknown_manufacturer"] = (
+        request.form.get("hide_unknown_manufacturer") == "on"
+    )
+
     # Persist to config.json
     _save_config(cfg)
 
@@ -465,6 +470,9 @@ def update_config():
         "min_ssids_for_fingerprint", 2
     )
     current_app.config["TIMING"] = cfg.get("timing", {})
+    current_app.config["HIDE_UNKNOWN_MANUFACTURER"] = cfg.get("display", {}).get(
+        "hide_unknown_manufacturer", False
+    )
 
     flash("Configuration saved.", "success")
     return redirect(url_for("settings.index"))
@@ -501,3 +509,39 @@ def _deep_merge(base: dict, overrides: dict) -> dict:
         else:
             base[key] = value
     return base
+
+
+@bp.route("/backfill-devices", methods=["POST"])
+def backfill_devices():
+    """Backfill is_randomized and manufacturer for all existing devices."""
+    from web.extensions import get_db
+    from cyt.models import Device
+    from cyt.kismet_reader import is_locally_administered
+    from cyt.oui_lookup import lookup_manufacturer
+
+    db = get_db()
+    devices = db.query(Device).all()
+    rand_fixed = 0
+    mfr_fixed = 0
+
+    for d in devices:
+        # Fix is_randomized
+        expected = is_locally_administered(d.mac)
+        if d.is_randomized != expected:
+            d.is_randomized = expected
+            rand_fixed += 1
+
+        # Fix unknown manufacturer (skip randomized — won't have OUI)
+        if (not d.manufacturer or d.manufacturer == "Unknown") and not expected:
+            new_mfr = lookup_manufacturer(d.mac)
+            if new_mfr:
+                d.manufacturer = new_mfr
+                mfr_fixed += 1
+
+    db.commit()
+    flash(
+        f"Backfill complete: {rand_fixed} randomized flags fixed, "
+        f"{mfr_fixed} manufacturers resolved.",
+        "success",
+    )
+    return redirect(url_for("settings.index"))
