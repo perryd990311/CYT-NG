@@ -382,9 +382,9 @@ def stats():
             pool = []
         # Confidence: same formula as clusters page
         ssid_count = len(pool)
-        if mac_count >= 4 and ssid_count >= 5:
+        if mac_count >= 5:
             confidence, conf_cls = "High", "danger"
-        elif mac_count >= 3 and ssid_count >= 3:
+        elif mac_count >= 3:
             confidence, conf_cls = "Medium", "warning"
         else:
             confidence, conf_cls = "Low", "success"
@@ -529,10 +529,10 @@ def clusters():
             pool = []
         ssid_count = len(pool)
 
-        # Confidence: High ≥ 4 MACs & ≥ 5 SSIDs, Medium ≥ 3 MACs & ≥ 3 SSIDs, else Low
-        if mac_count >= 4 and ssid_count >= 5:
+        # Confidence: High ≥5 MACs, Medium ≥3, Low <3
+        if mac_count >= 5:
             confidence, conf_cls, conf_sort = "High", "danger", 3
-        elif mac_count >= 3 and ssid_count >= 3:
+        elif mac_count >= 3:
             confidence, conf_cls, conf_sort = "Medium", "warning", 2
         else:
             confidence, conf_cls, conf_sort = "Low", "success", 1
@@ -632,9 +632,9 @@ def cluster_detail(cluster_id):
     # Confidence score
     mac_count = len(devices)
     ssid_count = len(ssid_pool)
-    if mac_count >= 4 and ssid_count >= 5:
+    if mac_count >= 5:
         confidence, conf_cls = "High", "danger"
-    elif mac_count >= 3 and ssid_count >= 3:
+    elif mac_count >= 3:
         confidence, conf_cls = "Medium", "warning"
     else:
         confidence, conf_cls = "Low", "success"
