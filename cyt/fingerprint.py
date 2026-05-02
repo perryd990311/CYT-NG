@@ -42,22 +42,62 @@ def extract_ssid_pool(device: Device, session) -> Set[str]:
     return pool
 
 
-def build_ssid_pools(session, min_ssids: int = 2) -> Dict[int, Set[str]]:
+def build_ssid_pools(
+    session,
+    min_ssids: int = 1,
+    max_devices_per_ssid: int = 20,
+    ignored_ssids: Set[str] = None,
+) -> Dict[int, Set[str]]:
     """
     Build SSID pools for all devices that have probed at least `min_ssids` SSIDs.
+
+    Filters out:
+    - SSIDs in the ignore list (e.g. the user's own home networks)
+    - SSIDs probed by more than `max_devices_per_ssid` devices (too common
+      to be useful as a fingerprint signal)
 
     Returns:
         Dict mapping device.id → set of probed SSIDs.
     """
+    if ignored_ssids is None:
+        ignored_ssids = set()
+
     devices = session.query(Device).all()
-    pools: Dict[int, Set[str]] = {}
+
+    # First pass: collect raw pools and count how many devices probe each SSID
+    raw_pools: Dict[int, Set[str]] = {}
+    ssid_device_count: Dict[str, int] = {}
 
     for device in devices:
         pool = extract_ssid_pool(device, session)
-        if len(pool) >= min_ssids:
-            pools[device.id] = pool
+        # Remove ignored SSIDs
+        pool -= ignored_ssids
+        if pool:
+            raw_pools[device.id] = pool
+            for ssid in pool:
+                ssid_device_count[ssid] = ssid_device_count.get(ssid, 0) + 1
 
-    logger.info("Built SSID pools for %d devices (min_ssids=%d)", len(pools), min_ssids)
+    # Identify over-common SSIDs
+    common_ssids = {s for s, c in ssid_device_count.items() if c > max_devices_per_ssid}
+    if common_ssids:
+        logger.info(
+            "Excluding %d over-common SSIDs (>%d devices): %s",
+            len(common_ssids),
+            max_devices_per_ssid,
+            sorted(common_ssids)[:10],
+        )
+
+    # Second pass: remove common SSIDs and apply min_ssids threshold
+    pools: Dict[int, Set[str]] = {}
+    for did, pool in raw_pools.items():
+        filtered = pool - common_ssids
+        if len(filtered) >= min_ssids:
+            pools[did] = filtered
+
+    logger.info(
+        "Built SSID pools for %d devices (min_ssids=%d, max_devices_per_ssid=%d)",
+        len(pools), min_ssids, max_devices_per_ssid,
+    )
     return pools
 
 
@@ -168,7 +208,9 @@ def assign_fingerprints(
 def run_fingerprinting(
     session,
     threshold: float = 0.85,
-    min_ssids: int = 2,
+    min_ssids: int = 1,
+    max_devices_per_ssid: int = 20,
+    ignored_ssids: Set[str] = None,
 ) -> Tuple[int, int]:
     """
     Full fingerprinting pipeline: build pools → cluster → assign.
@@ -176,7 +218,12 @@ def run_fingerprinting(
     Returns:
         (clusters_found, fingerprints_created_or_updated)
     """
-    pools = build_ssid_pools(session, min_ssids=min_ssids)
+    pools = build_ssid_pools(
+        session,
+        min_ssids=min_ssids,
+        max_devices_per_ssid=max_devices_per_ssid,
+        ignored_ssids=ignored_ssids,
+    )
     clusters = find_fingerprint_clusters(pools, threshold=threshold)
     fp_count = assign_fingerprints(session, clusters, pools)
     return len(clusters), fp_count

@@ -81,6 +81,21 @@ def _run_ingestion(app):
             _Session.remove()
 
 
+def _load_ssid_ignore_list(app):
+    """Load the SSID ignore list from config path."""
+    import json
+    from pathlib import Path
+
+    ignore_cfg = app.config.get("IGNORE_LISTS", {})
+    base = Path(app.root_path).parent
+    ssid_path = base / ignore_cfg.get("ssid", "ignore_lists/ssidlist.json")
+    try:
+        with open(ssid_path, "r") as f:
+            return set(json.load(f))
+    except (FileNotFoundError, json.JSONDecodeError):
+        return set()
+
+
 def _run_fingerprinting(app):
     """Run SSID-pool fingerprinting analysis."""
     with app.app_context():
@@ -88,11 +103,19 @@ def _run_fingerprinting(app):
         from cyt.fingerprint import run_fingerprinting
 
         threshold = app.config.get("JACCARD_THRESHOLD", 0.85)
-        min_ssids = app.config.get("MIN_SSIDS_FOR_FINGERPRINT", 2)
+        min_ssids = app.config.get("MIN_SSIDS_FOR_FINGERPRINT", 1)
+        max_devices_per_ssid = app.config.get("MAX_DEVICES_PER_SSID", 20)
+        ignored_ssids = _load_ssid_ignore_list(app)
 
         session = _Session()
         try:
-            clusters, fps = run_fingerprinting(session, threshold=threshold, min_ssids=min_ssids)
+            clusters, fps = run_fingerprinting(
+                session,
+                threshold=threshold,
+                min_ssids=min_ssids,
+                max_devices_per_ssid=max_devices_per_ssid,
+                ignored_ssids=ignored_ssids,
+            )
             logger.info("Fingerprinting: %d clusters, %d fingerprints", clusters, fps)
 
             # Notify connected clients
@@ -131,9 +154,17 @@ def _run_scheduled_analysis(app):
 
         try:
             threshold = app.config.get("JACCARD_THRESHOLD", 0.85)
-            min_ssids = app.config.get("MIN_SSIDS_FOR_FINGERPRINT", 2)
+            min_ssids = app.config.get("MIN_SSIDS_FOR_FINGERPRINT", 1)
+            max_devices_per_ssid = app.config.get("MAX_DEVICES_PER_SSID", 20)
+            ignored_ssids = _load_ssid_ignore_list(app)
 
-            clusters, fps = run_fingerprinting(session, threshold=threshold, min_ssids=min_ssids)
+            clusters, fps = run_fingerprinting(
+                session,
+                threshold=threshold,
+                min_ssids=min_ssids,
+                max_devices_per_ssid=max_devices_per_ssid,
+                ignored_ssids=ignored_ssids,
+            )
             # Expire cached objects so count() hits the DB fresh
             session.expire_all()
             devices_count = session.query(Device).count()
