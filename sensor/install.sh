@@ -255,10 +255,10 @@ fi
 if [ -f "$KISMET_CONF" ]; then
     if grep -q "^log_prefix=" "$KISMET_CONF" 2>/dev/null; then
         # Update existing log_prefix line
-        sed -i "s|^log_prefix=.*|log_prefix=${KISMET_LOG_DIR}/kismet|" "$KISMET_CONF"
+        sed -i "s|^log_prefix=.*|log_prefix=${KISMET_LOG_DIR}|" "$KISMET_CONF"
         ok "log_prefix updated in $KISMET_CONF"
     else
-        echo "log_prefix=${KISMET_LOG_DIR}/kismet" >> "$KISMET_CONF"
+        echo "log_prefix=${KISMET_LOG_DIR}" >> "$KISMET_CONF"
         ok "log_prefix added to $KISMET_CONF"
     fi
 
