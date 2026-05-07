@@ -58,6 +58,8 @@ def _run_ingestion(app):
                         ts = datetime.fromisoformat(raw)
                         if ts.tzinfo is None:
                             ts = ts.replace(tzinfo=timezone.utc)
+                        # Normalise to naive UTC so comparisons with datetime.utcnow() work
+                        ts = ts.astimezone(timezone.utc).replace(tzinfo=None)
                     except (ValueError, OSError):
                         continue
                     sensor = (
@@ -66,8 +68,8 @@ def _run_ingestion(app):
                     )
                     if sensor:
                         existing = sensor.last_seen
-                        if existing and existing.tzinfo is None:
-                            existing = existing.replace(tzinfo=timezone.utc)
+                        if existing and existing.tzinfo is not None:
+                            existing = existing.astimezone(timezone.utc).replace(tzinfo=None)
                         if existing is None or ts > existing:
                             sensor.last_seen = ts
                             updated += 1
