@@ -22,7 +22,6 @@ def _run_ingestion(app):
     with app.app_context():
         from web.extensions import _Session
         from cyt.kismet_reader import ingest_all
-        from cyt.models import Sensor
 
         kismet_path = app.config.get("KISMET_LOGS", "")
         if not kismet_path:
@@ -40,42 +39,56 @@ def _run_ingestion(app):
         finally:
             _Session.remove()
 
-        # Update Sensor.last_seen from .last_sync heartbeat files.
-        # kismet_sync.sh writes {kismet_path}/{local_hostname}/.last_sync
-        # Match on sensor.local_hostname first, fall back to sensor.hostname.
+
+
+
+def _run_sensor_heartbeat(app):
+    """Update Sensor.last_seen from .last_sync heartbeat files.
+
+    kismet_sync.sh writes {kismet_path}/{local_hostname}/.last_sync.
+    Runs independently of ingestion so sensor status stays fresh even
+    when a large ingestion backlog is being processed.
+    """
+    with app.app_context():
+        from web.extensions import _Session
+        from cyt.models import Sensor
+
+        kismet_path = app.config.get("KISMET_LOGS", "")
+        if not kismet_path or not os.path.isdir(kismet_path):
+            return
+
         session = _Session()
         try:
-            if os.path.isdir(kismet_path):
-                updated = 0
-                for entry in os.scandir(kismet_path):
-                    if not entry.is_dir():
-                        continue
-                    sync_file = os.path.join(entry.path, ".last_sync")
-                    if not os.path.isfile(sync_file):
-                        continue
-                    try:
-                        raw = open(sync_file).read().strip()
-                        ts = datetime.fromisoformat(raw)
-                        if ts.tzinfo is None:
-                            ts = ts.replace(tzinfo=timezone.utc)
-                        # Normalise to naive UTC so comparisons with datetime.utcnow() work
-                        ts = ts.astimezone(timezone.utc).replace(tzinfo=None)
-                    except (ValueError, OSError):
-                        continue
-                    sensor = (
-                        session.query(Sensor).filter_by(local_hostname=entry.name).first()
-                        or session.query(Sensor).filter_by(hostname=entry.name).first()
-                    )
-                    if sensor:
-                        existing = sensor.last_seen
-                        if existing and existing.tzinfo is not None:
-                            existing = existing.astimezone(timezone.utc).replace(tzinfo=None)
-                        if existing is None or ts > existing:
-                            sensor.last_seen = ts
-                            updated += 1
-                if updated:
-                    session.commit()
-                    logger.info("Updated last_seen for %d sensor(s)", updated)
+            updated = 0
+            for entry in os.scandir(kismet_path):
+                if not entry.is_dir():
+                    continue
+                sync_file = os.path.join(entry.path, ".last_sync")
+                if not os.path.isfile(sync_file):
+                    continue
+                try:
+                    raw = open(sync_file).read().strip()
+                    ts = datetime.fromisoformat(raw)
+                    if ts.tzinfo is None:
+                        ts = ts.replace(tzinfo=timezone.utc)
+                    # Normalise to naive UTC so comparisons with datetime.utcnow() work
+                    ts = ts.astimezone(timezone.utc).replace(tzinfo=None)
+                except (ValueError, OSError):
+                    continue
+                sensor = (
+                    session.query(Sensor).filter_by(local_hostname=entry.name).first()
+                    or session.query(Sensor).filter_by(hostname=entry.name).first()
+                )
+                if sensor:
+                    existing = sensor.last_seen
+                    if existing and existing.tzinfo is not None:
+                        existing = existing.astimezone(timezone.utc).replace(tzinfo=None)
+                    if existing is None or ts > existing:
+                        sensor.last_seen = ts
+                        updated += 1
+            if updated:
+                session.commit()
+                logger.info("Updated last_seen for %d sensor(s)", updated)
         except Exception:
             logger.exception("Sensor heartbeat update failed")
             session.rollback()
@@ -326,6 +339,15 @@ def init_scheduler(app):
         seconds=ingest_interval,
         args=[app],
         id="kismet_ingestion",
+        replace_existing=True,
+    )
+
+    scheduler.add_job(
+        _run_sensor_heartbeat,
+        "interval",
+        seconds=30,
+        args=[app],
+        id="sensor_heartbeat",
         replace_existing=True,
     )
 
