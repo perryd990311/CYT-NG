@@ -13,7 +13,7 @@ _init_attempted = False
 
 
 def _get_lookup():
-    """Lazy-init the MacLookup instance (downloads DB on first use)."""
+    """Lazy-init the MacLookup instance (uses cached DB only, no download)."""
     global _lookup, _init_attempted
     if _init_attempted:
         return _lookup
@@ -21,7 +21,9 @@ def _get_lookup():
     try:
         from mac_vendor_lookup import MacLookup
         _lookup = MacLookup()
-        _lookup.update_vendors()
+        # Do NOT call update_vendors() — it downloads from IEEE over the
+        # network, which blocks the gevent event loop indefinitely in
+        # containers without internet.  The bundled/cached DB is sufficient.
         logger.info("OUI vendor database loaded successfully")
     except ImportError:
         logger.warning("mac-vendor-lookup not installed — OUI fallback disabled")
