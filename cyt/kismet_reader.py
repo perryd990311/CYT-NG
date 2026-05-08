@@ -182,7 +182,7 @@ def ingest_all(directory_pattern: str, session_factory, sensor_id: Optional[int]
     Uses KismetFileTracker to only process new/updated data.
     Writes Device and Appearance records to CYT's database.
     """
-    from cyt.models import Device, Appearance, KismetFileTracker
+    from cyt.models import Device, Appearance
     from cyt.oui_lookup import lookup_manufacturer
     from sqlalchemy import text as _text
 
@@ -201,18 +201,47 @@ def ingest_all(directory_pattern: str, session_factory, sensor_id: Optional[int]
                 raw_ts = None
         mac_cache[row[1]] = (row[0], raw_ts)
 
+    # CRITICAL: commit to release the read-transaction snapshot.
+    # In SQLite WAL mode, a deferred transaction that has read cannot be
+    # upgraded to a write if another connection committed since the snapshot
+    # was taken (SQLITE_BUSY_SNAPSHOT).  BUSY_SNAPSHOT ignores the busy-timeout
+    # and fails immediately, so the only fix is to not hold a stale snapshot
+    # when writes begin.
+    session.commit()
+
     total_new = 0
     for file_path in files:
-        # Check if already processed
-        tracker = session.query(KismetFileTracker).filter_by(file_path=file_path).first()
         current_size = os.path.getsize(file_path)
 
-        last_ts = None
-        if tracker and tracker.file_size == current_size:
+        # Read tracker state via raw SQL, then immediately commit to drop the
+        # read snapshot before any writes occur in this iteration.
+        tracker_row = session.execute(
+            _text(
+                "SELECT id, file_size, last_processed_ts, records_imported "
+                "FROM kismet_file_tracker WHERE file_path=:p"
+            ),
+            {"p": file_path},
+        ).fetchone()
+        session.commit()  # release read snapshot
+
+        if tracker_row and tracker_row[1] == current_size:
             logger.debug("Skipping unchanged file: %s", file_path)
             continue
-        if tracker:
-            last_ts = tracker.last_processed_ts
+
+        tracker_id = tracker_row[0] if tracker_row else None
+        tracker_records = tracker_row[3] if tracker_row else 0
+
+        # Parse last_processed_ts from whatever type SQLite returns
+        last_ts = None
+        if tracker_row and tracker_row[2]:
+            raw_ts = tracker_row[2]
+            if isinstance(raw_ts, str):
+                try:
+                    last_ts = datetime.fromisoformat(raw_ts)
+                except (ValueError, TypeError):
+                    last_ts = None
+            elif isinstance(raw_ts, datetime):
+                last_ts = raw_ts
 
         logger.info("Processing %s (%.1f MB)", os.path.basename(file_path), current_size / 1_048_576)
         records = process_kismet_file(file_path, last_ts)
@@ -270,13 +299,33 @@ def ingest_all(directory_pattern: str, session_factory, sensor_id: Optional[int]
                 logger.info("  ...%d/%d records committed", i + 1, len(records))
                 batch_count = 0
 
-        # Update tracker
-        if not tracker:
-            tracker = KismetFileTracker(file_path=file_path)
-            session.add(tracker)
-        tracker.file_size = current_size
-        tracker.last_processed_ts = datetime.utcnow()
-        tracker.records_imported = (tracker.records_imported or 0) + len(records)
+        # Update or insert tracker record using raw SQL (ORM object was not
+        # retained across the earlier commit, so use IDs directly).
+        now = datetime.utcnow()
+        if tracker_id is None:
+            session.execute(
+                _text(
+                    "INSERT INTO kismet_file_tracker "
+                    "(file_path, file_size, last_processed_ts, records_imported, updated_at) "
+                    "VALUES (:fp, :fs, :ts, :ri, :ua)"
+                ),
+                {"fp": file_path, "fs": current_size, "ts": now, "ri": len(records), "ua": now},
+            )
+        else:
+            session.execute(
+                _text(
+                    "UPDATE kismet_file_tracker "
+                    "SET file_size=:fs, last_processed_ts=:ts, records_imported=:ri, updated_at=:ua "
+                    "WHERE id=:id"
+                ),
+                {
+                    "fs": current_size,
+                    "ts": now,
+                    "ri": (tracker_records or 0) + len(records),
+                    "ua": now,
+                    "id": tracker_id,
+                },
+            )
 
         session.commit()
         logger.info("Ingested %d records from %s", len(records), os.path.basename(file_path))
