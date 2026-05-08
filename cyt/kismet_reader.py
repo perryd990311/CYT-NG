@@ -172,7 +172,7 @@ def process_kismet_file(
     return records
 
 
-INGEST_BATCH_SIZE = 500
+INGEST_BATCH_SIZE = 50
 
 
 def ingest_all(directory_pattern: str, session_factory, sensor_id: Optional[int] = None):

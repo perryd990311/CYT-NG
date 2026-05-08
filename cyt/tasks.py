@@ -8,6 +8,7 @@ Integrates with the Flask app context and emits SocketIO events on completion.
 
 import logging
 import os
+import sqlite3
 from datetime import datetime, timezone, timedelta
 
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -49,52 +50,94 @@ def _run_sensor_heartbeat(app):
     kismet_sync.sh writes {kismet_path}/{local_hostname}/.last_sync.
     Runs independently of ingestion so sensor status stays fresh even
     when a large ingestion backlog is being processed.
+
+    Uses a raw sqlite3 connection with timeout=0 so it NEVER blocks the
+    gevent event loop.  If the DB is write-locked (ingestion running),
+    the heartbeat simply skips this cycle and retries in 30s.
     """
     with app.app_context():
-        from web.extensions import _Session
-        from cyt.models import Sensor
-
         kismet_path = app.config.get("KISMET_LOGS", "")
         if not kismet_path or not os.path.isdir(kismet_path):
             return
 
-        session = _Session()
+        db_uri = app.config.get("SQLALCHEMY_DATABASE_URI", "")
+        db_path = db_uri.replace("sqlite:///", "")
+        if not db_path or not os.path.isfile(db_path):
+            return
+
+        # Collect timestamps from .last_sync files
+        updates = {}  # local_hostname -> naive UTC datetime
+        for entry in os.scandir(kismet_path):
+            if not entry.is_dir():
+                continue
+            sync_file = os.path.join(entry.path, ".last_sync")
+            if not os.path.isfile(sync_file):
+                continue
+            try:
+                raw = open(sync_file).read().strip()
+                ts = datetime.fromisoformat(raw)
+                if ts.tzinfo is None:
+                    ts = ts.replace(tzinfo=timezone.utc)
+                ts = ts.astimezone(timezone.utc).replace(tzinfo=None)
+                updates[entry.name] = ts
+            except (ValueError, OSError):
+                continue
+
+        if not updates:
+            return
+
+        # Use raw sqlite3 with timeout=0 — fails immediately if locked
         try:
-            updated = 0
-            for entry in os.scandir(kismet_path):
-                if not entry.is_dir():
-                    continue
-                sync_file = os.path.join(entry.path, ".last_sync")
-                if not os.path.isfile(sync_file):
-                    continue
-                try:
-                    raw = open(sync_file).read().strip()
-                    ts = datetime.fromisoformat(raw)
-                    if ts.tzinfo is None:
-                        ts = ts.replace(tzinfo=timezone.utc)
-                    # Normalise to naive UTC so comparisons with datetime.utcnow() work
-                    ts = ts.astimezone(timezone.utc).replace(tzinfo=None)
-                except (ValueError, OSError):
-                    continue
-                sensor = (
-                    session.query(Sensor).filter_by(local_hostname=entry.name).first()
-                    or session.query(Sensor).filter_by(hostname=entry.name).first()
-                )
-                if sensor:
-                    existing = sensor.last_seen
-                    if existing and existing.tzinfo is not None:
-                        existing = existing.astimezone(timezone.utc).replace(tzinfo=None)
+            conn = sqlite3.connect(db_path, timeout=0)
+            conn.execute("PRAGMA journal_mode=WAL")
+            try:
+                updated = 0
+                for hostname, ts in updates.items():
+                    # Try by local_hostname first, then hostname
+                    row = conn.execute(
+                        "SELECT id, last_seen FROM sensors WHERE local_hostname=?",
+                        (hostname,),
+                    ).fetchone()
+                    if not row:
+                        row = conn.execute(
+                            "SELECT id, last_seen FROM sensors WHERE hostname=?",
+                            (hostname,),
+                        ).fetchone()
+                    if not row:
+                        continue
+
+                    sensor_id, existing_raw = row
+                    existing = None
+                    if existing_raw:
+                        try:
+                            existing = datetime.fromisoformat(existing_raw)
+                            if existing.tzinfo is not None:
+                                existing = existing.astimezone(timezone.utc).replace(tzinfo=None)
+                        except (ValueError, TypeError):
+                            existing = None
+
                     if existing is None or ts > existing:
-                        sensor.last_seen = ts
+                        conn.execute(
+                            "UPDATE sensors SET last_seen=? WHERE id=?",
+                            (ts.isoformat(), sensor_id),
+                        )
                         updated += 1
-            if updated:
-                session.commit()
-                logger.info("Updated last_seen for %d sensor(s)", updated)
-        except Exception:
-            logger.exception("Sensor heartbeat update failed")
-            session.rollback()
-        finally:
-            _Session.remove()
+
+                if updated:
+                    conn.commit()
+                    logger.info("Updated last_seen for %d sensor(s)", updated)
+            except sqlite3.OperationalError as e:
+                if "locked" in str(e):
+                    logger.debug("Heartbeat skipped — DB locked by ingestion")
+                else:
+                    logger.warning("Heartbeat SQL error: %s", e)
+            finally:
+                conn.close()
+        except sqlite3.OperationalError as e:
+            if "locked" in str(e):
+                logger.debug("Heartbeat skipped — DB locked by ingestion")
+            else:
+                logger.warning("Heartbeat connection error: %s", e)
 
 
 def _load_ssid_ignore_list(app):
