@@ -172,6 +172,9 @@ def process_kismet_file(
     return records
 
 
+INGEST_BATCH_SIZE = 500
+
+
 def ingest_all(directory_pattern: str, session_factory, sensor_id: Optional[int] = None):
     """
     Batch ingest all .kismet files, tracking progress per file.
@@ -180,9 +183,13 @@ def ingest_all(directory_pattern: str, session_factory, sensor_id: Optional[int]
     Writes Device and Appearance records to CYT's database.
     """
     from cyt.models import Device, Appearance, KismetFileTracker
+    from cyt.oui_lookup import lookup_manufacturer
 
     session = session_factory()
     files = scan_kismet_directory(directory_pattern)
+
+    # Pre-load all known MACs into a cache to avoid per-record SELECT queries
+    device_cache: dict = {d.mac: d for d in session.query(Device).all()}
 
     total_new = 0
     for file_path in files:
@@ -197,17 +204,19 @@ def ingest_all(directory_pattern: str, session_factory, sensor_id: Optional[int]
         if tracker:
             last_ts = tracker.last_processed_ts
 
+        logger.info("Processing %s (%.1f MB)", os.path.basename(file_path), current_size / 1_048_576)
         records = process_kismet_file(file_path, last_ts)
+        logger.info("  Extracted %d records, ingesting...", len(records))
 
-        for rec in records:
+        batch_count = 0
+        for i, rec in enumerate(records):
             # Resolve manufacturer — prefer Kismet's value, fall back to OUI DB
             mfr = rec.manufacturer
             if not mfr or mfr == "Unknown":
-                from cyt.oui_lookup import lookup_manufacturer
                 mfr = lookup_manufacturer(rec.mac) or mfr or "Unknown"
 
-            # Upsert device
-            device = session.query(Device).filter_by(mac=rec.mac).first()
+            # Upsert device using cache (avoids per-record SELECT)
+            device = device_cache.get(rec.mac)
             if not device:
                 device = Device(
                     mac=rec.mac,
@@ -218,7 +227,8 @@ def ingest_all(directory_pattern: str, session_factory, sensor_id: Optional[int]
                     is_randomized=is_locally_administered(rec.mac),
                 )
                 session.add(device)
-                session.flush()
+                session.flush()  # get device.id assigned
+                device_cache[rec.mac] = device
 
             if rec.last_seen > device.last_seen:
                 device.last_seen = rec.last_seen
@@ -235,6 +245,13 @@ def ingest_all(directory_pattern: str, session_factory, sensor_id: Optional[int]
             )
             session.add(appearance)
             total_new += 1
+            batch_count += 1
+
+            # Commit in batches to avoid long-held transactions
+            if batch_count >= INGEST_BATCH_SIZE:
+                session.commit()
+                logger.info("  ...%d/%d records committed", i + 1, len(records))
+                batch_count = 0
 
         # Update tracker
         if not tracker:
@@ -245,7 +262,7 @@ def ingest_all(directory_pattern: str, session_factory, sensor_id: Optional[int]
         tracker.records_imported = (tracker.records_imported or 0) + len(records)
 
         session.commit()
-        logger.info("Ingested %d records from %s", len(records), file_path)
+        logger.info("Ingested %d records from %s", len(records), os.path.basename(file_path))
 
     logger.info("Ingestion complete. %d new appearances across %d files.", total_new, len(files))
     session.close()

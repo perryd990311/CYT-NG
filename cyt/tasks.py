@@ -29,11 +29,12 @@ def _run_ingestion(app):
             return
 
         pattern = f"{kismet_path}/**/*.kismet" if not kismet_path.endswith("*") else kismet_path
+        logger.info("Kismet ingestion starting (pattern: %s)", pattern)
 
         session = _Session()
         try:
-            ingest_all(pattern, lambda: session)
-            logger.info("Kismet ingestion completed")
+            total = ingest_all(pattern, lambda: session)
+            logger.info("Kismet ingestion completed: %d new appearances", total)
         except Exception:
             logger.exception("Kismet ingestion failed")
         finally:
