@@ -8,8 +8,8 @@
       "mac": "ignore_lists/maclist.json",
       "ssid": "ignore_lists/ssidlist.json"
     },
-    "reports_dir": "surveillance_reports",
-    "kml_dir": "kml_files"
+    "reports_dir": "/data/reports",
+    "kml_dir": "/data/kml"
   },
   "timing": {
     "check_interval": 60,

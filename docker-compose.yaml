@@ -16,7 +16,7 @@ services:
       - CYT_DATABASE_PATH=/data/cyt/cyt_data.db
     volumes:
       # Kismet data — directory where sensors sync .kismet files
-      - ./kismet_data:/data/kismet:ro
+      - ./kismet_data:/data/kismet:rw
       # Persistent CYT database & reports
       - ./data/cyt:/data/cyt
       - ./data/logs:/data/logs

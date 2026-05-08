@@ -499,7 +499,7 @@ def update_config():
     current_app.config["RAW_CONFIG"] = cfg
     current_app.config["KISMET_LOGS"] = cfg.get("paths", {}).get("kismet_logs", "")
     current_app.config["REPORTS_DIR"] = cfg.get("paths", {}).get(
-        "reports_dir", "surveillance_reports"
+        "reports_dir", "/data/reports"
     )
     current_app.config["JACCARD_THRESHOLD"] = cfg.get("fingerprinting", {}).get(
         "jaccard_threshold", 0.85

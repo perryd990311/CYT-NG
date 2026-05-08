@@ -161,7 +161,7 @@ def _run_scheduled_analysis(app):
         run = AnalysisRun(
             trigger="scheduled",
             status="running",
-            started_at=datetime.now(timezone.utc),
+            started_at=datetime.utcnow(),
         )
         session.add(run)
         session.commit()
@@ -190,7 +190,7 @@ def _run_scheduled_analysis(app):
             run.devices_analyzed = devices_count
             run.persistent_devices = persistent_count
             run.status = "completed"
-            run.finished_at = datetime.now(timezone.utc)
+            run.finished_at = datetime.utcnow()
             session.commit()
 
             logger.info(
@@ -212,7 +212,7 @@ def _run_scheduled_analysis(app):
         except Exception:
             logger.exception("Scheduled analysis #%d failed", run_id)
             run.status = "failed"
-            run.finished_at = datetime.now(timezone.utc)
+            run.finished_at = datetime.utcnow()
             session.commit()
         finally:
             _Session.remove()
@@ -226,7 +226,7 @@ def _run_cleanup(app):
 
         timing = app.config.get("TIMING", {})
         retention_days = timing.get("retention_days", 90)
-        cutoff = datetime.now(timezone.utc) - timedelta(days=retention_days)
+        cutoff = datetime.utcnow() - timedelta(days=retention_days)
 
         session = _Session()
         try:
@@ -265,7 +265,7 @@ def _run_kismet_file_cleanup(app):
 
         timing = app.config.get("TIMING", {})
         keep_days = timing.get("kismet_file_retention_days", 7)
-        cutoff = datetime.now(timezone.utc) - timedelta(days=keep_days)
+        cutoff = datetime.utcnow() - timedelta(days=keep_days)
 
         session = _Session()
         try:

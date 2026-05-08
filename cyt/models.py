@@ -7,7 +7,7 @@ Kismet .kismet files are read-only via cyt.kismet_reader.
 
 import hashlib
 import json
-from datetime import datetime, timezone
+from datetime import datetime
 
 from sqlalchemy import (
     Column,
@@ -34,11 +34,11 @@ class Device(Base):
 
     id = Column(Integer, primary_key=True)
     mac = Column(String(17), nullable=False, unique=True, index=True)
-    first_seen = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    first_seen = Column(DateTime, default=datetime.utcnow)
     last_seen = Column(
         DateTime,
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
     )
     device_type = Column(String(50))
     manufacturer = Column(String(100))
@@ -84,8 +84,8 @@ class Fingerprint(Base):
     canonical_mac = Column(String(17), nullable=False)
     ssid_pool_hash = Column(String(64), nullable=False, unique=True, index=True)
     ssids_json = Column(Text, nullable=False)  # JSON array of SSIDs in the pool
-    first_seen = Column(DateTime, default=lambda: datetime.now(timezone.utc))
-    last_seen = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    first_seen = Column(DateTime, default=datetime.utcnow)
+    last_seen = Column(DateTime, default=datetime.utcnow)
     appearance_count = Column(Integer, default=1)
 
     devices = relationship("Device", back_populates="fingerprint")
@@ -103,7 +103,7 @@ class AnalysisRun(Base):
     __tablename__ = "analysis_runs"
 
     id = Column(Integer, primary_key=True)
-    started_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    started_at = Column(DateTime, default=datetime.utcnow)
     finished_at = Column(DateTime, nullable=True)
     trigger = Column(String(20))  # "scheduled", "manual", "api"
     devices_analyzed = Column(Integer, default=0)
@@ -124,7 +124,7 @@ class User(Base):
     password_hash = Column(String(128), nullable=True)  # Null for SSO-only users
     is_admin = Column(Boolean, default=False)
     auth_provider = Column(String(20), default="local")  # "local" or "synology_sso"
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime, default=datetime.utcnow)
     last_login = Column(DateTime, nullable=True)
 
 
@@ -147,7 +147,7 @@ class Sensor(Base):
     )  # Pi's $(hostname) — used for NAS dir matching
     kismet_version = Column(String(20), nullable=True)
     wifi_interface = Column(String(20), nullable=True)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime, default=datetime.utcnow)
 
     appearances = relationship("Appearance", back_populates="sensor")
 
@@ -165,8 +165,8 @@ class KismetFileTracker(Base):
     sensor_id = Column(Integer, ForeignKey("sensors.id"), nullable=True)
     updated_at = Column(
         DateTime,
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
     )
 
 

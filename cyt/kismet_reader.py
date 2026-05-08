@@ -5,6 +5,7 @@ Reads synced .kismet files from RPi sensors and extracts device/probe data
 for ingestion into CYT's own SQLite database.
 """
 
+import calendar
 import glob
 import json
 import logging
@@ -94,7 +95,9 @@ def process_kismet_file(
         params = []
         if last_processed_ts:
             query += " WHERE last_time > ?"
-            params.append(int(last_processed_ts.timestamp()))
+            # calendar.timegm correctly converts naive UTC to POSIX epoch
+            # (unlike .timestamp() which assumes local time for naive datetimes)
+            params.append(calendar.timegm(last_processed_ts.timetuple()))
 
         cursor.execute(query, params)
 

@@ -57,8 +57,8 @@ class Config:
     )
 
     # Paths
-    REPORTS_DIR = _cfg.get("paths", {}).get("reports_dir", "surveillance_reports")
-    KML_DIR = _cfg.get("paths", {}).get("kml_dir", "kml_files")
+    REPORTS_DIR = _cfg.get("paths", {}).get("reports_dir", "/data/reports")
+    KML_DIR = _cfg.get("paths", {}).get("kml_dir", "/data/kml")
     IGNORE_LISTS = _cfg.get("paths", {}).get("ignore_lists", {})
 
     # Timing

@@ -7,7 +7,7 @@ identifying the same physical device across multiple randomized MAC addresses.
 
 import json
 import logging
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Dict, List, Set, Tuple
 
 from cyt.models import Device, Appearance, Fingerprint
@@ -190,7 +190,7 @@ def assign_fingerprints(
             session.flush()
             count += 1
         else:
-            fp.last_seen = datetime.now(timezone.utc)
+            fp.last_seen = datetime.utcnow()
             fp.appearance_count = len(cluster)
 
         # Link devices to this fingerprint
