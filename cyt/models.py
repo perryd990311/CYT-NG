@@ -172,11 +172,20 @@ class KismetFileTracker(Base):
 
 def init_db(db_path: str = "cyt_data.db"):
     """Create engine, session factory, and all tables."""
+    from sqlalchemy import event
+
     engine = create_engine(
         f"sqlite:///{db_path}",
         echo=False,
-        connect_args={"timeout": 30},  # wait up to 30s for write lock instead of failing immediately
+        connect_args={"timeout": 30, "check_same_thread": False},
     )
+
+    # Enable WAL mode: allows concurrent readers while a writer holds the lock
+    @event.listens_for(engine, "connect")
+    def set_wal_mode(dbapi_conn, _):
+        dbapi_conn.execute("PRAGMA journal_mode=WAL")
+        dbapi_conn.execute("PRAGMA synchronous=NORMAL")
+
     Base.metadata.create_all(engine)
     Session = sessionmaker(bind=engine)
     return engine, Session
