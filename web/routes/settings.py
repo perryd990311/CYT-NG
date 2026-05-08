@@ -512,6 +512,9 @@ def update_config():
         "hide_unknown_manufacturer", False
     )
 
+    # Reschedule APScheduler jobs to match updated timing values
+    _reschedule_jobs(cfg.get("timing", {}))
+
     flash("Configuration saved.", "success")
     return redirect(url_for("settings.index"))
 
@@ -547,6 +550,47 @@ def _deep_merge(base: dict, overrides: dict) -> dict:
         else:
             base[key] = value
     return base
+
+
+def _reschedule_jobs(timing: dict) -> None:
+    """Reschedule running APScheduler jobs to match updated timing values."""
+    from apscheduler.triggers.interval import IntervalTrigger
+    from cyt.tasks import scheduler
+
+    if not scheduler.running:
+        return
+
+    ingest_interval = timing.get("check_interval", 60)
+    fp_multiplier = timing.get("list_update_interval", 5)
+    fp_interval = ingest_interval * fp_multiplier
+    analysis_hours = timing.get("analysis_interval_hours", 6)
+    cleanup_hours = timing.get("cleanup_interval_hours", 24)
+
+    try:
+        scheduler.reschedule_job("kismet_ingestion", trigger=IntervalTrigger(seconds=ingest_interval))
+    except Exception:
+        pass
+
+    try:
+        scheduler.reschedule_job("ssid_fingerprinting", trigger=IntervalTrigger(seconds=fp_interval))
+    except Exception:
+        pass
+
+    if analysis_hours > 0:
+        try:
+            scheduler.reschedule_job("scheduled_analysis", trigger=IntervalTrigger(hours=analysis_hours))
+        except Exception:
+            pass
+
+    if cleanup_hours > 0:
+        try:
+            scheduler.reschedule_job("data_cleanup", trigger=IntervalTrigger(hours=cleanup_hours))
+        except Exception:
+            pass
+        try:
+            scheduler.reschedule_job("kismet_file_cleanup", trigger=IntervalTrigger(hours=cleanup_hours))
+        except Exception:
+            pass
 
 
 @bp.route("/backfill-devices", methods=["POST"])
