@@ -172,7 +172,11 @@ class KismetFileTracker(Base):
 
 def init_db(db_path: str = "cyt_data.db"):
     """Create engine, session factory, and all tables."""
-    engine = create_engine(f"sqlite:///{db_path}", echo=False)
+    engine = create_engine(
+        f"sqlite:///{db_path}",
+        echo=False,
+        connect_args={"timeout": 30},  # wait up to 30s for write lock instead of failing immediately
+    )
     Base.metadata.create_all(engine)
     Session = sessionmaker(bind=engine)
     return engine, Session
