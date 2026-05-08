@@ -1,12 +1,16 @@
 """CYT-NG Flask application factory."""
 
 import json
+import logging
 
 from flask import Flask
 
 from web.config import Config
 from web.extensions import socketio, init_db
 from web.mac_visuals import color_dot_hsl, friendly_name, ssid_color_hsl
+
+# Ensure cyt.* loggers emit INFO and above (gunicorn sets root to WARNING)
+logging.getLogger("cyt").setLevel(logging.INFO)
 
 
 def _parse_json(value):

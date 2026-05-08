@@ -184,12 +184,16 @@ def ingest_all(directory_pattern: str, session_factory, sensor_id: Optional[int]
     """
     from cyt.models import Device, Appearance, KismetFileTracker
     from cyt.oui_lookup import lookup_manufacturer
+    from sqlalchemy import text as _text
 
     session = session_factory()
     files = scan_kismet_directory(directory_pattern)
 
-    # Pre-load all known MACs into a cache to avoid per-record SELECT queries
-    device_cache: dict = {d.mac: d for d in session.query(Device).all()}
+    # Pre-load lightweight MAC→(id, last_seen) map — avoids N+1 SELECT queries.
+    # Uses raw SQL to avoid loading heavy ORM objects for every device.
+    mac_cache: dict = {}  # mac -> (device_id, last_seen datetime)
+    for row in session.execute(_text("SELECT id, mac, last_seen FROM devices")).fetchall():
+        mac_cache[row[1]] = (row[0], row[2])
 
     total_new = 0
     for file_path in files:
@@ -215,9 +219,10 @@ def ingest_all(directory_pattern: str, session_factory, sensor_id: Optional[int]
             if not mfr or mfr == "Unknown":
                 mfr = lookup_manufacturer(rec.mac) or mfr or "Unknown"
 
-            # Upsert device using cache (avoids per-record SELECT)
-            device = device_cache.get(rec.mac)
-            if not device:
+            # Upsert device using mac_cache (no per-record SELECT)
+            cached = mac_cache.get(rec.mac)
+            if cached is None:
+                # New device — create and flush to get id
                 device = Device(
                     mac=rec.mac,
                     device_type=rec.device_type,
@@ -227,15 +232,21 @@ def ingest_all(directory_pattern: str, session_factory, sensor_id: Optional[int]
                     is_randomized=is_locally_administered(rec.mac),
                 )
                 session.add(device)
-                session.flush()  # get device.id assigned
-                device_cache[rec.mac] = device
-
-            if rec.last_seen > device.last_seen:
-                device.last_seen = rec.last_seen
+                session.flush()
+                device_id = device.id
+                mac_cache[rec.mac] = (device_id, rec.last_seen)
+            else:
+                device_id, cached_last_seen = cached
+                if rec.last_seen > (cached_last_seen or datetime.min):
+                    session.execute(
+                        _text("UPDATE devices SET last_seen=:ts WHERE id=:id"),
+                        {"ts": rec.last_seen, "id": device_id},
+                    )
+                    mac_cache[rec.mac] = (device_id, rec.last_seen)
 
             # Add appearance
             appearance = Appearance(
-                device_id=device.id,
+                device_id=device_id,
                 sensor_id=sensor_id,
                 timestamp=rec.last_seen,
                 lat=rec.lat,
