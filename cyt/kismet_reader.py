@@ -193,7 +193,13 @@ def ingest_all(directory_pattern: str, session_factory, sensor_id: Optional[int]
     # Uses raw SQL to avoid loading heavy ORM objects for every device.
     mac_cache: dict = {}  # mac -> (device_id, last_seen datetime)
     for row in session.execute(_text("SELECT id, mac, last_seen FROM devices")).fetchall():
-        mac_cache[row[1]] = (row[0], row[2])
+        raw_ts = row[2]
+        if isinstance(raw_ts, str):
+            try:
+                raw_ts = datetime.fromisoformat(raw_ts)
+            except (ValueError, TypeError):
+                raw_ts = None
+        mac_cache[row[1]] = (row[0], raw_ts)
 
     total_new = 0
     for file_path in files:
