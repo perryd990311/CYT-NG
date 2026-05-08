@@ -2,6 +2,7 @@
 
 import json
 import logging
+import sys
 
 from flask import Flask
 
@@ -9,8 +10,15 @@ from web.config import Config
 from web.extensions import socketio, init_db
 from web.mac_visuals import color_dot_hsl, friendly_name, ssid_color_hsl
 
-# Ensure cyt.* loggers emit INFO and above (gunicorn sets root to WARNING)
-logging.getLogger("cyt").setLevel(logging.INFO)
+# Gunicorn only configures its own loggers — add a handler so cyt.* INFO
+# messages reach stderr (and therefore docker logs).
+_cyt_log = logging.getLogger("cyt")
+if not _cyt_log.handlers:
+    _h = logging.StreamHandler(sys.stderr)
+    _h.setFormatter(logging.Formatter("%(levelname)s:%(name)s:%(message)s"))
+    _cyt_log.addHandler(_h)
+_cyt_log.setLevel(logging.INFO)
+_cyt_log.propagate = False
 
 
 def _parse_json(value):
