@@ -15,7 +15,7 @@ from cyt.input_validation import InputValidator
 logger = logging.getLogger(__name__)
 
 _WIGLE_SEARCH_URL = "https://api.wigle.net/api/v2/network/search"
-_REQUEST_TIMEOUT = 15  # seconds
+_REQUEST_TIMEOUT = 25  # seconds — WiGLE free tier is slow (~10s typical)
 
 
 class WiGLEError(Exception):
@@ -114,6 +114,15 @@ class WiGLEClient:
             data = resp.json()
         except ValueError:
             logger.error("WiGLE API returned non-JSON response")
+            return []
+
+        # WiGLE returns 200 with {"success":false,"message":"too many queries today"}
+        if not data.get("success", True):
+            msg = data.get("message", "")
+            if "too many" in msg.lower() or "quota" in msg.lower():
+                logger.warning("WiGLE API daily quota exceeded")
+                raise WiGLERateLimited("WiGLE API quota exceeded")
+            logger.error("WiGLE API error: %s", msg)
             return []
 
         results = []
