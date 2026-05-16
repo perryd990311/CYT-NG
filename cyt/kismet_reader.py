@@ -224,7 +224,7 @@ def ingest_all(directory_pattern: str, session_factory, sensor_id: Optional[int]
         ).fetchone()
         session.commit()  # release read snapshot
 
-        if tracker_row and tracker_row[1] == current_size:
+        if tracker_row and tracker_row[1] == current_size and tracker_row[2] is not None:
             logger.debug("Skipping unchanged file: %s", file_path)
             continue
 
