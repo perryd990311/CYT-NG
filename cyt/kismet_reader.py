@@ -247,6 +247,11 @@ def ingest_all(directory_pattern: str, session_factory, sensor_id: Optional[int]
         records = process_kismet_file(file_path, last_ts)
         logger.info("  Extracted %d records, ingesting...", len(records))
 
+        # Compute max Kismet timestamp from this batch — used for
+        # last_processed_ts so both sides of the WHERE last_time > ?
+        # filter use the *sensor's* clock, eliminating NAS/Pi clock skew.
+        max_kismet_ts = max((r.last_seen for r in records), default=None) if records else None
+
         batch_count = 0
         for i, rec in enumerate(records):
             # Resolve manufacturer — prefer Kismet's value, fall back to OUI DB
@@ -301,7 +306,12 @@ def ingest_all(directory_pattern: str, session_factory, sensor_id: Optional[int]
 
         # Update or insert tracker record using raw SQL (ORM object was not
         # retained across the earlier commit, so use IDs directly).
+        # Use the max Kismet timestamp (sensor clock) for last_processed_ts,
+        # NOT datetime.utcnow() (server clock).  Clock skew between sensor
+        # and server causes the WHERE last_time > ? filter to reject all
+        # records when server time is used.
         now = datetime.utcnow()
+        ts_for_tracker = max_kismet_ts if max_kismet_ts else last_ts
         if tracker_id is None:
             session.execute(
                 _text(
@@ -309,7 +319,7 @@ def ingest_all(directory_pattern: str, session_factory, sensor_id: Optional[int]
                     "(file_path, file_size, last_processed_ts, records_imported, updated_at) "
                     "VALUES (:fp, :fs, :ts, :ri, :ua)"
                 ),
-                {"fp": file_path, "fs": current_size, "ts": now, "ri": len(records), "ua": now},
+                {"fp": file_path, "fs": current_size, "ts": ts_for_tracker, "ri": len(records), "ua": now},
             )
         else:
             session.execute(
@@ -320,7 +330,7 @@ def ingest_all(directory_pattern: str, session_factory, sensor_id: Optional[int]
                 ),
                 {
                     "fs": current_size,
-                    "ts": now,
+                    "ts": ts_for_tracker if ts_for_tracker else last_ts,
                     "ri": (tracker_records or 0) + len(records),
                     "ua": now,
                     "id": tracker_id,
