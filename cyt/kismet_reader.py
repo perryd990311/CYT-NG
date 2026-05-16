@@ -189,6 +189,14 @@ def ingest_all(directory_pattern: str, session_factory, sensor_id: Optional[int]
     session = session_factory()
     files = scan_kismet_directory(directory_pattern)
 
+    # Build local_hostname → sensor_id map for automatic sensor resolution.
+    # File paths are like /data/kismet/<local_hostname>/Kismet-*.kismet
+    sensor_map: dict = {}  # local_hostname -> sensor_id
+    for row in session.execute(
+        _text("SELECT id, local_hostname FROM sensors WHERE local_hostname IS NOT NULL")
+    ).fetchall():
+        sensor_map[row[1]] = row[0]
+
     # Pre-load lightweight MAC→(id, last_seen) map — avoids N+1 SELECT queries.
     # Uses raw SQL to avoid loading heavy ORM objects for every device.
     mac_cache: dict = {}  # mac -> (device_id, last_seen datetime)
@@ -212,6 +220,13 @@ def ingest_all(directory_pattern: str, session_factory, sensor_id: Optional[int]
     total_new = 0
     for file_path in files:
         current_size = os.path.getsize(file_path)
+
+        # Resolve sensor_id from directory name if not explicitly provided.
+        # Path: /data/kismet/<local_hostname>/Kismet-*.kismet
+        file_sensor_id = sensor_id
+        if file_sensor_id is None:
+            parent_dir = os.path.basename(os.path.dirname(file_path))
+            file_sensor_id = sensor_map.get(parent_dir)
 
         # Read tracker state via raw SQL, then immediately commit to drop the
         # read snapshot before any writes occur in this iteration.
@@ -287,7 +302,7 @@ def ingest_all(directory_pattern: str, session_factory, sensor_id: Optional[int]
             # Add appearance
             appearance = Appearance(
                 device_id=device_id,
-                sensor_id=sensor_id,
+                sensor_id=file_sensor_id,
                 timestamp=rec.last_seen,
                 lat=rec.lat,
                 lon=rec.lon,
@@ -316,22 +331,23 @@ def ingest_all(directory_pattern: str, session_factory, sensor_id: Optional[int]
             session.execute(
                 _text(
                     "INSERT INTO kismet_file_tracker "
-                    "(file_path, file_size, last_processed_ts, records_imported, updated_at) "
-                    "VALUES (:fp, :fs, :ts, :ri, :ua)"
+                    "(file_path, file_size, last_processed_ts, records_imported, sensor_id, updated_at) "
+                    "VALUES (:fp, :fs, :ts, :ri, :sid, :ua)"
                 ),
-                {"fp": file_path, "fs": current_size, "ts": ts_for_tracker, "ri": len(records), "ua": now},
+                {"fp": file_path, "fs": current_size, "ts": ts_for_tracker, "ri": len(records), "sid": file_sensor_id, "ua": now},
             )
         else:
             session.execute(
                 _text(
                     "UPDATE kismet_file_tracker "
-                    "SET file_size=:fs, last_processed_ts=:ts, records_imported=:ri, updated_at=:ua "
+                    "SET file_size=:fs, last_processed_ts=:ts, records_imported=:ri, sensor_id=:sid, updated_at=:ua "
                     "WHERE id=:id"
                 ),
                 {
                     "fs": current_size,
                     "ts": ts_for_tracker if ts_for_tracker else last_ts,
                     "ri": (tracker_records or 0) + len(records),
+                    "sid": file_sensor_id,
                     "ua": now,
                     "id": tracker_id,
                 },
