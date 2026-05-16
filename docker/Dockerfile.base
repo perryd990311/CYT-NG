@@ -23,7 +23,8 @@ COPY ${REPO_PREFIX}requirements.txt /tmp/requirements.txt
 RUN pip install --no-cache-dir -r /tmp/requirements.txt && \
     rm /tmp/requirements.txt
 
-# Non-root user (app image will inherit this)
-RUN groupadd -r cyt && useradd -r -g cyt -d /app -s /sbin/nologin cyt
+# Non-root user — UID/GID match the Synology 'raspi' sync account (1027:100)
+# so the container can read AND delete .kismet files synced from RPi sensors.
+RUN groupadd -g 100 -o cyt && useradd -r -u 1027 -g 100 -d /app -s /sbin/nologin cyt
 
 WORKDIR /app

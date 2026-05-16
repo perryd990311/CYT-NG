@@ -34,10 +34,11 @@ if ! mountpoint -q "$NAS_MOUNT"; then
 fi
 
 # Create sensor subdirectory on NAS (one per RPi hostname)
-# 755 so the CYT web container (different UID) can read .kismet files and .last_sync
+# 775 so the CYT web container (same group, different UID) can read AND delete
+# old .kismet files after ingestion
 DEST_DIR="${NAS_MOUNT}/${HOSTNAME}"
 mkdir -p "$DEST_DIR"
-chmod 755 "$DEST_DIR"
+chmod 775 "$DEST_DIR"
 
 # Sync closed .kismet files only — skip the active (newest) file since
 # Kismet holds a write lock on it.  Hourly SIGHUP rotation (via
@@ -67,6 +68,7 @@ for f in "${KISMET_LOG_DIR}"/*.kismet; do
     # Only copy if source is newer or different size
     if [ ! -f "$DEST" ] || [ "$f" -nt "$DEST" ]; then
         cp -p "$f" "$DEST"
+        chmod 664 "$DEST"  # group-writable so CYT container can delete after ingestion
         SYNC_COUNT=$((SYNC_COUNT + 1))
         log "Synced: $BASENAME → $DEST_DIR/"
     fi

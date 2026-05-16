@@ -343,6 +343,14 @@ def _run_kismet_file_cleanup(app):
                     session.delete(tracker)
                     removed += 1
                     logger.info("Removed old .kismet file: %s", fpath)
+                except PermissionError:
+                    # Container user can't delete files owned by the sync user.
+                    # Remove the tracker so it doesn't block future ingestion
+                    # or pile up stale entries.  The file stays on disk until
+                    # the host-side retention cron (or manual cleanup) removes it.
+                    session.delete(tracker)
+                    removed += 1
+                    logger.info("No delete permission for %s — removed tracker only", fpath)
                 except OSError as e:
                     logger.warning("Could not remove %s: %s", fpath, e)
 
