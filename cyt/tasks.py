@@ -42,8 +42,6 @@ def _run_ingestion(app):
             _Session.remove()
 
 
-
-
 def _run_sensor_heartbeat(app):
     """Update Sensor.last_seen from .last_sync heartbeat files.
 

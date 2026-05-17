@@ -537,20 +537,22 @@ def clusters():
         else:
             confidence, conf_cls, conf_sort = "Low", "success", 1
 
-        cluster_list.append({
-            "id": fp.id,
-            "mac_count": mac_count,
-            "ssid_count": ssid_count,
-            "sample_ssids": pool[:3],
-            "extra_ssids": max(0, ssid_count - 3),
-            "confidence": confidence,
-            "conf_cls": conf_cls,
-            "conf_sort": conf_sort,
-            "first_seen": fp.first_seen,
-            "last_seen": fp.last_seen,
-            "appearances": fp.appearance_count or 0,
-            "manufacturer": manufacturer,
-        })
+        cluster_list.append(
+            {
+                "id": fp.id,
+                "mac_count": mac_count,
+                "ssid_count": ssid_count,
+                "sample_ssids": pool[:3],
+                "extra_ssids": max(0, ssid_count - 3),
+                "confidence": confidence,
+                "conf_cls": conf_cls,
+                "conf_sort": conf_sort,
+                "first_seen": fp.first_seen,
+                "last_seen": fp.last_seen,
+                "appearances": fp.appearance_count or 0,
+                "manufacturer": manufacturer,
+            }
+        )
 
     total_macs = sum(c["mac_count"] for c in cluster_list)
     return render_template("clusters.html", clusters=cluster_list, total_macs=total_macs)
@@ -594,6 +596,7 @@ def cluster_detail(cluster_id):
             .all()
         )
         from collections import defaultdict
+
         ssid_per_device = defaultdict(set)
         for did, raw in ssid_rows:
             try:
@@ -606,15 +609,17 @@ def cluster_detail(cluster_id):
 
     device_info = []
     for d in devices:
-        device_info.append({
-            "mac": d.mac,
-            "is_randomized": d.is_randomized,
-            "manufacturer": d.manufacturer or "Unknown",
-            "appearances": app_counts.get(d.id, 0),
-            "first_seen": d.first_seen,
-            "last_seen": d.last_seen,
-            "ssid_count": ssid_sets.get(d.id, 0),
-        })
+        device_info.append(
+            {
+                "mac": d.mac,
+                "is_randomized": d.is_randomized,
+                "manufacturer": d.manufacturer or "Unknown",
+                "appearances": app_counts.get(d.id, 0),
+                "first_seen": d.first_seen,
+                "last_seen": d.last_seen,
+                "ssid_count": ssid_sets.get(d.id, 0),
+            }
+        )
 
     total_appearances = sum(di["appearances"] for di in device_info)
 

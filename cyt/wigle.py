@@ -127,15 +127,17 @@ class WiGLEClient:
 
         results = []
         for net in data.get("results", []):
-            results.append({
-                "lat": net.get("trilat"),
-                "lon": net.get("trilong"),
-                "city": net.get("city", ""),
-                "region": net.get("region", ""),
-                "country": net.get("country", ""),
-                "first_seen": net.get("firsttime", ""),
-                "last_seen": net.get("lasttime", ""),
-            })
+            results.append(
+                {
+                    "lat": net.get("trilat"),
+                    "lon": net.get("trilong"),
+                    "city": net.get("city", ""),
+                    "region": net.get("region", ""),
+                    "country": net.get("country", ""),
+                    "first_seen": net.get("firsttime", ""),
+                    "last_seen": net.get("lasttime", ""),
+                }
+            )
 
         logger.info("WiGLE lookup for SSID %r returned %d results", ssid, len(results))
         return results

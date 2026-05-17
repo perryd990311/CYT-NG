@@ -60,6 +60,7 @@ def _write_ignore_list(path: Path, data: list) -> None:
 def get_baseline_macs():
     """Return a set of upper-cased MACs from the ignore list. Importable by other routes."""
     from flask import current_app
+
     ignore_cfg = current_app.config.get("IGNORE_LISTS", {})
     base = Path(current_app.root_path).parent
     mac_path = base / ignore_cfg.get("mac", "ignore_lists/mac_list.json")
@@ -138,6 +139,7 @@ def ignore_lists():
         # Fetch appearance counts and all probed SSIDs per device in one query
         from cyt.models import Appearance
         from sqlalchemy import func
+
         appearance_rows = (
             db.query(Appearance.device_id, func.count(Appearance.id), Appearance.ssids_json)
             .filter(Appearance.device_id.in_([d.id for d in devices_in_baseline]))
@@ -152,6 +154,7 @@ def ignore_lists():
             if ssids_json:
                 try:
                     import json as _json
+
                     for s in _json.loads(ssids_json):
                         if s and s.strip():
                             device_id_to_ssids.setdefault(did, set()).add(s.strip())
@@ -180,17 +183,19 @@ def ignore_lists():
                 likelihood = "Unknown"
                 likelihood_cls = "secondary"
 
-            mac_info.append({
-                "mac": mac,
-                "manufacturer": mfr,
-                "device_type": d.device_type if d else "",
-                "last_seen": d.last_seen if d else None,
-                "appearances": app_count,
-                "probed_ssids": probed,
-                "is_randomized": is_rand,
-                "likelihood": likelihood,
-                "likelihood_cls": likelihood_cls,
-            })
+            mac_info.append(
+                {
+                    "mac": mac,
+                    "manufacturer": mfr,
+                    "device_type": d.device_type if d else "",
+                    "last_seen": d.last_seen if d else None,
+                    "appearances": app_count,
+                    "probed_ssids": probed,
+                    "is_randomized": is_rand,
+                    "likelihood": likelihood,
+                    "likelihood_cls": likelihood_cls,
+                }
+            )
     else:
         mac_info = []
 
@@ -498,9 +503,7 @@ def update_config():
     # Reload into running app
     current_app.config["RAW_CONFIG"] = cfg
     current_app.config["KISMET_LOGS"] = cfg.get("paths", {}).get("kismet_logs", "")
-    current_app.config["REPORTS_DIR"] = cfg.get("paths", {}).get(
-        "reports_dir", "/data/reports"
-    )
+    current_app.config["REPORTS_DIR"] = cfg.get("paths", {}).get("reports_dir", "/data/reports")
     current_app.config["JACCARD_THRESHOLD"] = cfg.get("fingerprinting", {}).get(
         "jaccard_threshold", 0.85
     )
@@ -567,18 +570,24 @@ def _reschedule_jobs(timing: dict) -> None:
     cleanup_hours = timing.get("cleanup_interval_hours", 24)
 
     try:
-        scheduler.reschedule_job("kismet_ingestion", trigger=IntervalTrigger(seconds=ingest_interval))
+        scheduler.reschedule_job(
+            "kismet_ingestion", trigger=IntervalTrigger(seconds=ingest_interval)
+        )
     except Exception:
         pass
 
     try:
-        scheduler.reschedule_job("ssid_fingerprinting", trigger=IntervalTrigger(seconds=fp_interval))
+        scheduler.reschedule_job(
+            "ssid_fingerprinting", trigger=IntervalTrigger(seconds=fp_interval)
+        )
     except Exception:
         pass
 
     if analysis_hours > 0:
         try:
-            scheduler.reschedule_job("scheduled_analysis", trigger=IntervalTrigger(hours=analysis_hours))
+            scheduler.reschedule_job(
+                "scheduled_analysis", trigger=IntervalTrigger(hours=analysis_hours)
+            )
         except Exception:
             pass
 
@@ -588,7 +597,9 @@ def _reschedule_jobs(timing: dict) -> None:
         except Exception:
             pass
         try:
-            scheduler.reschedule_job("kismet_file_cleanup", trigger=IntervalTrigger(hours=cleanup_hours))
+            scheduler.reschedule_job(
+                "kismet_file_cleanup", trigger=IntervalTrigger(hours=cleanup_hours)
+            )
         except Exception:
             pass
 

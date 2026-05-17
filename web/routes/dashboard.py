@@ -46,7 +46,11 @@ def index():
     # Base device query with optional filters
     base_q = db.query(Device)
     if hide_unknown:
-        base_q = base_q.filter(Device.manufacturer != "Unknown", Device.manufacturer != "", Device.manufacturer.isnot(None))
+        base_q = base_q.filter(
+            Device.manufacturer != "Unknown",
+            Device.manufacturer != "",
+            Device.manufacturer.isnot(None),
+        )
 
     total_devices = base_q.count()
     active_devices = base_q.filter(Device.last_seen >= active_since).count()
@@ -75,7 +79,11 @@ def index():
         .order_by(func.count(Appearance.id).desc())
     )
     if hide_unknown:
-        top_q = top_q.filter(Device.manufacturer != "Unknown", Device.manufacturer != "", Device.manufacturer.isnot(None))
+        top_q = top_q.filter(
+            Device.manufacturer != "Unknown",
+            Device.manufacturer != "",
+            Device.manufacturer.isnot(None),
+        )
     if not show_ignored and baseline_macs:
         top_q = top_q.filter(func.upper(Device.mac).notin_(baseline_macs))
     top_persistent = top_q.limit(10).all()
@@ -89,6 +97,7 @@ def index():
             if ssids_json:
                 try:
                     import json as _json
+
                     for s in _json.loads(ssids_json):
                         if s and s.strip():
                             probed.add(s.strip())
@@ -100,13 +109,15 @@ def index():
             is_randomized=bool(device.is_randomized),
             manufacturer=device.manufacturer or "",
         )
-        top_enriched.append({
-            "device": device,
-            "cnt": cnt,
-            "probed_ssids": sorted(probed),
-            "likelihood": likelihood,
-            "likelihood_cls": likelihood_cls,
-        })
+        top_enriched.append(
+            {
+                "device": device,
+                "cnt": cnt,
+                "probed_ssids": sorted(probed),
+                "likelihood": likelihood,
+                "likelihood_cls": likelihood_cls,
+            }
+        )
 
     # Collapse cluster MACs into single rows
     seen_fps = {}  # fingerprint_id → index in top_grouped
@@ -230,7 +241,11 @@ def api_devices():
     query = db.query(Device)
     hide_unknown = current_app.config.get("HIDE_UNKNOWN_MANUFACTURER", False)
     if hide_unknown:
-        query = query.filter(Device.manufacturer != "Unknown", Device.manufacturer != "", Device.manufacturer.isnot(None))
+        query = query.filter(
+            Device.manufacturer != "Unknown",
+            Device.manufacturer != "",
+            Device.manufacturer.isnot(None),
+        )
     if not show_ignored:
         baseline_macs = get_baseline_macs()
         if baseline_macs:
