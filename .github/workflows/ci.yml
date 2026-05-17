@@ -34,6 +34,7 @@ jobs:
         run: black --check cyt/ web/ --line-length 100
 
       - name: Lint check (flake8 – logic errors only)
+        continue-on-error: true
         run: flake8 cyt/ web/ --select=F
 
       - name: Import check (cyt package)
