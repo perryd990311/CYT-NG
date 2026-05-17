@@ -96,7 +96,9 @@ def build_ssid_pools(
 
     logger.info(
         "Built SSID pools for %d devices (min_ssids=%d, max_devices_per_ssid=%d)",
-        len(pools), min_ssids, max_devices_per_ssid,
+        len(pools),
+        min_ssids,
+        max_devices_per_ssid,
     )
     return pools
 

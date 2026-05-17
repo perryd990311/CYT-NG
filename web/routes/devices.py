@@ -93,23 +93,27 @@ def group_by_cluster(devices, baseline_macs):
         # Representative = most recently seen
         members.sort(key=lambda m: m.last_seen or datetime.min, reverse=True)
         rep = members[0]
-        rows.append({
-            "is_cluster": True,
-            "device": rep,
-            "fingerprint_id": fp_id,
-            "mac_count": len(members),
-            "other_macs": [m.mac for m in members[1:]],
-            "all_device_ids": [m.id for m in members],
-        })
+        rows.append(
+            {
+                "is_cluster": True,
+                "device": rep,
+                "fingerprint_id": fp_id,
+                "mac_count": len(members),
+                "other_macs": [m.mac for m in members[1:]],
+                "all_device_ids": [m.id for m in members],
+            }
+        )
 
     # Add non-cluster rows
     for d in singles:
         if d.mac.upper() in baseline_macs:
             continue
-        rows.append({
-            "is_cluster": False,
-            "device": d,
-        })
+        rows.append(
+            {
+                "is_cluster": False,
+                "device": d,
+            }
+        )
 
     # Sort combined list by representative last_seen desc
     rows.sort(key=lambda r: r["device"].last_seen or datetime.min, reverse=True)
@@ -291,7 +295,11 @@ def index():
 
     query = db.query(Device)
     if hide_unknown:
-        query = query.filter(Device.manufacturer != "Unknown", Device.manufacturer != "", Device.manufacturer.isnot(None))
+        query = query.filter(
+            Device.manufacturer != "Unknown",
+            Device.manufacturer != "",
+            Device.manufacturer.isnot(None),
+        )
     if search:
         # Sanitize search input
         safe = search.replace("%", "").replace("_", "")
@@ -490,7 +498,9 @@ def ssids():
     # Build SSID ignore set
     ignore_cfg = current_app.config.get("IGNORE_LISTS", {})
     base = Path(current_app.root_path).parent
-    ssid_ignore = set(_read_ignore_list(base / ignore_cfg.get("ssid", "ignore_lists/ssidlist.json")))
+    ssid_ignore = set(
+        _read_ignore_list(base / ignore_cfg.get("ssid", "ignore_lists/ssidlist.json"))
+    )
 
     rows = (
         db.query(Appearance.ssids_json, Appearance.device_id, Appearance.timestamp)

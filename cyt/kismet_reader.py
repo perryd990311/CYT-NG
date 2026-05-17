@@ -258,7 +258,9 @@ def ingest_all(directory_pattern: str, session_factory, sensor_id: Optional[int]
             elif isinstance(raw_ts, datetime):
                 last_ts = raw_ts
 
-        logger.info("Processing %s (%.1f MB)", os.path.basename(file_path), current_size / 1_048_576)
+        logger.info(
+            "Processing %s (%.1f MB)", os.path.basename(file_path), current_size / 1_048_576
+        )
         records = process_kismet_file(file_path, last_ts)
         logger.info("  Extracted %d records, ingesting...", len(records))
 
@@ -334,7 +336,14 @@ def ingest_all(directory_pattern: str, session_factory, sensor_id: Optional[int]
                     "(file_path, file_size, last_processed_ts, records_imported, sensor_id, updated_at) "
                     "VALUES (:fp, :fs, :ts, :ri, :sid, :ua)"
                 ),
-                {"fp": file_path, "fs": current_size, "ts": ts_for_tracker, "ri": len(records), "sid": file_sensor_id, "ua": now},
+                {
+                    "fp": file_path,
+                    "fs": current_size,
+                    "ts": ts_for_tracker,
+                    "ri": len(records),
+                    "sid": file_sensor_id,
+                    "ua": now,
+                },
             )
         else:
             session.execute(
