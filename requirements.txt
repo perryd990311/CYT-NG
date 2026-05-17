@@ -20,7 +20,7 @@ APScheduler>=3.11.0,<4.0
 
 # WSGI server
 gunicorn>=25.0.0
-gevent>=26.0.0
+gevent>=26.4.0
 gevent-websocket>=0.10.1
 
 # Sensor provisioning (SSH)
