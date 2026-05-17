@@ -1,24 +1,32 @@
 version: 2
 
 updates:
-  # Python dependencies (requirements.txt)
+  # Python dependencies (requirements.txt) — all grouped into one PR
   - package-ecosystem: pip
     directory: /
     schedule:
       interval: weekly
       day: monday
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 1
     labels:
       - dependencies
       - python
+    groups:
+      python-all:
+        patterns:
+          - "*"
 
-  # GitHub Actions workflow dependencies
+  # GitHub Actions workflow dependencies — all grouped into one PR
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
       day: monday
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 1
     labels:
       - dependencies
       - github-actions
+    groups:
+      actions-all:
+        patterns:
+          - "*"
