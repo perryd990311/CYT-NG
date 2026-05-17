@@ -119,7 +119,7 @@ jobs:
       - name: Open or update PR
         if: steps.diff.outputs.changed == 'true'
         id: pr
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         env:
           FLAKE8_OUTPUT: ${{ steps.flake8.outputs.output }}
           DIFF_STATS: ${{ steps.validate.outputs.stats }}
@@ -185,7 +185,7 @@ jobs:
       # ── Auto-approve using PAT (different identity from github-actions[bot]) ─
       - name: Auto-approve PR
         if: steps.diff.outputs.changed == 'true'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           github-token: ${{ secrets.PAT_TOKEN }}
           script: |
@@ -206,7 +206,7 @@ jobs:
       # ── Squash-merge the PR (PAT — same identity as approver is fine for merge) ─
       - name: Merge PR
         if: steps.diff.outputs.changed == 'true'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           github-token: ${{ secrets.PAT_TOKEN }}
           script: |
