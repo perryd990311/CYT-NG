@@ -20,6 +20,7 @@ def _get_lookup():
     _init_attempted = True
     try:
         from mac_vendor_lookup import MacLookup
+
         _lookup = MacLookup()
         # Do NOT call update_vendors() — it downloads from IEEE over the
         # network, which blocks the gevent event loop indefinitely in
