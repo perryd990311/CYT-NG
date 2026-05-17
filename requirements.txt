@@ -16,7 +16,7 @@ Flask-Limiter>=4.1.0
 Authlib>=1.7.0
 
 # Analysis & scheduling (Phase 4)
-APScheduler>=3.11.0,<4.0
+APScheduler>=3.11.2,<4.0
 
 # WSGI server
 gunicorn>=25.0.0
