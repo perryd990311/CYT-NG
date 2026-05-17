@@ -33,7 +33,7 @@ jobs:
       # Default GITHUB_TOKEN is used for checkout + git push so the PR author
       # is github-actions[bot].  The PAT (a human identity) can then approve
       # without hitting GitHub's self-review restriction.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       # ── Python + linters ────────────────────────────────────────────────────
       - uses: actions/setup-python@v5
