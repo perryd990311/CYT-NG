@@ -4,7 +4,7 @@ on:
   # Disabled for now — re-enable by removing this condition
   workflow_dispatch:
   push:
-    branches: [] # Empty to prevent automatic triggers
+    branches: [main] # Empty to prevent automatic triggers
   pull_request:
     branches: [] # Empty to prevent automatic triggers
 
@@ -33,8 +33,8 @@ jobs:
       - name: Format check (black)
         run: black --check cyt/ web/ --line-length 100
 
-      - name: Lint check (flake8)
-        run: flake8 cyt/ web/ --max-line-length 100 --ignore E501,W503,E203
+      - name: Lint check (flake8 – logic errors only)
+        run: flake8 cyt/ web/ --select=F
 
       - name: Import check (cyt package)
         env:

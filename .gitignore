@@ -17,6 +17,7 @@ venv/
 # workings
 *.log
 .tmp
+diag*.py
 
 # Mockups — local preview only
 web/mockup/

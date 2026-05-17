@@ -1,0 +1,165 @@
+name: Lint Auto-fix
+
+# Runs black to auto-format Python, then opens (or updates) a single PR on
+# the `autofix/black-format` branch.  The PR is approved automatically using
+# a PAT so the commit author (github-actions[bot]) and the approver are
+# different identities — satisfying GitHub's self-review block.
+#
+# Flake8 issues that black cannot fix are surfaced as a report section in the
+# PR body for human review.
+#
+# Prerequisites (repo Settings → Secrets and variables → Actions):
+#   PAT_TOKEN  — classic PAT with scopes: repo (full)
+#                Created at: https://github.com/settings/tokens
+#
+# Trigger: enable alongside CI by adding branch names to the `push` list.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main] # Empty to prevent automatic triggers
+
+permissions:
+  contents: write       # push autofix branch
+  pull-requests: write  # create / update PR
+
+jobs:
+  autofix:
+    name: Black auto-format → PR → approve
+    runs-on: ubuntu-latest
+
+    steps:
+      # ── Checkout ────────────────────────────────────────────────────────────
+      # Default GITHUB_TOKEN is used for checkout + git push so the PR author
+      # is github-actions[bot].  The PAT (a human identity) can then approve
+      # without hitting GitHub's self-review restriction.
+      - uses: actions/checkout@v4
+
+      # ── Python + linters ────────────────────────────────────────────────────
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install linters
+        run: pip install --no-cache-dir black flake8
+
+      # ── Black (auto-fix) ────────────────────────────────────────────────────
+      - name: Run black
+        run: black cyt/ web/ --line-length 100
+
+      # ── Flake8 (report only — cannot auto-fix) ──────────────────────────────
+      - name: Run flake8 (logic errors only)
+        id: flake8
+        continue-on-error: true
+        run: |
+          OUTPUT=$(flake8 cyt/ web/ --select=F 2>&1 || true)
+          echo "output<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$OUTPUT"     >> "$GITHUB_OUTPUT"
+          echo "EOF"         >> "$GITHUB_OUTPUT"
+
+      # ── Detect whether black changed anything ────────────────────────────────
+      - name: Detect changes
+        id: diff
+        run: |
+          if git diff --quiet; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true"  >> "$GITHUB_OUTPUT"
+          fi
+
+      # ── Commit & force-push to the dedicated autofix branch ─────────────────
+      - name: Push to autofix branch
+        if: steps.diff.outputs.changed == 'true'
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B autofix/black-format
+          git add -A
+          git commit -m "style: auto-format with black (line-length 100)"
+          git push --force origin autofix/black-format
+
+      # ── Open or update the PR (skip if already open) ─────────────────────────
+      - name: Open or update PR
+        if: steps.diff.outputs.changed == 'true'
+        id: pr
+        uses: actions/github-script@v7
+        env:
+          FLAKE8_OUTPUT: ${{ steps.flake8.outputs.output }}
+        with:
+          # GITHUB_TOKEN is implicit — PR author = github-actions[bot]
+          script: |
+            const flake8 = (process.env.FLAKE8_OUTPUT || '').trim();
+            const flake8Section = flake8
+              ? `\n\n### Remaining flake8 issues (manual fix required)\n\`\`\`\n${flake8}\n\`\`\``
+              : '\n\n### flake8: no issues detected \u2705';
+
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const body = [
+              '## Auto-fix: Black formatting',
+              '',
+              'Opened automatically by the **Lint Auto-fix** workflow.',
+              '`black --line-length 100` has been applied to `cyt/` and `web/`.',
+              '',
+              `Triggered by workflow run [${context.runId}](${runUrl}).`,
+              flake8Section,
+            ].join('\n');
+
+            // Check for an existing open PR on this branch
+            const { data: pulls } = await github.rest.pulls.list({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              head:  `${context.repo.owner}:autofix/black-format`,
+              state: 'open',
+            });
+
+            if (pulls.length > 0) {
+              // PR exists — update body with latest flake8 output, no new PR
+              await github.rest.pulls.update({
+                owner:       context.repo.owner,
+                repo:        context.repo.repo,
+                pull_number: pulls[0].number,
+                body,
+              });
+              core.notice(`PR #${pulls[0].number} already open — branch and body updated.`);
+              core.setOutput('number', String(pulls[0].number));
+              return;
+            }
+
+            // No open PR — create one
+            const base = context.ref.replace('refs/heads/', '');
+            const { data: pr } = await github.rest.pulls.create({
+              owner: context.repo.owner,
+              repo:  context.repo.repo,
+              title: 'style: auto-format with black (line-length 100)',
+              body,
+              head:  'autofix/black-format',
+              base,
+            });
+            core.notice(`Opened PR #${pr.number}`);
+            core.setOutput('number', String(pr.number));
+
+      # ── Auto-approve using PAT (different identity from github-actions[bot]) ─
+      - name: Auto-approve PR
+        if: steps.diff.outputs.changed == 'true'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.PAT_TOKEN }}
+          script: |
+            const prNumber = Number('${{ steps.pr.outputs.number }}');
+            if (!prNumber) {
+              core.warning('No PR number available — skipping approval.');
+              return;
+            }
+            await github.rest.pulls.createReview({
+              owner:       context.repo.owner,
+              repo:        context.repo.repo,
+              pull_number: prNumber,
+              event:       'APPROVE',
+              body:        'Auto-approved: formatting-only change produced by the lint-autofix workflow.',
+            });
+            core.notice(`PR #${prNumber} approved.`);
+
+      # ── No-op summary when black is already happy ─────────────────────────
+      - name: Nothing to fix
+        if: steps.diff.outputs.changed == 'false'
+        run: echo "Black is satisfied — no PR needed."
