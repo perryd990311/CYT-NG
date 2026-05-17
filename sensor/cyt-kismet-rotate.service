@@ -1,7 +1,7 @@
 [Unit]
 Description=CYT-NG Kismet log rotation (SIGHUP) then sync
 After=kismet.service
-ConditionPathExists=/kismet/
+ConditionPathExists=/home/kismet/kismet_logs/
 Wants=cyt-kismet-sync.service
 
 [Service]
