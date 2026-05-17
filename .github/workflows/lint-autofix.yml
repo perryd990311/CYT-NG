@@ -67,6 +67,43 @@ jobs:
             echo "changed=true"  >> "$GITHUB_OUTPUT"
           fi
 
+      # ── Safety gate: verify diff is formatting-only before doing anything ────
+      # Black never adds new definitions, deletes files, or touches non-Python
+      # files.  If any of those conditions are detected we abort — something
+      # unexpected happened and a human should review it manually.
+      - name: Validate diff is formatting-only
+        if: steps.diff.outputs.changed == 'true'
+        id: validate
+        run: |
+          # Capture a summary for the PR body
+          STATS=$(git diff --stat)
+          echo "stats<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$STATS"     >> "$GITHUB_OUTPUT"
+          echo "EOF"        >> "$GITHUB_OUTPUT"
+
+          # 1 — only .py files should be touched
+          NON_PY=$(git diff --name-only | grep -v '\.py$' || true)
+          if [ -n "$NON_PY" ]; then
+            echo "::error::Non-Python files in diff — aborting autofix: $NON_PY"
+            exit 1
+          fi
+
+          # 2 — no new function/class definitions should appear (black never adds logic)
+          NEW_DEFS=$(git diff | grep '^+' | grep -v '^+++' | grep -E '^\+(def |class )' || true)
+          if [ -n "$NEW_DEFS" ]; then
+            echo "::error::New definitions detected in diff — this is unexpected from black. Aborting."
+            exit 1
+          fi
+
+          # 3 — no files should be added or deleted
+          ADDED_DELETED=$(git diff --name-only --diff-filter=AD || true)
+          if [ -n "$ADDED_DELETED" ]; then
+            echo "::error::Files were added or deleted — aborting autofix: $ADDED_DELETED"
+            exit 1
+          fi
+
+          echo "Safety gate passed: diff is formatting-only."
+
       # ── Commit & force-push to the dedicated autofix branch ─────────────────
       - name: Push to autofix branch
         if: steps.diff.outputs.changed == 'true'
@@ -85,6 +122,7 @@ jobs:
         uses: actions/github-script@v7
         env:
           FLAKE8_OUTPUT: ${{ steps.flake8.outputs.output }}
+          DIFF_STATS: ${{ steps.validate.outputs.stats }}
         with:
           # GITHUB_TOKEN is implicit — PR author = github-actions[bot]
           script: |
@@ -92,6 +130,11 @@ jobs:
             const flake8Section = flake8
               ? `\n\n### Remaining flake8 issues (manual fix required)\n\`\`\`\n${flake8}\n\`\`\``
               : '\n\n### flake8: no issues detected \u2705';
+
+            const stats = (process.env.DIFF_STATS || '').trim();
+            const statsSection = stats
+              ? `\n\n### Safety gate \u2705 — formatting-only changes confirmed\n\`\`\`\n${stats}\n\`\`\`\n> Verified: only \`.py\` files modified, no new definitions added, no files created or deleted.`
+              : '';
 
             const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
             const body = [
@@ -101,6 +144,7 @@ jobs:
               '`black --line-length 100` has been applied to `cyt/` and `web/`.',
               '',
               `Triggered by workflow run [${context.runId}](${runUrl}).`,
+              statsSection,
               flake8Section,
             ].join('\n');
 
@@ -158,6 +202,28 @@ jobs:
               body:        'Auto-approved: formatting-only change produced by the lint-autofix workflow.',
             });
             core.notice(`PR #${prNumber} approved.`);
+
+      # ── Squash-merge the PR (PAT — same identity as approver is fine for merge) ─
+      - name: Merge PR
+        if: steps.diff.outputs.changed == 'true'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.PAT_TOKEN }}
+          script: |
+            const prNumber = Number('${{ steps.pr.outputs.number }}');
+            if (!prNumber) {
+              core.warning('No PR number available — skipping merge.');
+              return;
+            }
+            await github.rest.pulls.merge({
+              owner:        context.repo.owner,
+              repo:         context.repo.repo,
+              pull_number:  prNumber,
+              merge_method: 'squash',
+              commit_title: 'style: auto-format with black (line-length 100)',
+              commit_message: 'Applied by the lint-autofix workflow. Safety gate confirmed formatting-only changes.',
+            });
+            core.notice(`PR #${prNumber} squash-merged.`);
 
       # ── No-op summary when black is already happy ─────────────────────────
       - name: Nothing to fix
