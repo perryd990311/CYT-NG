@@ -538,3 +538,122 @@ def ssids():
     )
 
     return render_template("ssids.html", ssids=ssid_list, days=days)
+
+
+# ── WiGLE geolocation routes ────────────────────────────────────────────────
+
+
+@bp.route("/ssids/<path:ssid>/wigle-lookup", methods=["POST"])
+def wigle_lookup(ssid):
+    """Cache-first WiGLE SSID lookup.  Returns an HTMX partial fragment.
+
+    - Cached result within TTL → return immediately, no API call.
+    - Cache miss + token configured → call WiGLE, store results, return partial.
+    - Token not configured → return disabled-state partial.
+    - WiGLE quota exceeded → return 429 with amber badge partial.
+    """
+    from flask import current_app
+
+    if not InputValidator.validate_ssid(ssid):
+        abort(400, "Invalid SSID.")
+
+    db = get_db()
+    ttl_days = current_app.config.get("WIGLE_CACHE_TTL_DAYS", 7)
+    cutoff = datetime.utcnow() - timedelta(days=ttl_days)
+
+    from cyt.models import WiGLEResult
+    from cyt.wigle import WiGLEClient, WiGLERateLimited
+
+    cached = (
+        db.query(WiGLEResult)
+        .filter(WiGLEResult.ssid == ssid, WiGLEResult.queried_at >= cutoff)
+        .all()
+    )
+
+    if cached:
+        results = [
+            {
+                "lat": r.lat,
+                "lon": r.lon,
+                "city": r.city,
+                "region": r.region,
+                "country": r.country,
+            }
+            for r in cached
+        ]
+        return render_template(
+            "partials/wigle_result.html", ssid=ssid, results=results, cached=True
+        )
+
+    client = WiGLEClient(search_bounds=current_app.config.get("SEARCH", {}))
+
+    if not client.enabled:
+        return render_template(
+            "partials/wigle_result.html", ssid=ssid, results=None, disabled=True
+        )
+
+    try:
+        results = client.lookup_ssid(ssid)
+    except WiGLERateLimited:
+        return (
+            render_template(
+                "partials/wigle_result.html", ssid=ssid, results=None, rate_limited=True
+            ),
+            429,
+        )
+
+    now = datetime.utcnow()
+    for r in results:
+        db.add(
+            WiGLEResult(
+                ssid=ssid,
+                lat=r.get("lat"),
+                lon=r.get("lon"),
+                city=r.get("city", ""),
+                region=r.get("region", ""),
+                country=r.get("country", ""),
+                result_json=json.dumps(r),
+                queried_at=now,
+            )
+        )
+    db.commit()
+
+    return render_template(
+        "partials/wigle_result.html", ssid=ssid, results=results, cached=False
+    )
+
+
+@bp.route("/ssids/<path:ssid>/wigle-data")
+def wigle_data(ssid):
+    """Return cached WiGLE results as JSON for Leaflet map rendering."""
+    from flask import current_app
+
+    if not InputValidator.validate_ssid(ssid):
+        abort(400, "Invalid SSID.")
+
+    db = get_db()
+    ttl_days = current_app.config.get("WIGLE_CACHE_TTL_DAYS", 7)
+    cutoff = datetime.utcnow() - timedelta(days=ttl_days)
+
+    from cyt.models import WiGLEResult
+
+    rows = (
+        db.query(WiGLEResult)
+        .filter(WiGLEResult.ssid == ssid, WiGLEResult.queried_at >= cutoff)
+        .all()
+    )
+
+    return jsonify(
+        ssid=ssid,
+        results=[
+            {
+                "lat": r.lat,
+                "lon": r.lon,
+                "city": r.city,
+                "region": r.region,
+                "country": r.country,
+                "queried_at": r.queried_at.isoformat() if r.queried_at else None,
+            }
+            for r in rows
+        ],
+    )

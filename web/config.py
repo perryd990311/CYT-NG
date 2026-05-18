@@ -72,6 +72,9 @@ class Config:
     MIN_SSIDS_FOR_FINGERPRINT = _cfg.get("fingerprinting", {}).get("min_ssids_for_fingerprint", 1)
     MAX_DEVICES_PER_SSID = _cfg.get("fingerprinting", {}).get("max_devices_per_ssid", 20)
 
+    # WiGLE geolocation cache TTL
+    WIGLE_CACHE_TTL_DAYS = _cfg.get("wigle", {}).get("cache_ttl_days", 7)
+
     # Display preferences
     HIDE_UNKNOWN_MANUFACTURER = _cfg.get("display", {}).get("hide_unknown_manufacturer", False)
 

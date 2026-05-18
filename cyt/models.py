@@ -170,6 +170,29 @@ class KismetFileTracker(Base):
     )
 
 
+class WiGLEResult(Base):
+    """Cached WiGLE SSID geolocation results.
+
+    Standalone cache table — no foreign keys to other models.
+    Auto-created via create_all() on startup.
+    One row per (ssid, lat, lon) observation returned by WiGLE.
+    """
+
+    __tablename__ = "wigle_results"
+
+    id = Column(Integer, primary_key=True)
+    ssid = Column(String(255), nullable=False, index=True)
+    lat = Column(Float, nullable=True)
+    lon = Column(Float, nullable=True)
+    city = Column(String(100), nullable=True)
+    region = Column(String(100), nullable=True)
+    country = Column(String(10), nullable=True)
+    result_json = Column(Text, nullable=True)  # full raw result dict as JSON
+    queried_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    __table_args__ = (Index("ix_wigle_results_ssid_queried", "ssid", "queried_at"),)
+
+
 def init_db(db_path: str = "cyt_data.db"):
     """Create engine, session factory, and all tables."""
     from sqlalchemy import event
