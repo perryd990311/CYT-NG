@@ -128,7 +128,39 @@
       <div class="card-body">
         {% if ssid_pool %}
         {% for ssid in ssid_pool %}
-        <span class="badge me-1 mb-1" style="background:rgba(167,139,250,0.12);color:var(--cyt-purple);border:1px solid rgba(167,139,250,0.28);font-size:0.72rem;">{{ ssid }}</span>
+        {% set cached_locs = wigle_cache.get(ssid, []) %}
+        <span class="d-inline-flex align-items-center gap-1 me-1 mb-1">
+          {# SSID pill #}
+          <span class="badge" style="background:rgba(167,139,250,0.12);color:var(--cyt-purple);border:1px solid rgba(167,139,250,0.28);font-size:0.72rem;">{{ ssid }}</span>
+
+          {# WiGLE pin: map icon if cached, small geo-alt lookup button if not #}
+          {% if cached_locs %}
+            {% set primary = cached_locs[0] %}
+            {% set loc_str = ([primary.city, primary.region] | select | join(', ')) or primary.country or '' %}
+            <button type="button"
+                    class="btn btn-link btn-sm p-0 text-info"
+                    title="{{ loc_str or 'View on map' }}"
+                    data-wigle-ssid="{{ ssid | e }}"
+                    data-bs-toggle="modal"
+                    data-bs-target="#wigleMapModal"
+                    style="font-size:0.7rem;">
+              <i class="bi bi-geo-alt-fill"></i>
+            </button>
+          {% else %}
+            <button id="wigle-pill-{{ loop.index }}"
+                    type="button"
+                    class="btn btn-link btn-sm p-0 text-muted"
+                    title="Look up {{ ssid }} on WiGLE"
+                    hx-post="{{ url_for('devices.wigle_lookup', ssid=ssid) }}"
+                    hx-target="#wigle-pill-{{ loop.index }}"
+                    hx-swap="outerHTML"
+                    hx-indicator="#wigle-pill-spin-{{ loop.index }}"
+                    style="font-size:0.7rem;">
+              <span id="wigle-pill-spin-{{ loop.index }}" class="htmx-indicator spinner-border spinner-border-sm" role="status" style="width:.65rem;height:.65rem;"></span>
+              <i class="bi bi-geo-alt htmx-not-indicator"></i>
+            </button>
+          {% endif %}
+        </span>
         {% endfor %}
         {% else %}
         <span class="text-muted">No SSIDs recorded.</span>
