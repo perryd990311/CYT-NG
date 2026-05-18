@@ -2,6 +2,12 @@
 {% from "macros/localtime.html" import localtime %}
 {% block title %}Cluster #{{ fp.id }} — CYT-NG{% endblock %}
 
+{% block leaflet_assets %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+      crossorigin="anonymous">
+{% endblock %}
+
 {% block content %}
 <nav aria-label="breadcrumb" class="mb-3">
   <ol class="breadcrumb">
