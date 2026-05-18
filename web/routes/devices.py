@@ -537,7 +537,32 @@ def ssids():
         reverse=True,
     )
 
-    return render_template("ssids.html", ssids=ssid_list, days=days)
+    # Pre-load WiGLE cache so the template can show cached locations immediately
+    from cyt.models import WiGLEResult
+    from flask import current_app
+    from collections import defaultdict as _dd
+
+    ttl_days = current_app.config.get("WIGLE_CACHE_TTL_DAYS", 7)
+    cutoff = datetime.utcnow() - timedelta(days=ttl_days)
+    all_ssid_names = [s["ssid"] for s in ssid_list]
+    wigle_rows = (
+        db.query(WiGLEResult)
+        .filter(WiGLEResult.ssid.in_(all_ssid_names), WiGLEResult.queried_at >= cutoff)
+        .all()
+    )
+    wigle_cache = _dd(list)
+    for row in wigle_rows:
+        wigle_cache[row.ssid].append(
+            {
+                "lat": row.lat,
+                "lon": row.lon,
+                "city": row.city,
+                "region": row.region,
+                "country": row.country,
+            }
+        )
+
+    return render_template("ssids.html", ssids=ssid_list, days=days, wigle_cache=dict(wigle_cache))
 
 
 # ── WiGLE geolocation routes ────────────────────────────────────────────────
