@@ -672,6 +672,31 @@ def cluster_detail(cluster_id):
     daily_labels = [str(r.day) for r in daily_rows]
     daily_data = [r.cnt for r in daily_rows]
 
+    # Pre-load WiGLE cache for all SSIDs in the pool so the template can
+    # show map pins immediately without an extra round-trip
+    from cyt.models import WiGLEResult
+    from flask import current_app
+    from collections import defaultdict as _dd
+
+    ttl_days = current_app.config.get("WIGLE_CACHE_TTL_DAYS", 7)
+    cutoff = datetime.utcnow() - timedelta(days=ttl_days)
+    wigle_rows = (
+        db.query(WiGLEResult)
+        .filter(WiGLEResult.ssid.in_(ssid_pool), WiGLEResult.queried_at >= cutoff)
+        .all()
+    )
+    wigle_cache = _dd(list)
+    for row in wigle_rows:
+        wigle_cache[row.ssid].append(
+            {
+                "lat": row.lat,
+                "lon": row.lon,
+                "city": row.city,
+                "region": row.region,
+                "country": row.country,
+            }
+        )
+
     return render_template(
         "cluster_detail.html",
         fp=fp,
@@ -684,6 +709,7 @@ def cluster_detail(cluster_id):
         sensor_stats=sensor_stats,
         daily_labels=daily_labels,
         daily_data=daily_data,
+        wigle_cache=dict(wigle_cache),
     )
 
 

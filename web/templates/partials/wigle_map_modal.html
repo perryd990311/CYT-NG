@@ -1,0 +1,151 @@
+{#
+  WiGLE Leaflet map modal — included once in base.html, always present but hidden.
+  Activated by any element that carries:
+    data-bs-toggle="modal"
+    data-bs-target="#wigleMapModal"
+    data-wigle-ssid="<ssid value>"
+
+  The modal fetches /devices/ssids/<ssid>/wigle-data on open, then renders
+  Leaflet markers for each cached observation.  Map is destroyed on close
+  so re-opening a different SSID always starts clean.
+
+  Leaflet CSS is loaded conditionally by pages that use this modal via
+  {% block leaflet_assets %} in base.html.
+#}
+<div class="modal fade" id="wigleMapModal" tabindex="-1"
+     aria-labelledby="wigleModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-centered">
+    <div class="modal-content" style="background:var(--cyt-surface);border-color:var(--cyt-border);">
+
+      <div class="modal-header" style="border-color:var(--cyt-border);">
+        <h5 class="modal-title" id="wigleModalLabel">
+          <i class="bi bi-geo-alt-fill text-info me-2"></i>
+          WiGLE Observations —
+          <span id="wigleModalSsid" class="font-monospace text-info"></span>
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+
+      <div class="modal-body p-0" style="position:relative;">
+        {# Loading overlay — shown while fetching data #}
+        <div id="wigleMapLoading"
+             style="position:absolute;inset:0;z-index:1000;display:flex;align-items:center;
+                    justify-content:center;background:rgba(0,0,0,0.55);">
+          <div class="spinner-border text-info" role="status">
+            <span class="visually-hidden">Loading…</span>
+          </div>
+        </div>
+
+        {# No-results notice — shown when cache has no observations #}
+        <div id="wigleMapEmpty"
+             style="display:none;padding:3rem;text-align:center;color:var(--cyt-text-muted);">
+          <i class="bi bi-geo fs-1 d-block mb-2"></i>
+          No WiGLE observations cached for this SSID.
+        </div>
+
+        {# Leaflet map container #}
+        <div id="wigleMap" style="height:480px;width:100%;"></div>
+      </div>
+
+      <div class="modal-footer" style="border-color:var(--cyt-border);font-size:0.75rem;color:var(--cyt-text-muted);">
+        <span id="wigleMapCount"></span>
+        <span class="ms-auto">Map data © <a href="https://www.openstreetmap.org/copyright"
+              target="_blank" rel="noopener" style="color:var(--cyt-cyan);">OpenStreetMap</a> contributors</span>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+{# ── Leaflet JS (loaded once — CSS loaded conditionally via leaflet_assets block) #}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV/XN/WLEo="
+        crossorigin="anonymous"></script>
+
+<script>
+(function () {
+  const modal   = document.getElementById('wigleMapModal');
+  const mapEl   = document.getElementById('wigleMap');
+  const loading = document.getElementById('wigleMapLoading');
+  const empty   = document.getElementById('wigleMapEmpty');
+  const ssidEl  = document.getElementById('wigleModalSsid');
+  const countEl = document.getElementById('wigleMapCount');
+
+  if (!modal || !mapEl) return;
+
+  let wigleMap = null;
+
+  modal.addEventListener('show.bs.modal', async function (e) {
+    const ssid = e.relatedTarget ? e.relatedTarget.dataset.wigleSsid : '';
+    ssidEl.textContent = ssid || '';
+    countEl.textContent = '';
+
+    // Reset state
+    loading.style.display = 'flex';
+    empty.style.display   = 'none';
+    mapEl.style.display   = 'block';
+
+    // Destroy previous map instance so Leaflet reinitialises cleanly
+    if (wigleMap) {
+      wigleMap.remove();
+      wigleMap = null;
+    }
+
+    let results = [];
+    try {
+      const resp = await fetch(
+        '/devices/ssids/' + encodeURIComponent(ssid) + '/wigle-data',
+        { headers: { 'X-Requested-With': 'XMLHttpRequest' } }
+      );
+      if (resp.ok) {
+        const data = await resp.json();
+        results = (data.results || []).filter(r => r.lat && r.lon);
+      }
+    } catch (err) {
+      console.warn('WiGLE map fetch failed:', err);
+    }
+
+    loading.style.display = 'none';
+
+    if (results.length === 0) {
+      mapEl.style.display = 'none';
+      empty.style.display = 'block';
+      return;
+    }
+
+    // Initialise Leaflet now that the modal is visible and map div is sized
+    wigleMap = L.map(mapEl, { preferCanvas: true });
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 18,
+      attribution: ''   // attribution shown in footer instead
+    }).addTo(wigleMap);
+
+    const markers = [];
+    for (const r of results) {
+      const locParts = [r.city, r.region, r.country].filter(Boolean);
+      const locStr   = locParts.join(', ') || 'Unknown location';
+      const popup    = `<strong style="font-family:monospace;">${ssid}</strong>` +
+                       `<br><span style="font-size:0.82rem;">${locStr}</span>`;
+      markers.push(L.marker([r.lat, r.lon]).bindPopup(popup).addTo(wigleMap));
+    }
+
+    const group = L.featureGroup(markers);
+    wigleMap.fitBounds(group.getBounds().pad(0.25));
+
+    const n = results.length;
+    countEl.textContent = n + ' observation' + (n !== 1 ? 's' : '') + ' cached';
+  });
+
+  // Destroy map on close so the next open always reinitialises
+  modal.addEventListener('hidden.bs.modal', function () {
+    if (wigleMap) {
+      wigleMap.remove();
+      wigleMap = null;
+    }
+    loading.style.display = 'flex';
+    empty.style.display   = 'none';
+    mapEl.style.display   = 'block';
+  });
+})();
+</script>

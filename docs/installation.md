@@ -69,6 +69,25 @@ TLS_KEY_PATH=
 
 > Generate a secret key: `python3 -c "import secrets; print(secrets.token_hex(32))"`
 
+### Optional: WiGLE SSID Geolocation
+
+CYT-NG can look up where a probed SSID has been observed geographically using the [WiGLE](https://wigle.net) database. This is entirely optional — the app runs normally without it and all WiGLE UI elements are hidden when the token is absent.
+
+**Getting a WiGLE API token:**
+
+1. Create a free account at [wigle.net](https://wigle.net)
+2. Go to **My Account → API Token**
+3. Copy your **Encoded for Use** token (starts with `AID` — this is the base64-encoded `name:token` pair that the API expects in the `Authorization: Basic` header)
+4. Set it in `.env`:
+
+```env
+WIGLE_API_TOKEN=AID<your-encoded-token>
+```
+
+> **Free tier limits:** ~10 SSID searches per day. CYT-NG queries on demand only (no auto-lookup), so quota is spent only when you explicitly click **Lookup**. Results are cached for 7 days (configurable via `config.json` → `wigle.cache_ttl_days`) to avoid re-querying the same SSID.
+
+> **Privacy note:** SSID lookups are sent to WiGLE's servers. Avoid looking up SSIDs from your own network if privacy is a concern.
+
 ## 3. Set Up the Kismet Data Share
 
 Sensors sync `.kismet` files to the NAS via SMB.
