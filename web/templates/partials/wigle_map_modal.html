@@ -121,12 +121,21 @@
       attribution: ''   // attribution shown in footer instead
     }).addTo(wigleMap);
 
+    const escapeHtml = (s) =>
+      String(s ?? '').replace(/[&<>"']/g, (c) => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+      }[c]));
+
     const markers = [];
     for (const r of results) {
       const locParts = [r.city, r.region, r.country].filter(Boolean);
-      const locStr   = locParts.join(', ') || 'Unknown location';
-      const popup    = `<strong style="font-family:monospace;">${ssid}</strong>` +
-                       `<br><span style="font-size:0.82rem;">${locStr}</span>`;
+      const locStrRaw = locParts.join(', ') || 'Unknown location';
+      const popup = `<strong style="font-family:monospace;">${escapeHtml(ssid)}</strong>` +
+                    `<br><span style="font-size:0.82rem;">${escapeHtml(locStrRaw)}</span>`;
       markers.push(L.marker([r.lat, r.lon]).bindPopup(popup).addTo(wigleMap));
     }
 
