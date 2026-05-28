@@ -71,7 +71,7 @@ TLS_KEY_PATH=
 
 ### Optional: WiGLE SSID Geolocation
 
-CYT-NG can look up where a probed SSID has been observed geographically using the [WiGLE](https://wigle.net) database. This is entirely optional — the app runs normally without it and all WiGLE UI elements are hidden when the token is absent.
+CYT-NG can look up where a probed SSID has been observed geographically using the [WiGLE](https://wigle.net) database. This is entirely optional — the app runs normally without it; WiGLE lookups will show a disabled "Configure WiGLE" state when the token is absent.
 
 **Getting a WiGLE API token:**
 
