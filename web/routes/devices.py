@@ -545,11 +545,18 @@ def ssids():
     ttl_days = current_app.config.get("WIGLE_CACHE_TTL_DAYS", 7)
     cutoff = datetime.utcnow() - timedelta(days=ttl_days)
     all_ssid_names = [s["ssid"] for s in ssid_list]
-    wigle_rows = (
-        db.query(WiGLEResult)
-        .filter(WiGLEResult.ssid.in_(all_ssid_names), WiGLEResult.queried_at >= cutoff)
-        .all()
-    )
+
+    wigle_rows = []
+    if all_ssid_names:
+        # Avoid SQLite "too many SQL variables" failures by batching large IN lists
+        chunk_size = 900
+        for i in range(0, len(all_ssid_names), chunk_size):
+            chunk = all_ssid_names[i : i + chunk_size]
+            wigle_rows.extend(
+                db.query(WiGLEResult)
+                .filter(WiGLEResult.ssid.in_(chunk), WiGLEResult.queried_at >= cutoff)
+                .all()
+            )
     wigle_cache = _dd(list)
     for row in wigle_rows:
         wigle_cache[row.ssid].append(
