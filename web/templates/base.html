@@ -138,7 +138,9 @@
   <script src="{{ url_for('static', filename='js/app.js') }}"></script>
   <script src="{{ url_for('static', filename='js/table-sort.js') }}"></script>
   {% block scripts %}{% endblock %}
-  {# WiGLE Leaflet map modal — always present, activated on demand #}
-  {% include "partials/wigle_map_modal.html" %}
+  {# WiGLE Leaflet map modal — only include on pages that provide leaflet_assets #}
+  {% if self.leaflet_assets()|trim %}
+    {% include "partials/wigle_map_modal.html" %}
+  {% endif %}
 </body>
 </html>
