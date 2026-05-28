@@ -633,6 +633,10 @@ def wigle_lookup(ssid):
         )
 
     now = datetime.utcnow()
+
+    # Replace any prior cached rows for this SSID to prevent duplicate/stale accumulation
+    db.query(WiGLEResult).filter(WiGLEResult.ssid == ssid).delete(synchronize_session=False)
+
     for r in results:
         db.add(
             WiGLEResult(
