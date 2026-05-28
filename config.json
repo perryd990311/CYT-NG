@@ -57,5 +57,8 @@
     "jaccard_threshold": 0.85,
     "min_ssids_for_fingerprint": 1,
     "max_devices_per_ssid": 20
+  },
+  "wigle": {
+    "cache_ttl_days": 7
   }
 }

@@ -2,6 +2,12 @@
 {% from "macros/localtime.html" import localtime %}
 {% block title %}Probed SSIDs — CYT-NG{% endblock %}
 
+{% block leaflet_assets %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+      crossorigin="anonymous">
+{% endblock %}
+
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h4 class="mb-0"><i class="bi bi-wifi"></i> Probed SSIDs ({{ ssids|length }})</h4>
@@ -38,6 +44,7 @@
           <th data-sort="number">Devices</th>
           <th data-sort="number">Probes</th>
           <th data-sort="date">Last Seen</th>
+          <th data-sort="text">Location</th>
         </tr>
       </thead>
       <tbody>
@@ -55,6 +62,45 @@
           </td>
           <td>{{ s.probe_count }}</td>
           <td data-sort-value="{{ s.last_seen.isoformat() if s.last_seen else '' }}">{{ localtime(s.last_seen) }}</td>
+
+          {# ── WiGLE location cell ───────────────────────────────────────── #}
+          {% set cached_locs = wigle_cache.get(s.ssid, []) %}
+          <td id="wigle-loc-{{ loop.index }}">
+            {% if cached_locs %}
+              {# Cached result — render inline using the same partial logic #}
+              {% set primary = cached_locs[0] %}
+              {% set loc_str = ([primary.city, primary.region] | select | join(', ')) or primary.country or '' %}
+              <span class="d-inline-flex align-items-center gap-1">
+                <span class="text-nowrap small">
+                  <i class="bi bi-geo-alt-fill text-info me-1"></i>{{ loc_str or 'Unknown' }}
+                  {% if cached_locs | length > 1 %}
+                    <span class="text-muted ms-1">(+{{ cached_locs | length - 1 }} more)</span>
+                  {% endif %}
+                </span>
+                <button type="button"
+                        class="btn btn-link btn-sm p-0 text-info"
+                        title="View on map"
+                        data-wigle-ssid="{{ s.ssid | e }}"
+                        data-bs-toggle="modal"
+                        data-bs-target="#wigleMapModal">
+                  <i class="bi bi-map"></i>
+                </button>
+                <span class="badge bg-secondary bg-opacity-50 small">cached</span>
+              </span>
+            {% else %}
+              {# No cached data — show lookup button #}
+              <button type="button"
+                      class="btn btn-sm btn-outline-info py-0 px-2"
+                      hx-post="{{ url_for('devices.wigle_lookup', ssid=s.ssid) }}"
+                      hx-target="#wigle-loc-{{ loop.index }}"
+                      hx-swap="innerHTML"
+                      hx-indicator="#wigle-spin-{{ loop.index }}"
+                      title="Look up {{ s.ssid }} on WiGLE">
+                <span id="wigle-spin-{{ loop.index }}" class="htmx-indicator spinner-border spinner-border-sm me-1" role="status"></span>
+                <i class="bi bi-geo-alt me-1"></i>Lookup
+              </button>
+            {% endif %}
+          </td>
         </tr>
         {% endfor %}
       </tbody>

@@ -38,6 +38,9 @@ In Docker, a writable override is stored at `/data/cyt/config.json`. The baked-i
   "fingerprinting": {
     "jaccard_threshold": 0.85,
     "min_ssids_for_fingerprint": 2
+  },
+  "wigle": {
+    "cache_ttl_days": 7
   }
 }
 ```
@@ -79,6 +82,14 @@ GPS bounding box for WiGLE SSID geolocation lookups. Set to `0.0` to disable.
 |-----|-------------|---------|
 | `jaccard_threshold` | Minimum Jaccard similarity (0.0–1.0) to cluster two SSID probe pools as the same device | `0.85` |
 | `min_ssids_for_fingerprint` | Minimum unique SSIDs a device must probe before fingerprint analysis applies | `2` |
+
+#### wigle
+
+Controls WiGLE SSID geolocation caching. Requires `WIGLE_API_TOKEN` in `.env` — the feature disables gracefully when the token is absent.
+
+| Key | Description | Default |
+|-----|-------------|---------|
+| `cache_ttl_days` | Days to cache a WiGLE lookup result before re-querying the API | `7` |
 
 ## .env
 

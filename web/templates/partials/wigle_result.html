@@ -1,0 +1,63 @@
+{#
+  WiGLE lookup result fragment — swapped in by HTMX after POST /ssids/<ssid>/wigle-lookup.
+
+  Context variables (all optional — route sets exactly the right combination):
+    ssid         str   — the queried SSID
+    results      list  — [{lat, lon, city, region, country}, …]  or None
+    cached       bool  — True when result came from DB cache
+    disabled     bool  — True when WIGLE_API_TOKEN is not configured
+    rate_limited bool  — True when WiGLE quota was exceeded
+#}
+
+{% if disabled %}
+  {# ── Token not configured ─────────────────────────────────────────────── #}
+  <span class="badge bg-secondary" title="Set WIGLE_API_TOKEN to enable geolocation">
+    <i class="bi bi-geo-alt-fill me-1"></i>Configure WiGLE
+  </span>
+
+{% elif rate_limited %}
+  {# ── Daily quota exceeded ──────────────────────────────────────────────── #}
+  <span class="badge bg-warning text-dark" title="WiGLE free-tier daily quota reached">
+    <i class="bi bi-exclamation-triangle-fill me-1"></i>Quota exceeded
+  </span>
+
+{% elif results is none or results | length == 0 %}
+  {# ── Lookup returned no observations ──────────────────────────────────── #}
+  <span class="badge bg-secondary" title="No WiGLE observations for this SSID">
+    <i class="bi bi-geo-alt me-1"></i>No locations found
+  </span>
+
+{% else %}
+  {# ── Results — show primary location + map pin ────────────────────────── #}
+  {% set primary = results[0] %}
+  {% set location_str %}
+    {%- if primary.city -%}{{ primary.city }}{%- endif -%}
+    {%- if primary.city and primary.region -%}, {%- endif -%}
+    {%- if primary.region -%}{{ primary.region }}{%- endif -%}
+    {%- if not primary.city and not primary.region and primary.country -%}{{ primary.country }}{%- endif -%}
+  {% endset %}
+
+  <span class="d-inline-flex align-items-center gap-1">
+    <span class="text-nowrap small">
+      <i class="bi bi-geo-alt-fill text-info me-1"></i>
+      {{- location_str | trim or primary.country or "Unknown" -}}
+      {% if results | length > 1 %}
+        <span class="text-muted ms-1">(+{{ results | length - 1 }} more)</span>
+      {% endif %}
+    </span>
+
+    {# Map pin — triggers map modal (Phase 7 wires up the data-bs-* attributes) #}
+    <button type="button"
+            class="btn btn-link btn-sm p-0 text-info"
+            title="View on map"
+            data-wigle-ssid="{{ ssid | e }}"
+            data-bs-toggle="modal"
+            data-bs-target="#wigleMapModal">
+      <i class="bi bi-map"></i>
+    </button>
+
+    {% if cached %}
+      <span class="badge bg-secondary bg-opacity-50 small" title="Served from cache">cached</span>
+    {% endif %}
+  </span>
+{% endif %}
