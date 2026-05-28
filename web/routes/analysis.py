@@ -682,7 +682,11 @@ def cluster_detail(cluster_id):
     cutoff = datetime.utcnow() - timedelta(days=ttl_days)
     wigle_rows = (
         db.query(WiGLEResult)
-        .filter(WiGLEResult.ssid.in_(ssid_pool), WiGLEResult.queried_at >= cutoff)
+        .filter(
+            WiGLEResult.ssid.in_(ssid_pool),
+            WiGLEResult.queried_at >= cutoff,
+            WiGLEResult.lat.isnot(None),
+        )
         .all()
     )
     wigle_cache = _dd(list)

@@ -9,6 +9,7 @@ from flask_login import login_required
 from sqlalchemy import func
 
 from web.extensions import get_db
+from web.routes.auth import limiter
 from cyt.models import Device, Appearance, Sensor
 from cyt.input_validation import InputValidator
 from cyt.scoring import compute_likelihood
@@ -554,7 +555,11 @@ def ssids():
             chunk = all_ssid_names[i : i + chunk_size]
             wigle_rows.extend(
                 db.query(WiGLEResult)
-                .filter(WiGLEResult.ssid.in_(chunk), WiGLEResult.queried_at >= cutoff)
+                .filter(
+                    WiGLEResult.ssid.in_(chunk),
+                    WiGLEResult.queried_at >= cutoff,
+                    WiGLEResult.lat.isnot(None),
+                )
                 .all()
             )
     wigle_cache = _dd(list)
@@ -576,6 +581,7 @@ def ssids():
 
 
 @bp.route("/ssids/<path:ssid>/wigle-lookup", methods=["POST"])
+@limiter.limit("20/day")
 def wigle_lookup(ssid):
     """Cache-first WiGLE SSID lookup.  Returns an HTMX partial fragment.
 
@@ -603,6 +609,7 @@ def wigle_lookup(ssid):
     )
 
     if cached:
+        # Filter out sentinel rows (lat=None) used to cache negative lookups
         results = [
             {
                 "lat": r.lat,
@@ -612,6 +619,7 @@ def wigle_lookup(ssid):
                 "country": r.country,
             }
             for r in cached
+            if r.lat is not None
         ]
         return render_template(
             "partials/wigle_result.html", ssid=ssid, results=results, cached=True
@@ -637,16 +645,31 @@ def wigle_lookup(ssid):
     # Replace any prior cached rows for this SSID to prevent duplicate/stale accumulation
     db.query(WiGLEResult).filter(WiGLEResult.ssid == ssid).delete(synchronize_session=False)
 
-    for r in results:
+    if results:
+        for r in results:
+            db.add(
+                WiGLEResult(
+                    ssid=ssid,
+                    lat=r.get("lat"),
+                    lon=r.get("lon"),
+                    city=r.get("city", ""),
+                    region=r.get("region", ""),
+                    country=r.get("country", ""),
+                    result_json=json.dumps(r),
+                    queried_at=now,
+                )
+            )
+    else:
+        # Cache the negative result so repeat clicks don't re-query the API
         db.add(
             WiGLEResult(
                 ssid=ssid,
-                lat=r.get("lat"),
-                lon=r.get("lon"),
-                city=r.get("city", ""),
-                region=r.get("region", ""),
-                country=r.get("country", ""),
-                result_json=json.dumps(r),
+                lat=None,
+                lon=None,
+                city="",
+                region="",
+                country="",
+                result_json=None,
                 queried_at=now,
             )
         )
@@ -671,7 +694,11 @@ def wigle_data(ssid):
 
     rows = (
         db.query(WiGLEResult)
-        .filter(WiGLEResult.ssid == ssid, WiGLEResult.queried_at >= cutoff)
+        .filter(
+            WiGLEResult.ssid == ssid,
+            WiGLEResult.queried_at >= cutoff,
+            WiGLEResult.lat.isnot(None),
+        )
         .all()
     )
 
