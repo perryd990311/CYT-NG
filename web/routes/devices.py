@@ -613,9 +613,7 @@ def wigle_lookup(ssid):
     client = WiGLEClient(search_bounds=current_app.config.get("SEARCH", {}))
 
     if not client.enabled:
-        return render_template(
-            "partials/wigle_result.html", ssid=ssid, results=None, disabled=True
-        )
+        return render_template("partials/wigle_result.html", ssid=ssid, results=None, disabled=True)
 
     try:
         results = client.lookup_ssid(ssid)
@@ -643,9 +641,7 @@ def wigle_lookup(ssid):
         )
     db.commit()
 
-    return render_template(
-        "partials/wigle_result.html", ssid=ssid, results=results, cached=False
-    )
+    return render_template("partials/wigle_result.html", ssid=ssid, results=results, cached=False)
 
 
 @bp.route("/ssids/<path:ssid>/wigle-data")
