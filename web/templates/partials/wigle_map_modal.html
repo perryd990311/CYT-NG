@@ -99,7 +99,9 @@
       );
       if (resp.ok) {
         const data = await resp.json();
-        results = (data.results || []).filter(r => r.lat && r.lon);
+        results = (data.results || [])
+          .map(r => ({ ...r, lat: Number(r.lat), lon: Number(r.lon) }))
+          .filter(r => Number.isFinite(r.lat) && Number.isFinite(r.lon));
       }
     } catch (err) {
       console.warn('WiGLE map fetch failed:', err);
